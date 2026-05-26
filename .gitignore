@@ -1,10 +1,12 @@
 node_modules/
 .next/
 dist/
+.env
 .env.local
 .env.*.local
 .vercel/
 coverage/
 /*.log
 /.vscode/
-/.DS_Storenode_modules
+.DS_Store
+node_modules

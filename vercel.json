@@ -1,3 +1,9 @@
 {
-  "crons": [{ "path": "/api/cron/penalize", "schedule": "59 23 * * *" }]
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "crons": [
+    {
+      "path": "/api/cron/penalize",
+      "schedule": "59 23 * * *"
+    }
+  ]
 }
