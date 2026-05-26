@@ -1,0 +1,144 @@
+import { generateObject } from 'ai';
+import { google } from '@ai-sdk/google';
+import { createClient } from '@supabase/supabase-js';
+import { NextResponse } from 'next/server';
+
+import { endOfDaySchema } from '@/lib/schema';
+
+export const dynamic = 'force-dynamic';
+
+function createSupabaseClient(authHeader?: string) {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl) {
+    throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL');
+  }
+
+  if (!supabaseAnonKey) {
+    throw new Error('Missing NEXT_PUBLIC_SUPABASE_ANON_KEY');
+  }
+
+  return createClient(supabaseUrl, supabaseAnonKey, {
+    global: authHeader
+      ? {
+          headers: {
+            Authorization: authHeader,
+          },
+        }
+      : undefined,
+  });
+}
+
+export async function POST(request: Request) {
+  try {
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      const summary = {
+        puntuacion_global: 72,
+        aciertos: ['Sesión local activa', 'Dashboard visible', 'Chat disponible'],
+        error_clave: 'Faltan variables de entorno de Supabase',
+        accion_manana: 'Configura el backend real y vuelve a registrar el día',
+        prompt_imagen:
+          'a photorealistic german shepherd in a calm bright forest, clean composition, soft morning light, no text',
+      };
+
+      const encodedPrompt = encodeURIComponent(summary.prompt_imagen);
+      const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&nologo=true`;
+
+      return NextResponse.json(
+        {
+          status: 200,
+          data: {
+            ...summary,
+            imageUrl,
+          },
+        },
+        { status: 200 }
+      );
+    }
+
+    const authHeader = request.headers.get('authorization') ?? undefined;
+    const supabase = createSupabaseClient(authHeader);
+
+    const { data: userData, error: userError } = await supabase.auth.getUser();
+
+    if (userError) {
+      throw userError;
+    }
+
+    const user = userData.user;
+
+    if (!user) {
+      return NextResponse.json(
+        { error: 'No se pudo identificar al usuario autenticado.' },
+        { status: 401 }
+      );
+    }
+
+    const today = new Date().toISOString().slice(0, 10);
+
+    const { data: records, error: recordsError } = await supabase
+      .from('daily_logs')
+      .select('id, ai_data, date, health_momentum')
+      .eq('user_id', user.id)
+      .eq('date', today)
+      .order('created_at', { ascending: true });
+
+    if (recordsError) {
+      throw recordsError;
+    }
+
+    if (!records || records.length === 0) {
+      return NextResponse.json(
+        { error: 'No hay registros para cerrar el día de hoy.' },
+        { status: 404 }
+      );
+    }
+
+    const recordsForToday = records.map((record) => record.ai_data);
+
+    const { object: summary } = await generateObject({
+      model: google('gemini-2.5-flash'),
+      system:
+        'Eres el evaluador final. Analiza este array de registros de hoy del usuario. Genera un objeto JSON con: 1) puntuacion_global (0-100), 2) aciertos (array de 3 strings), 3) error_clave (string), 4) accion_manana (string), y 5) prompt_imagen (una descripción fotorrealista en INGLÉS del estado de un perro Pastor Alemán basada en el día. Si fue bueno: atlético, bosque iluminado. Si fue malo: cansado, lloviendo, entorno sucio. SIN textos en la imagen).',
+      prompt: `Registros de hoy:\n${JSON.stringify(recordsForToday, null, 2)}`,
+      schema: endOfDaySchema,
+    });
+
+    const encodedPrompt = encodeURIComponent(summary.prompt_imagen);
+    const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&nologo=true`;
+
+    const { error: updateError } = await supabase
+      .from('daily_logs')
+      .update({
+        avatar_image_url: imageUrl,
+        close_day_data: {
+          ...summary,
+          imageUrl,
+          generated_at: new Date().toISOString(),
+          records_count: records.length,
+        },
+      })
+      .eq('user_id', user.id)
+      .eq('date', today);
+
+    if (updateError) {
+      throw updateError;
+    }
+
+    return NextResponse.json(
+      {
+        status: 200,
+        data: {
+          ...summary,
+          imageUrl,
+        },
+      },
+      { status: 200 }
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Error desconocido';
+
+    return NextResponse.json({ error: `Falló el cierre del día: ${message}` }, { status: 500 });
+  }
+}
