@@ -2,13 +2,14 @@
 
 import { AnimatePresence, motion } from 'framer-motion';
 import { History, LogOut } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import { logout } from '@/app/login/actions';
 import { triggerVibration } from '@/lib/haptics';
 import { dailyLogSchema, type DailyLog } from '@/lib/schema';
 import { supabase } from '@/lib/supabase';
 import ChatInput from '@/components/ChatInput';
+import { useDashboard } from '@/hooks/useDashboard';
 import Link from 'next/link';
 
 type DailyLogRow = {
@@ -210,48 +211,7 @@ function MetricChip({ label, value }: { label: string; value: string | number })
 export default function Page() {
   const [isXRayMode, setIsXRayMode] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [lastLog, setLastLog] = useState<DailyLog | null>(null);
-  const [momentum, setMomentum] = useState(100);
-
-  const loadDashboard = async () => {
-    try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const accessToken = sessionData.session?.access_token;
-
-      if (!accessToken) {
-        setLastLog(null);
-        setMomentum(100);
-        setIsLoading(false);
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from('daily_logs')
-        .select('health_momentum, ai_data, date')
-        .order('date', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (error) {
-        throw error;
-      }
-
-      const validated = dailyLogSchema.safeParse(data?.ai_data);
-
-      setLastLog(validated.success ? validated.data : fallbackLog);
-      setMomentum(typeof data?.health_momentum === 'number' ? data.health_momentum : 100);
-      setIsLoading(false);
-    } catch {
-      setLastLog(null);
-      setMomentum(100);
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    void loadDashboard();
-  }, []);
+  const { isLoading, lastLog, momentum, reload } = useDashboard();
 
   const theme = useMemo(() => getThemeFromMomentum(momentum), [momentum]);
   const displayLog = lastLog ?? fallbackLog;

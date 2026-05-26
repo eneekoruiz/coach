@@ -1,9 +1,10 @@
 import { createServerClient } from '@supabase/ssr';
-import { CalendarHeart, ChevronLeft, Sparkles } from 'lucide-react';
+import { CalendarHeart, ChevronLeft } from 'lucide-react';
 import { cookies } from 'next/headers';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
+import HistoryCard from '@/components/HistoryCard';
 import { dailyLogSchema, type DailyLog } from '@/lib/schema';
 
 type HistoryRow = {
@@ -27,35 +28,6 @@ type HistoryPageProps = {
 };
 
 const PAGE_SIZE = 6;
-
-async function createSupabaseServerClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  if (!supabaseUrl) {
-    throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL');
-  }
-
-  if (!supabaseAnonKey) {
-    throw new Error('Missing NEXT_PUBLIC_SUPABASE_ANON_KEY');
-  }
-
-  const cookieStore = await cookies();
-
-  return createServerClient(supabaseUrl, supabaseAnonKey, {
-    cookies: {
-      get(name) {
-        return cookieStore.get(name)?.value;
-      },
-      set(name, value, options) {
-        cookieStore.set({ name, value, ...options });
-      },
-      remove(name, options) {
-        cookieStore.set({ name, value: '', ...options, maxAge: 0 });
-      },
-    },
-  });
-}
 
 function formatSpanishDate(dateValue: string) {
   return new Intl.DateTimeFormat('es-ES', {

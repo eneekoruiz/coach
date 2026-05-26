@@ -12,6 +12,9 @@ import {
   X,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import ChatFeedbackPanel from '@/components/ChatFeedbackPanel';
+import SelectedImagePreview from '@/components/SelectedImagePreview';
+import ChatForm from '@/components/ChatForm';
 
 import { triggerVibration } from '@/lib/haptics';
 import { supabase } from '@/lib/supabase';
@@ -458,224 +461,27 @@ export default function ChatInput({ onUpdate }: ChatInputProps) {
 
         <div className="flex min-h-0 flex-1 flex-col gap-3 px-3 py-3 sm:px-4 sm:py-4">
           {feedback ? (
-            <div className="space-y-3 rounded-[1.4rem] border border-slate-200/80 bg-slate-50/80 p-4">
-              <div className="grid gap-3 lg:grid-cols-2">
-                <div className="rounded-2xl border border-white/80 bg-white p-3 shadow-sm">
-                  <p className="text-[10px] uppercase tracking-[0.28em] text-slate-500">
-                    Evaluación
-                  </p>
-                  <p className="mt-2 text-sm leading-6 text-slate-800">{evaluationText}</p>
-                </div>
-
-                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 shadow-sm">
-                  <p className="text-[10px] uppercase tracking-[0.28em] text-emerald-700">Acción</p>
-                  <p className="mt-2 text-sm font-medium leading-6 text-emerald-950">
-                    {feedback.ai_data.metricas.accion_manana}
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid gap-3 lg:grid-cols-2">
-                <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-                  <p className="text-[10px] uppercase tracking-[0.28em] text-slate-500">
-                    Bio-Avatar
-                  </p>
-                  <div className="mt-2 flex items-start gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-900 text-lg text-white">
-                      🐶
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-slate-900">
-                        {feedback.ai_data.bio_avatar.estado_fisiologico}
-                      </p>
-                      <p className="mt-1 text-xs text-slate-500">
-                        Descripción corta del estado fisiológico del día.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-                  <p className="text-[10px] uppercase tracking-[0.28em] text-slate-500">
-                    Energía y claridad
-                  </p>
-                  <div className="mt-3 grid gap-3">
-                    <div>
-                      <div className="flex items-center justify-between text-xs text-slate-500">
-                        <span>Energía</span>
-                        <span>{feedback.ai_data.bio_avatar.energia_fisica}/5</span>
-                      </div>
-                      <div className="mt-2 flex gap-1">
-                        {renderPips(feedback.ai_data.bio_avatar.energia_fisica)}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="flex items-center justify-between text-xs text-slate-500">
-                        <span>Claridad</span>
-                        <span>{feedback.ai_data.bio_avatar.claridad_mental}/5</span>
-                      </div>
-                      <div className="mt-2 flex gap-1">
-                        {renderPips(feedback.ai_data.bio_avatar.claridad_mental)}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-                <p className="text-[10px] uppercase tracking-[0.28em] text-slate-500">Aciertos</p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {feedback.ai_data.metricas.aciertos.length > 0 ? (
-                    feedback.ai_data.metricas.aciertos.map((item) => (
-                      <span
-                        key={item}
-                        className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-900"
-                      >
-                        {item}
-                      </span>
-                    ))
-                  ) : (
-                    <span className="text-sm text-slate-500">Sin aciertos registrados.</span>
-                  )}
-                </div>
-                <div className="mt-3 rounded-2xl bg-slate-50 px-3 py-2 text-sm text-slate-700">
-                  <span className="font-semibold text-slate-900">Error clave: </span>
-                  {feedback.ai_data.metricas.error_clave}
-                </div>
-              </div>
-
-              <div className="grid gap-3 lg:grid-cols-2">
-                <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-                  <p className="text-[10px] uppercase tracking-[0.28em] text-slate-500">Inercia</p>
-                  <p className="mt-2 text-2xl font-semibold text-slate-900">
-                    {feedback.health_momentum}%
-                  </p>
-                  <p className="mt-1 text-xs text-slate-500">
-                    Cambio aplicado: {feedback.ai_data.metricas.variacion_inercia >= 0 ? '+' : ''}
-                    {feedback.ai_data.metricas.variacion_inercia}
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-                  <p className="text-[10px] uppercase tracking-[0.28em] text-slate-500">
-                    Hidratación
-                  </p>
-                  <p className="mt-2 text-2xl font-semibold text-slate-900">
-                    {feedback.ai_data.hidratacion_ml} ml
-                  </p>
-                  <p className="mt-1 text-xs text-slate-500">Dato estructurado desde la IA.</p>
-                </div>
-              </div>
-            </div>
+            <ChatFeedbackPanel feedback={feedback} evaluationText={evaluationText} />
           ) : null}
 
           {selectedImage ? (
-            <div className="rounded-[1.35rem] border border-slate-200/80 bg-slate-50/85 p-3 shadow-sm">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="h-16 w-16 overflow-hidden rounded-2xl border border-slate-200 bg-white">
-                    <img
-                      src={selectedImage.previewUrl}
-                      alt={selectedImage.fileName}
-                      className="h-full w-full object-cover"
-                    />
-                  </div>
-                  <div>
-                    <p className="text-[10px] uppercase tracking-[0.28em] text-slate-500">
-                      Imagen seleccionada
-                    </p>
-                    <p className="mt-1 text-sm font-medium text-slate-900">
-                      {selectedImage.fileName}
-                    </p>
-                    <p className="text-xs text-slate-500">Se enviará junto al texto al backend.</p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={clearSelectedImage}
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-100"
-                  aria-label="Eliminar imagen seleccionada"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
+            <SelectedImagePreview selectedImage={selectedImage} onClear={clearSelectedImage} />
           ) : null}
 
-          <form
-            onSubmit={handleSubmit}
-            className="mt-auto rounded-[1.5rem] border border-slate-200/80 bg-white px-3 py-3 shadow-[0_12px_35px_rgba(15,23,42,0.08)]"
-          >
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/jpeg, image/png, image/webp"
-              className="hidden"
-              onChange={handleImageSelect}
-            />
-
-            <label className="sr-only" htmlFor="habit-input">
-              Describe tus hábitos del día
-            </label>
-            <textarea
-              id="habit-input"
-              ref={textareaRef}
-              value={inputText}
-              onChange={(event) => setInputText(event.target.value)}
-              disabled={isLoading}
-              rows={1}
-              placeholder={
-                isCloseDayCommand
-                  ? 'Cierra el día'
-                  : 'Describe comidas, hidratación, toxinas, descanso y sensaciones del día...'
-              }
-              className="max-h-[220px] w-full resize-none rounded-[1.1rem] border border-transparent bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-900 outline-none ring-0 placeholder:text-slate-400 focus:border-slate-200 focus:bg-white disabled:cursor-not-allowed disabled:opacity-70"
-            />
-
-            <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <p className="flex items-center gap-2 text-xs text-slate-500">
-                <Sparkles className="h-3.5 w-3.5" />
-                {isCloseDayCommand
-                  ? 'Preparado para generar el cierre completo del día.'
-                  : 'El backend validará la estructura y actualizará el estado en vivo.'}
-              </p>
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={toggleListening}
-                  disabled={isLoading}
-                  className={`inline-flex h-11 w-11 items-center justify-center rounded-full border transition disabled:cursor-not-allowed disabled:opacity-60 ${
-                    isListening
-                      ? 'border-red-200 bg-red-50 text-red-600 shadow-[0_0_0_4px_rgba(239,68,68,0.12)] animate-pulse'
-                      : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-                  }`}
-                  aria-label={isListening ? 'Detener dictado' : 'Activar dictado por voz'}
-                >
-                  {isListening ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-                </button>
-                <button
-                  type="button"
-                  onClick={handleImageButtonClick}
-                  disabled={isLoading}
-                  className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-                  aria-label="Subir imagen de comida"
-                >
-                  <ImagePlus className="h-4 w-4" />
-                </button>
-                <button
-                  type="submit"
-                  disabled={isLoading || (!inputText.trim() && !selectedImage)}
-                  className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-4 py-2 text-sm font-medium text-white transition hover:scale-[1.01] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {isLoading ? (
-                    <LoaderCircle className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <ArrowUp className="h-4 w-4" />
-                  )}
-                  <span>{submitLabel}</span>
-                </button>
-              </div>
-            </div>
-          </form>
+          <ChatForm
+            textareaRef={textareaRef}
+            fileInputRef={fileInputRef}
+            inputText={inputText}
+            setInputText={setInputText}
+            isLoading={isLoading}
+            isListening={isListening}
+            isCloseDayCommand={isCloseDayCommand}
+            toggleListening={toggleListening}
+            handleImageButtonClick={handleImageButtonClick}
+            handleImageSelect={handleImageSelect}
+            handleSubmit={handleSubmit}
+            submitLabel={submitLabel}
+          />
         </div>
       </div>
     </>
