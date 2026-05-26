@@ -27,10 +27,6 @@ export async function performChatRequest(params: {
     return { ok, payload, mode: 'close-day' };
   }
 
-  const { ok, payload } = await analyzeRequest(
-    params.text,
-    params.base64Image,
-    params.accessToken
-  );
+  const { ok, payload } = await analyzeRequest(params.text, params.base64Image, params.accessToken);
   return { ok, payload, mode: 'analyze' };
 }

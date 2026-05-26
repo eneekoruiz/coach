@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 
 import { endOfDaySchema } from '@/lib/schema';
+import { buildHabitVisualDescriptors } from '@/lib/habits';
 
 export const dynamic = 'force-dynamic';
 
@@ -97,10 +98,16 @@ export async function POST(request: Request) {
 
     const recordsForToday = records.map((record) => record.ai_data);
 
+    // Fetch user's habits to inject state into the visual prompt
+    const { data: userHabits } = await supabase.from('user_habits').select('*').eq('user_id', user.id);
+
+    const habitStateDescriptor = userHabits ? buildHabitVisualDescriptors(userHabits) : '';
+
+    const systemPrompt = `Eres el evaluador final. Analiza este array de registros de hoy del usuario. Genera un objeto JSON con: 1) puntuacion_global (0-100), 2) aciertos (array de 3 strings), 3) error_clave (string), 4) accion_manana (string), y 5) prompt_imagen (una descripción fotorrealista en INGLÉS del estado de un perro Pastor Alemán basada en el día). Incorpora explícitamente el estado de los hábitos en la descripción visual: ${habitStateDescriptor}. Si fue bueno: athletic posture, golden hour sunlight, pristine nature. Si fue malo: coughing, smoggy, tired eyes, dirty environment. NO TEXT in image.`;
+
     const { object: summary } = await generateObject({
       model: google('gemini-2.5-flash'),
-      system:
-        'Eres el evaluador final. Analiza este array de registros de hoy del usuario. Genera un objeto JSON con: 1) puntuacion_global (0-100), 2) aciertos (array de 3 strings), 3) error_clave (string), 4) accion_manana (string), y 5) prompt_imagen (una descripción fotorrealista en INGLÉS del estado de un perro Pastor Alemán basada en el día. Si fue bueno: atlético, bosque iluminado. Si fue malo: cansado, lloviendo, entorno sucio. SIN textos en la imagen).',
+      system: systemPrompt,
       prompt: `Registros de hoy:\n${JSON.stringify(recordsForToday, null, 2)}`,
       schema: endOfDaySchema,
     });

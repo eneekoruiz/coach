@@ -4,6 +4,8 @@ import { triggerVibration } from '@/lib/haptics';
 import { useSpeechRecognition } from './useSpeechRecognition';
 import { useImageSelection } from './useImageSelection';
 import { analyzeRequest, closeDayRequest, performChatRequest } from './useChatApi';
+import { computeEvaluationText, computeSubmitLabel } from './useChatHelpers';
+import { createHandleCloseDayModalClose } from './useChatActionsHelpers';
 
 type SelectedImage = {
   previewUrl: string;
@@ -60,95 +62,11 @@ export function useChat(onUpdate?: () => void | Promise<void>) {
     textarea.style.height = `${Math.min(textarea.scrollHeight, 220)}px`;
   }, [inputText]);
 
-  const evaluationText = useMemo(() => {
-    if (!feedback) return null;
-    const delta = feedback.ai_data.metricas.variacion_inercia;
-    if (delta > 0) return 'La lectura sugiere una mejora neta en la inercia fisiológica.';
-    if (delta < 0) return 'La lectura detecta fricción fisiológica y recomienda corregir hábitos.';
-    return 'La lectura se mantiene estable sin cambios relevantes de inercia.';
-  }, [feedback]);
+  const evaluationText = useMemo(() => computeEvaluationText(feedback), [feedback]);
 
   const isCloseDayCommand = inputText.toLowerCase().trim() === 'cierra el día';
 
-  function handleImageButtonClick() {
-    fileInputRef.current?.click();
-  }
-
-  function stripDataUrlPrefix(value: string) {
-    const commaIndex = value.indexOf(',');
-    return commaIndex >= 0 ? value.slice(commaIndex + 1) : value;
-  }
-
-  function handleImageSelect(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.currentTarget.files?.[0];
-    if (!file) return;
-    const allowedImageTypes = ['image/jpeg', 'image/png', 'image/webp'];
-    if (!allowedImageTypes.includes(file.type)) {
-      event.currentTarget.value = '';
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = typeof reader.result === 'string' ? reader.result : '';
-      if (!result) return;
-      setSelectedImage({
-        previewUrl: result,
-        base64: stripDataUrlPrefix(result),
-        mimeType: file.type,
-        fileName: file.name,
-      });
-    };
-    reader.readAsDataURL(file);
-    event.currentTarget.value = '';
-  }
-
-  function clearSelectedImage() {
-    setSelectedImage(null);
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  }
-
-  function toggleListening() {
-    if (typeof window === 'undefined') return;
-    const SpeechRecognitionConstructor =
-      (window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognitionConstructor) {
-      window.alert('Tu navegador no soporta dictado por voz. Prueba en Chrome o Edge.');
-      return;
-    }
-
-    if (isListening) {
-      stop();
-      return;
-    }
-
-    const recognition = new SpeechRecognitionConstructor();
-    recognition.lang = navigator.language || 'es-ES';
-    recognition.continuous = true;
-    recognition.interimResults = true;
-
-    recognition.onstart = () => setIsListening(true);
-    recognition.onresult = (event: any) => {
-      let transcript = '';
-      for (let index = event.resultIndex; index < event.results.length; index += 1) {
-        transcript += event.results[index][0].transcript;
-      }
-      const normalizedTranscript = transcript.trim();
-      if (!normalizedTranscript) return;
-      setInputText((currentText) => {
-        const separator = currentText.trim().length > 0 ? ' ' : '';
-        return `${currentText}${separator}${normalizedTranscript}`.trimStart();
-      });
-    };
-    recognition.onerror = () => setIsListening(false);
-    recognition.onend = () => {
-      setIsListening(false);
-      recognitionRef.current = null;
-    };
-
-    recognitionRef.current = recognition;
-    recognition.start();
-  }
+  // image selection and speech actions are provided by `useImageSelection` and `useSpeechRecognition`
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -205,18 +123,12 @@ export function useChat(onUpdate?: () => void | Promise<void>) {
     };
   }, []);
 
-  function handleCloseDayModalClose() {
-    setCloseDayFeedback(null);
-  }
+  const handleCloseDayModalClose = createHandleCloseDayModalClose(setCloseDayFeedback);
 
-  const submitLabel =
-    isLoading && submitMode === 'close-day'
-      ? 'Generando tu Bio-Avatar...'
-      : isLoading && selectedImage
-        ? 'Analizando imagen...'
-        : isLoading
-          ? 'Analizando'
-          : 'Enviar';
+  const submitLabel = useMemo(
+    () => computeSubmitLabel({ isLoading, submitMode, selectedImage }),
+    [isLoading, submitMode, selectedImage]
+  );
 
   return {
     inputText,

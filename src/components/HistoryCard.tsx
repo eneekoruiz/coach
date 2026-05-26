@@ -1,5 +1,9 @@
 import React from 'react';
-import { Sparkles } from 'lucide-react';
+const Sparkles = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="text-slate-400" aria-hidden="true" {...props}>
+    <path d="M12 2l1.5 4L18 8l-4.5 2L12 14l-1.5-4L6 8l4.5-2L12 2z" />
+  </svg>
+);
 import { formatSpanishDate, formatShortHeader } from '@/lib/date-utils';
 
 type HistoryLog = {
@@ -66,6 +70,47 @@ export default function HistoryCard({ log }: { log: HistoryLog }) {
           </div>
         </div>
       </summary>
+
+      <div className="border-t border-slate-200 bg-slate-50/90 p-4">
+        {summary ? (
+          <div className="space-y-3">
+            <div className="rounded-2xl border border-white/80 bg-white p-4 shadow-sm">
+              <p className="text-[10px] uppercase tracking-[0.3em] text-slate-500">
+                Acción de mañana
+              </p>
+              <p className="mt-2 text-sm leading-6 text-slate-800">{summary.accion_manana}</p>
+            </div>
+
+            <div className="rounded-2xl border border-white/80 bg-white p-4 shadow-sm">
+              <p className="text-[10px] uppercase tracking-[0.3em] text-slate-500">Aciertos</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {summary.aciertos.length > 0 ? (
+                  summary.aciertos.map((item: any) => (
+                    <span
+                      key={item}
+                      className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-900"
+                    >
+                      {item}
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-sm text-slate-500">Sin aciertos registrados.</span>
+                )}
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-white/80 bg-white p-4 shadow-sm">
+              <p className="text-[10px] uppercase tracking-[0.3em] text-slate-500">Error clave</p>
+              <p className="mt-2 text-sm leading-6 text-slate-800">{summary.error_clave}</p>
+            </div>
+          </div>
+        ) : (
+          <p className="text-sm leading-6 text-slate-600">
+            El resumen estructurado de este día no pudo validarse, pero la imagen histórica sigue
+            disponible.
+          </p>
+        )}
+      </div>
     </details>
   );
 }

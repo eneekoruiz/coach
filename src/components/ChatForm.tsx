@@ -1,5 +1,31 @@
 import React from 'react';
-import { Mic, ImagePlus, LoaderCircle, Square } from 'lucide-react';
+const Mic = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+    <path d="M12 1v11" />
+    <path d="M19 11a7 7 0 0 1-14 0" />
+    <path d="M5 19h14" />
+  </svg>
+);
+
+const ImagePlus = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+    <path d="M8 14l2-2 3 3 4-4 3 3" />
+    <path d="M15 8v6" />
+  </svg>
+);
+
+const LoaderCircle = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg viewBox="0 0 50 50" className="animate-spin" aria-hidden="true" {...props}>
+    <circle cx="25" cy="25" r="20" fill="none" stroke="currentColor" strokeWidth="4" strokeDasharray="31.4 31.4" />
+  </svg>
+);
+
+const Square = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" {...props}>
+    <rect x="6" y="6" width="12" height="12" rx="2" ry="2" />
+  </svg>
+);
 
 export default function ChatForm({
   textareaRef,

@@ -1,5 +1,20 @@
 import { createServerClient } from '@supabase/ssr';
-import { CalendarHeart, ChevronLeft } from 'lucide-react';
+// Use lightweight inline SVGs for icons to avoid SSR bundling issues
+const CalendarHeart = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+    <path d="M16 2v4"></path>
+    <path d="M8 2v4"></path>
+    <path d="M3 10h18"></path>
+    <path d="M12 17c1.656-2 4-3 4-4.5A2.5 2.5 0 0 0 13.5 10 2.5 2.5 0 0 0 12 11.5 2.5 2.5 0 0 0 10.5 10 2.5 2.5 0 0 0 9 12.5C9 14 11 15 12 17z"></path>
+  </svg>
+);
+
+const ChevronLeft = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+    <polyline points="15 18 9 12 15 6"></polyline>
+  </svg>
+);
 import { cookies } from 'next/headers';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
@@ -29,20 +44,7 @@ type HistoryPageProps = {
 
 const PAGE_SIZE = 6;
 
-function formatSpanishDate(dateValue: string) {
-  return new Intl.DateTimeFormat('es-ES', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  }).format(new Date(dateValue));
-}
-
-function formatShortHeader(dateValue: string) {
-  return new Intl.DateTimeFormat('es-ES', {
-    day: 'numeric',
-    month: 'long',
-  }).format(new Date(dateValue));
-}
+import { formatSpanishDate, formatShortHeader } from '@/lib/date-utils';
 
 export default async function HistoryPage({ searchParams }: HistoryPageProps) {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
@@ -74,44 +76,21 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
     );
   }
 
-  const supabase = await createSupabaseServerClient();
   const resolvedSearchParams = searchParams ?? {};
-  const currentPage = Math.max(1, Number(resolvedSearchParams.page ?? '1') || 1);
-  const from = (currentPage - 1) * PAGE_SIZE;
-  const to = from + PAGE_SIZE - 1;
+  const requestedPage = Math.max(1, Number(resolvedSearchParams.page ?? '1') || 1);
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { fetchHistoryPage } = await import('@/lib/history-server');
+  const fetched = await fetchHistoryPage(requestedPage);
 
-  if (!user) {
+  if (!fetched.user) {
     redirect('/login');
   }
 
-  const { data, error, count } = await supabase
-    .from('daily_logs')
-    .select('date, health_momentum, avatar_image_url, ai_data', { count: 'exact' })
-    .eq('user_id', user.id)
-    .order('date', { ascending: false })
-    .range(from, to);
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  const logs: HistoryLog[] = (data ?? []).map((item: HistoryRow) => ({
-    date: item.date,
-    health_momentum: item.health_momentum,
-    avatar_image_url: item.avatar_image_url,
-    ai_data: dailyLogSchema.safeParse(item.ai_data).success
-      ? dailyLogSchema.parse(item.ai_data)
-      : null,
-  }));
-
+  const logs: HistoryLog[] = fetched.logs ?? [];
   const hasLogs = logs.length > 0;
-  const totalPages = Math.max(1, Math.ceil((count ?? 0) / PAGE_SIZE));
-  const hasPreviousPage = currentPage > 1;
-  const hasNextPage = currentPage < totalPages;
+  const totalPages = fetched.totalPages ?? 1;
+  const hasPreviousPage = fetched.hasPreviousPage ?? false;
+  const hasNextPage = fetched.hasNextPage ?? false;
 
   return (
     <main className="min-h-dvh bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.98),_rgba(233,238,244,0.95)_38%,_rgba(212,220,230,0.96)_100%)] px-4 py-6 text-slate-900 sm:px-6 lg:px-8">
@@ -146,128 +125,19 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
         {hasLogs ? (
           <>
             <section className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-              {logs.map((log) => {
-                const summary = log.ai_data?.metricas ?? null;
-
-                return (
-                  <details
-                    key={`${log.date}-${log.health_momentum}`}
-                    className="overflow-hidden rounded-[1.6rem] border border-white/80 bg-white/80 shadow-[0_18px_55px_rgba(15,23,42,0.12)] backdrop-blur-xl transition hover:-translate-y-0.5"
-                  >
-                    <summary className="cursor-pointer list-none p-3 focus:outline-none">
-                      <div className="overflow-hidden rounded-[1.25rem] border border-slate-200 bg-slate-50">
-                        <div className="relative">
-                          <div className="aspect-[4/5] w-full bg-gradient-to-b from-slate-100 to-slate-200">
-                            {log.avatar_image_url ? (
-                              <img
-                                src={log.avatar_image_url}
-                                alt={`Bio-Avatar del ${formatSpanishDate(log.date)}`}
-                                className="h-full w-full object-cover"
-                              />
-                            ) : (
-                              <div className="flex h-full w-full items-center justify-center bg-[radial-gradient(circle_at_center,_rgba(255,255,255,0.95),_rgba(226,232,240,0.92))]">
-                                <Sparkles className="h-10 w-10 text-slate-400" />
-                              </div>
-                            )}
-                          </div>
-
-                          <div className="absolute inset-x-0 top-0 flex flex-col gap-2 p-3 sm:flex-row sm:items-start sm:justify-between">
-                            <div className="rounded-full border border-white/60 bg-white/85 px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm backdrop-blur-md">
-                              {formatShortHeader(log.date)}
-                            </div>
-                            <div className="rounded-full bg-slate-950 px-3 py-1.5 text-xs font-semibold text-white shadow-lg">
-                              {log.health_momentum}%
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="space-y-3 p-4">
-                          <div>
-                            <p className="text-[10px] uppercase tracking-[0.35em] text-slate-500">
-                              Día
-                            </p>
-                            <h2 className="mt-1 text-lg font-semibold text-slate-950">
-                              {formatSpanishDate(log.date)}
-                            </h2>
-                          </div>
-
-                          <div className="flex items-center justify-between gap-3 rounded-2xl bg-slate-950 px-4 py-3 text-white">
-                            <span className="text-xs uppercase tracking-[0.3em] text-white/70">
-                              Inercia fisiológica
-                            </span>
-                            <span className="text-base font-semibold">{log.health_momentum}</span>
-                          </div>
-
-                          <p className="text-sm leading-6 text-slate-600">
-                            Haz clic para ver el resumen del día.
-                          </p>
-                        </div>
-                      </div>
-                    </summary>
-
-                    <div className="border-t border-slate-200 bg-slate-50/90 p-4">
-                      {summary ? (
-                        <div className="space-y-3">
-                          <div className="rounded-2xl border border-white/80 bg-white p-4 shadow-sm">
-                            <p className="text-[10px] uppercase tracking-[0.3em] text-slate-500">
-                              Acción de mañana
-                            </p>
-                            <p className="mt-2 text-sm leading-6 text-slate-800">
-                              {summary.accion_manana}
-                            </p>
-                          </div>
-
-                          <div className="rounded-2xl border border-white/80 bg-white p-4 shadow-sm">
-                            <p className="text-[10px] uppercase tracking-[0.3em] text-slate-500">
-                              Aciertos
-                            </p>
-                            <div className="mt-3 flex flex-wrap gap-2">
-                              {summary.aciertos.length > 0 ? (
-                                summary.aciertos.map((item) => (
-                                  <span
-                                    key={item}
-                                    className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-900"
-                                  >
-                                    {item}
-                                  </span>
-                                ))
-                              ) : (
-                                <span className="text-sm text-slate-500">
-                                  Sin aciertos registrados.
-                                </span>
-                              )}
-                            </div>
-                          </div>
-
-                          <div className="rounded-2xl border border-white/80 bg-white p-4 shadow-sm">
-                            <p className="text-[10px] uppercase tracking-[0.3em] text-slate-500">
-                              Error clave
-                            </p>
-                            <p className="mt-2 text-sm leading-6 text-slate-800">
-                              {summary.error_clave}
-                            </p>
-                          </div>
-                        </div>
-                      ) : (
-                        <p className="text-sm leading-6 text-slate-600">
-                          El resumen estructurado de este día no pudo validarse, pero la imagen
-                          histórica sigue disponible.
-                        </p>
-                      )}
-                    </div>
-                  </details>
-                );
-              })}
+              {logs.map((log) => (
+                <HistoryCard key={`${log.date}-${log.health_momentum}`} log={log} />
+              ))}
             </section>
 
             <div className="flex flex-col gap-3 rounded-[1.5rem] border border-white/80 bg-white/75 px-4 py-4 shadow-[0_18px_55px_rgba(15,23,42,0.12)] backdrop-blur-xl sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
               <p className="text-sm text-slate-600">
-                Página {currentPage} de {totalPages}
+                Página {requestedPage} de {totalPages}
               </p>
 
               <div className="flex flex-wrap items-center gap-2">
                 <Link
-                  href={`/history?page=${currentPage - 1}`}
+                  href={`/history?page=${requestedPage - 1}`}
                   aria-disabled={!hasPreviousPage}
                   className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition ${
                     hasPreviousPage
@@ -278,7 +148,7 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
                   Anterior
                 </Link>
                 <Link
-                  href={`/history?page=${currentPage + 1}`}
+                  href={`/history?page=${requestedPage + 1}`}
                   aria-disabled={!hasNextPage}
                   className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition ${
                     hasNextPage

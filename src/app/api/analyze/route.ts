@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 
 import { dailyLogSchema } from '@/lib/schema';
+import { evaluateAndUpdateStreaks } from '@/lib/habits';
 
 export const dynamic = 'force-dynamic';
 
@@ -167,6 +168,17 @@ export async function POST(request: Request) {
     const nextMomentum = Math.min(100, Math.max(0, previousMomentum + delta));
     const today = new Date().toISOString().slice(0, 10);
 
+    // If Gemini returned habit signals, use them; otherwise expect client to pass habit_tracking in request body
+    const habitReports: Array<{ habit_id: number; amount: number }> =
+      (analyzedLog as any).habits ?? (body as any).habit_tracking ?? [];
+
+    // Evaluate and update streaks in user_habits table
+    try {
+      await evaluateAndUpdateStreaks(authHeader, user.id, habitReports as any);
+    } catch (e) {
+      console.error('Failed to evaluate/update streaks', e);
+    }
+
     const { data: insertedLog, error: insertError } = await supabase
       .from('daily_logs')
       .insert({
@@ -174,6 +186,7 @@ export async function POST(request: Request) {
         date: today,
         health_momentum: nextMomentum,
         ai_data: analyzedLog,
+        habit_tracking: JSON.stringify(habitReports),
       })
       .select('*')
       .single();
