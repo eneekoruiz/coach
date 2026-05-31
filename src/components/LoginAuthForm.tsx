@@ -14,13 +14,7 @@ export default function LoginAuthForm({
   defaultEmail = '',
 }: LoginAuthFormProps) {
   return (
-    <form
-      className="space-y-4"
-      onSubmitCapture={() => {
-        const activeElement = document.activeElement as HTMLElement | null;
-        activeElement?.blur();
-      }}
-    >
+    <form className="space-y-4">
       <div>
         <label htmlFor="email" className="mb-2 block text-sm font-medium text-slate-700">
           Email
