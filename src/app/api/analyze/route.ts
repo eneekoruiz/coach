@@ -215,6 +215,15 @@ export async function POST(request: Request) {
       { status: 200 }
     );
   } catch (error) {
+    // Log full error to server logs for easier debugging (appears in Vercel/Dev logs)
+    try {
+      console.error('[api/analyze] Unhandled error:', error);
+      if (error instanceof Error && error.stack) console.error(error.stack);
+    } catch (logErr) {
+      // swallow logging errors
+      console.error('[api/analyze] Failed to log error detail', logErr);
+    }
+
     const message = error instanceof Error ? error.message : 'Error desconocido';
 
     return NextResponse.json(
