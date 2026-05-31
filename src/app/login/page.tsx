@@ -5,6 +5,8 @@ const errorMessages: Record<string, string> = {
   invalid_form: 'Revisa email y contraseña. Formato inválido o campos vacíos.',
   invalid_credentials: 'Email o contraseña inválidos.',
   email_not_confirmed: 'Debes confirmar tu email antes de iniciar sesión.',
+  email_confirmation_link_expired:
+    'El enlace de confirmación expiró o ya no es válido. Pide un nuevo correo de confirmación.',
   config_missing: 'Falta configuración de Supabase en el servidor.',
   auth_failed: 'No se pudo iniciar sesión. Intenta nuevamente.',
   logout_failed: 'No se pudo cerrar sesión correctamente.',
@@ -19,16 +21,22 @@ type LoginPageProps = {
     error?: string;
     success?: string;
     email?: string;
-  };
+  } | Promise<{
+    error?: string;
+    success?: string;
+    email?: string;
+  }>;
 };
 
-export default function LoginPage({ searchParams }: LoginPageProps) {
-  const errorCode = searchParams?.error;
-  const successCode = searchParams?.success;
-  const pendingEmail = searchParams?.email ?? '';
+export default async function LoginPage({ searchParams }: LoginPageProps) {
+  const resolvedSearchParams = await Promise.resolve(searchParams);
+  const errorCode = resolvedSearchParams?.error;
+  const successCode = resolvedSearchParams?.success;
+  const pendingEmail = resolvedSearchParams?.email ?? '';
   const errorText = errorCode ? errorMessages[errorCode] ?? 'Error desconocido de autenticación.' : null;
   const successText = successCode ? successMessages[successCode] ?? null : null;
   const isEmailNotConfirmed = errorCode === 'email_not_confirmed';
+  const isExpiredConfirmationLink = errorCode === 'email_confirmation_link_expired';
 
   return (
     <main className="min-h-dvh bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.96),_rgba(232,238,245,0.92)_38%,_rgba(212,220,232,0.96)_100%)] px-4 py-6 text-slate-900 sm:py-8">
@@ -49,14 +57,18 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
           {errorText ? (
             <div className="mb-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-4 text-sm text-rose-900" role="alert">
               <p className="font-semibold">
-                {isEmailNotConfirmed ? 'Necesitas confirmar tu correo' : 'No pudimos iniciar sesión'}
+                {isEmailNotConfirmed || isExpiredConfirmationLink
+                  ? 'Problema con la confirmación del correo'
+                  : 'No pudimos iniciar sesión'}
               </p>
               <p className="mt-1 leading-6">{errorText}</p>
-              {isEmailNotConfirmed ? (
+              {isEmailNotConfirmed || isExpiredConfirmationLink ? (
                 <div className="mt-3 rounded-xl border border-rose-200 bg-white px-3 py-3 text-rose-950">
                   <p className="font-medium">Qué hacer ahora</p>
                   <p className="mt-1 leading-6">
-                    Revisa la bandeja de entrada y la carpeta de spam del correo {pendingEmail || 'que usaste al registrarte'}. Abre el mensaje de confirmación y vuelve después a iniciar sesión.
+                    {isExpiredConfirmationLink
+                      ? 'Vuelve a solicitar un correo de confirmación desde el registro o pide que te reenviemos el enlace.'
+                      : `Revisa la bandeja de entrada y la carpeta de spam del correo ${pendingEmail || 'que usaste al registrarte'}. Abre el mensaje de confirmación y vuelve después a iniciar sesión.`}
                   </p>
                 </div>
               ) : null}
