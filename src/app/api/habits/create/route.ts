@@ -4,6 +4,8 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { z } from 'zod';
 
+import { isMissingHabitTableError } from '@/lib/habits';
+
 export const dynamic = 'force-dynamic';
 
 const createHabitSchema = z.object({
@@ -105,6 +107,16 @@ export async function POST(request: Request) {
       .single();
 
     if (error) {
+      if (isMissingHabitTableError(error)) {
+        return NextResponse.json(
+          {
+            error:
+              'La base de datos de hábitos todavía no tiene la tabla public.user_habits. Aplica la migración sql/migrations/20260526_create_user_habits_and_habit_tracking.sql y vuelve a intentarlo.',
+          },
+          { status: 503 }
+        );
+      }
+
       const lower = (error.message || '').toLowerCase();
       if (/permission|row-level security|policy|forbidden/.test(lower)) {
         return NextResponse.json({ error: 'Permission denied when creating habit.' }, { status: 403 });

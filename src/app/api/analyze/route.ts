@@ -2,20 +2,69 @@ import { generateObject } from 'ai';
 import { google } from '@ai-sdk/google';
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
 
-import { dailyLogSchema } from '@/lib/schema';
+import { dailyLogSchema, type DailyLog } from '@/lib/schema';
 import { evaluateAndUpdateStreaks } from '@/lib/habits';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 
 export const dynamic = 'force-dynamic';
 
+const MAX_TEXT_LENGTH = 5000;
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+
+const habitReportSchema = z
+  .object({
+    habit_id: z.number().int().positive(),
+    amount: z.number().finite(),
+  })
+  .strict();
+
+const analyzeRequestSchema = z
+  .object({
+    text: z.string().trim().max(MAX_TEXT_LENGTH).optional(),
+    image: z.string().trim().min(1).optional(),
+    habit_tracking: z.array(habitReportSchema).optional(),
+  })
+  .strict()
+  .superRefine((value, ctx) => {
+    if (!value.text && !value.image) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['text'],
+        message: 'El body debe incluir text, image o ambos.',
+      });
+    }
+  });
+
+type AnalyzeRequestBody = z.infer<typeof analyzeRequestSchema>;
+type HabitReport = z.infer<typeof habitReportSchema>;
+
+function jsonError(
+  status: number,
+  code: string,
+  message: string,
+  details?: Record<string, unknown> | unknown[] | string
+) {
+  return NextResponse.json(
+    {
+      error: {
+        code,
+        message,
+        ...(details === undefined ? {} : { details }),
+      },
+    },
+    { status }
+  );
+}
+
 function createSafeDemoResponse() {
-  const analyzedLog = {
+  const analyzedLog: DailyLog = {
     comidas: [
       {
         hora: '12:00',
         descripcion: 'Modo Prueba',
-        calidad_nutricional: 'regular' as const,
+        calidad_nutricional: 'regular',
       },
     ],
     hidratacion_ml: 0,
@@ -80,11 +129,60 @@ function createSupabaseClient(authHeader?: string) {
   });
 }
 
+async function resolveAuthenticatedClient(authHeader?: string) {
+  const cookieSupabase = await createSupabaseServerClient();
+  const preferredClient = authHeader ? createSupabaseClient(authHeader) : cookieSupabase;
+
+  const preferredResult = await preferredClient.auth.getUser();
+  if (!authHeader && preferredResult.data.user) {
+    return { supabase: preferredClient, userResult: preferredResult };
+  }
+
+  if (authHeader && preferredResult.data.user && !preferredResult.error) {
+    return { supabase: preferredClient, userResult: preferredResult };
+  }
+
+  if (authHeader) {
+    const cookieResult = await cookieSupabase.auth.getUser();
+    if (cookieResult.data.user && !cookieResult.error) {
+      return { supabase: cookieSupabase, userResult: cookieResult };
+    }
+
+    return { supabase: cookieSupabase, userResult: cookieResult };
+  }
+
+  return { supabase: preferredClient, userResult: preferredResult };
+}
+
 function normalizeBase64Image(value: string) {
   const trimmedValue = value.trim();
   const commaIndex = trimmedValue.indexOf(',');
 
   return commaIndex >= 0 ? trimmedValue.slice(commaIndex + 1) : trimmedValue;
+}
+
+function approximateBase64Bytes(base64Value: string) {
+  const sanitized = base64Value.replace(/\s+/g, '');
+  const padding = sanitized.endsWith('==') ? 2 : sanitized.endsWith('=') ? 1 : 0;
+  return Math.floor((sanitized.length * 3) / 4) - padding;
+}
+
+function mapDatabaseError(message: string) {
+  const lower = message.toLowerCase();
+
+  if (/permission|row-level security|policy|forbidden/.test(lower)) {
+    return { status: 403, code: 'permission_denied' as const };
+  }
+
+  if (/relation .* does not exist|schema cache|user_habits/.test(lower)) {
+    return { status: 503, code: 'missing_schema' as const };
+  }
+
+  if (/duplicate|unique constraint|already exists/.test(lower)) {
+    return { status: 409, code: 'conflict' as const };
+  }
+
+  return { status: 503, code: 'database_unavailable' as const };
 }
 
 export async function POST(request: Request) {
@@ -100,66 +198,41 @@ export async function POST(request: Request) {
     }
 
     const authHeader = request.headers.get('authorization') ?? undefined;
-    console.info('[api/analyze] authHeader present:', !!authHeader);
+    const { supabase, userResult } = await resolveAuthenticatedClient(authHeader);
 
-    // Prefer explicit bearer when valid, but recover with cookie session if token is stale.
-    const cookieSupabase = await createSupabaseServerClient();
-    let supabase = authHeader ? createSupabaseClient(authHeader) : cookieSupabase;
-
-    console.info('[api/analyze] Calling supabase.auth.getUser()');
-    let { data: userData, error: userError } = await supabase.auth.getUser();
-
-    if ((userError || !userData.user) && authHeader) {
-      console.warn('[api/analyze] Bearer auth failed, retrying with cookie session.');
-      const cookieResult = await cookieSupabase.auth.getUser();
-      if (!cookieResult.error && cookieResult.data.user) {
-        supabase = cookieSupabase;
-        userData = cookieResult.data;
-        userError = null;
-      }
+    if (userResult.error || !userResult.data.user) {
+      return jsonError(401, 'unauthorized', 'No se pudo validar la sesión del usuario.');
     }
 
-    if (userError) {
-      console.error('[api/analyze] supabase.auth.getUser error:', userError.message || userError);
-      return NextResponse.json({ error: 'Failed to validate user token.' }, { status: 401 });
+    const user = userResult.data.user;
+
+    let rawBody: unknown;
+    try {
+      rawBody = await request.json();
+    } catch {
+      return jsonError(400, 'invalid_json', 'El body debe ser un JSON válido.');
     }
 
-    const user = userData.user;
-    console.info('[api/analyze] supabase.getUser resolved user id:', user?.id ?? 'null');
-
-    if (!user) {
-      return NextResponse.json(
-        { error: 'No se pudo identificar al usuario autenticado.' },
-        { status: 401 }
+    const parsedBody = analyzeRequestSchema.safeParse(rawBody);
+    if (!parsedBody.success) {
+      return jsonError(
+        422,
+        'invalid_input',
+        'El body no cumple el contrato esperado.',
+        parsedBody.error.flatten()
       );
     }
 
-    const body = (await request.json()) as { text?: unknown; image?: unknown; habit_tracking?: unknown };
-    if (!body || typeof body !== 'object') {
-      return NextResponse.json({ error: 'Request body must be a JSON object.' }, { status: 400 });
-    }
-
-    const text = typeof body.text === 'string' ? body.text.trim() : '';
-    const rawImage = typeof body.image === 'string' ? body.image.trim() : '';
-
-    if (!text && !rawImage) {
-      return NextResponse.json(
-        { error: 'El body debe incluir text, image o ambos.' },
-        { status: 400 }
-      );
-    }
-
-    // Basic length checks to avoid excessive payloads
-    if (text && text.length > 5000) {
-      return NextResponse.json({ error: 'text field too long (max 5000 chars).' }, { status: 400 });
-    }
+    const body: AnalyzeRequestBody = parsedBody.data;
+    const text = body.text ?? '';
+    const rawImage = body.image ?? '';
 
     if (rawImage) {
-      const b64 = normalizeBase64Image(rawImage);
-      const approxBytes = Math.ceil((b64.length * 3) / 4);
-      const maxBytes = 5 * 1024 * 1024; // 5MB
-      if (approxBytes > maxBytes) {
-        return NextResponse.json({ error: 'image payload too large (max 5MB).' }, { status: 413 });
+      const normalizedImage = normalizeBase64Image(rawImage);
+      const approxBytes = approximateBase64Bytes(normalizedImage);
+
+      if (approxBytes > MAX_IMAGE_BYTES) {
+        return jsonError(413, 'image_too_large', 'La imagen supera el máximo de 5MB.');
       }
     }
 
@@ -177,7 +250,7 @@ export async function POST(request: Request) {
         ]
       : [{ type: 'text' as const, text: analysisText }];
 
-    let analyzedLog: any;
+    let analyzedLog: DailyLog;
     try {
       const result = await generateObject({
         model: google('gemini-2.5-flash'),
@@ -190,10 +263,22 @@ export async function POST(request: Request) {
         ],
         schema: dailyLogSchema,
       });
-      analyzedLog = result.object;
+      const validatedResult = dailyLogSchema.safeParse(result.object);
+      if (!validatedResult.success) {
+        return jsonError(
+          422,
+          'invalid_ai_output',
+          'La IA no devolvió un objeto válido para el esquema esperado.',
+          validatedResult.error.flatten()
+        );
+      }
+
+      analyzedLog = validatedResult.data;
     } catch (aiError) {
-      console.error('[api/analyze] AI generateObject error:', aiError);
-      return NextResponse.json({ error: 'AI service failure.' }, { status: 502 });
+      const message = aiError instanceof Error ? aiError.message : 'AI service failure.';
+      return jsonError(502, 'ai_service_failure', 'No se pudo procesar la respuesta del motor de IA.', {
+        reason: message,
+      });
     }
 
     const { data: lastLog, error: lastLogError } = await supabase
@@ -205,8 +290,10 @@ export async function POST(request: Request) {
       .maybeSingle();
 
     if (lastLogError) {
-      console.error('[api/analyze] Failed fetching lastLog:', lastLogError);
-      return NextResponse.json({ error: 'Failed to read previous logs.' }, { status: 500 });
+      const dbStatus = mapDatabaseError(lastLogError.message || '');
+      return jsonError(dbStatus.status, dbStatus.code, 'No se pudo leer el histórico del usuario.', {
+        reason: lastLogError.message,
+      });
     }
 
     const previousMomentum = lastLog?.health_momentum ?? 100;
@@ -214,32 +301,17 @@ export async function POST(request: Request) {
     const nextMomentum = Math.min(100, Math.max(0, previousMomentum + delta));
     const today = new Date().toISOString().slice(0, 10);
 
-    // If Gemini returned habit signals, use them; otherwise expect client to pass habit_tracking in request body
-    const dynamicLog = analyzedLog as unknown as Record<string, unknown>;
-    const dynamicBody = body as Record<string, unknown>;
-    // Normalize and validate habit reports coming either from AI or client
-    const rawHabitReports = (dynamicLog.habits || dynamicBody.habit_tracking || []) as unknown;
-    let habitReports: Array<{ habit_id: number; amount: number }> = [];
-    if (Array.isArray(rawHabitReports)) {
-      habitReports = rawHabitReports
-        .map((r) => {
-          if (!r || typeof r !== 'object') return null;
-          const hr = r as Record<string, unknown>;
-          const habit_id = Number(hr.habit_id);
-          const amount = Number(hr.amount ?? 0);
-          if (Number.isFinite(habit_id) && Number.isFinite(amount)) return { habit_id, amount };
-          return null;
-        })
-        .filter((x): x is { habit_id: number; amount: number } => x !== null);
-    } else if (rawHabitReports) {
-      console.warn('[api/analyze] habit_tracking provided but not an array; ignoring');
-    }
+    const habitReports: HabitReport[] = body.habit_tracking ?? [];
 
     // Evaluate and update streaks in user_habits table
     try {
       await evaluateAndUpdateStreaks(authHeader, user.id, habitReports);
     } catch (e) {
-      console.error('Failed to evaluate/update streaks', e);
+      const message = e instanceof Error ? e.message : 'Failed to evaluate/update streaks';
+      const dbStatus = mapDatabaseError(message);
+      return jsonError(dbStatus.status, dbStatus.code, 'No se pudieron actualizar las rachas de hábitos.', {
+        reason: message,
+      });
     }
 
     const insertPayload = {
@@ -247,20 +319,8 @@ export async function POST(request: Request) {
       date: today,
       health_momentum: nextMomentum,
       ai_data: analyzedLog,
-      habit_tracking: JSON.stringify(habitReports),
+      habit_tracking: habitReports,
     } as const;
-
-    // Log minimal insert info for debugging (avoid dumping large ai_data)
-    try {
-      console.info('[api/analyze] Inserting daily_log', {
-        user_id: insertPayload.user_id,
-        date: insertPayload.date,
-        health_momentum: insertPayload.health_momentum,
-        habit_tracking_count: habitReports.length,
-      });
-    } catch (e) {
-      console.error('[api/analyze] Failed to log insert payload summary', e);
-    }
 
     const { data: insertedLog, error: insertError } = await supabase
       .from('daily_logs')
@@ -269,12 +329,10 @@ export async function POST(request: Request) {
       .single();
 
     if (insertError) {
-      console.error('[api/analyze] insert error:', insertError.message || insertError);
-      const lower = (insertError.message || '').toLowerCase();
-      if (/permission|row-level security|policy|forbidden/.test(lower)) {
-        return NextResponse.json({ error: 'Permission denied when writing daily log.' }, { status: 403 });
-      }
-      return NextResponse.json({ error: insertError.message || 'Failed to insert daily log.' }, { status: 500 });
+      const dbStatus = mapDatabaseError(insertError.message || '');
+      return jsonError(dbStatus.status, dbStatus.code, 'No se pudo guardar el registro diario.', {
+        reason: insertError.message,
+      });
     }
 
     return NextResponse.json(
@@ -291,20 +349,10 @@ export async function POST(request: Request) {
       { status: 200 }
     );
   } catch (error) {
-    // Log full error to server logs for easier debugging (appears in Vercel/Dev logs)
-    try {
-      console.error('[api/analyze] Unhandled error:', error);
-      if (error instanceof Error && error.stack) console.error(error.stack);
-    } catch (logErr) {
-      // swallow logging errors
-      console.error('[api/analyze] Failed to log error detail', logErr);
-    }
-
     const message = error instanceof Error ? error.message : 'Error desconocido';
 
-    return NextResponse.json(
-      { error: `Falló el análisis o la persistencia en base de datos: ${message}` },
-      { status: 500 }
-    );
+    return jsonError(503, 'unexpected_error', 'Falló el análisis o la persistencia en base de datos.', {
+      reason: message,
+    });
   }
 }

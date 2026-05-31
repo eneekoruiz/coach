@@ -12,6 +12,16 @@ type UserHabit = {
   shields: number;
 };
 
+export function isMissingHabitTableError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  const lower = message.toLowerCase();
+
+  return (
+    lower.includes('user_habits') &&
+    (lower.includes('schema cache') || lower.includes('does not exist') || lower.includes('relation'))
+  );
+}
+
 function createSupabaseClient(authHeader?: string) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -49,7 +59,16 @@ export async function evaluateAndUpdateStreaks(
 ) {
   const supabase = createSupabaseClient(authHeader);
 
-  const { data: habits } = await supabase.from('user_habits').select('*').eq('user_id', userId);
+  const { data: habits, error } = await supabase.from('user_habits').select('*').eq('user_id', userId);
+
+  if (error) {
+    if (isMissingHabitTableError(error)) {
+      console.warn('[habits] user_habits table is not available yet; skipping streak updates.');
+      return [];
+    }
+
+    throw error;
+  }
 
   if (!habits) return [];
 

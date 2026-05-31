@@ -1,15 +1,20 @@
+/*
+  Clean, SRP-focused hook. Delegates session + request handling to `chatService`.
+  Keeps only UI state, refs and small helpers. All heavy logic moved to services.
+*/
+
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { supabase } from '@/lib/supabase';
 import toast from '@/lib/toast';
 import { type DailyLog } from '@/lib/schema';
 import { triggerVibration } from '@/lib/haptics';
 import { useSpeechRecognition } from './useSpeechRecognition';
 import { useImageSelection } from './useImageSelection';
-import { performChatRequest } from './useChatApi';
 import { computeEvaluationText, computeSubmitLabel } from './useChatHelpers';
 import { createHandleCloseDayModalClose } from './useChatActionsHelpers';
+import { getSessionToken, sendChat, SessionExpiredError, ForbiddenError, PayloadTooLargeError, BadRequestError } from '@/services/chatService';
+import { CLOSE_DAY_COMMAND, LOGIN_ROUTE, ERROR_MESSAGES } from '@/constants/config';
 
 type SelectedImage = {
   previewUrl: string;
@@ -39,106 +44,95 @@ export function useChat(onUpdate?: () => void | Promise<void>) {
   const [submitMode, setSubmitMode] = useState<'analyze' | 'close-day' | null>(null);
   const [feedback, setFeedback] = useState<ChatFeedback | null>(null);
   const [closeDayFeedback, setCloseDayFeedback] = useState<CloseDayFeedback | null>(null);
+
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
-  const {
-    selectedImage,
-    fileInputRef,
-    handleImageButtonClick,
-    handleImageSelect,
-    clearSelectedImage,
-  } = useImageSelection();
-  const { recognitionRef, isListening, toggleListening, stop } = useSpeechRecognition(
-    (transcript) => {
-      setInputText((currentText) => {
-        const separator = currentText.trim().length > 0 ? ' ' : '';
-        return `${currentText}${separator}${transcript}`.trimStart();
-      });
-    }
-  );
+  const { selectedImage, fileInputRef, handleImageButtonClick, handleImageSelect, clearSelectedImage } =
+    useImageSelection();
+
+  const { recognitionRef, isListening, toggleListening, stop } = useSpeechRecognition((transcript) => {
+    setInputText((current) => {
+      const sep = current.trim().length > 0 ? ' ' : '';
+      return `${current}${sep}${transcript}`.trimStart();
+    });
+  });
 
   useEffect(() => {
     const textarea = textareaRef.current;
-
     if (!textarea) return;
-
     textarea.style.height = 'auto';
     textarea.style.height = `${Math.min(textarea.scrollHeight, 220)}px`;
   }, [inputText]);
 
   const evaluationText = useMemo(() => computeEvaluationText(feedback), [feedback]);
 
-  const isCloseDayCommand = inputText.toLowerCase().trim() === 'cierra el día';
+  const isCloseDayCommand = inputText.toLowerCase().trim() === CLOSE_DAY_COMMAND;
 
-  // image selection and speech actions are provided by `useImageSelection` and `useSpeechRecognition`
+  function resetUiAfterSuccess() {
+    setInputText('');
+    clearSelectedImage();
+    stop();
+    textareaRef.current?.focus();
+  }
+
+  function handleServiceError(err: unknown) {
+    if (err instanceof SessionExpiredError) {
+      toast.error(ERROR_MESSAGES.sessionExpired);
+      window.location.href = LOGIN_ROUTE;
+      return;
+    }
+    if (err instanceof PayloadTooLargeError) {
+      toast.error(ERROR_MESSAGES.imageTooLarge);
+      return;
+    }
+    if (err instanceof ForbiddenError) {
+      toast.error('No tienes permisos para esta operación.');
+      return;
+    }
+    if (err instanceof BadRequestError) {
+      toast.error('Revisa el contenido enviado e inténtalo de nuevo.');
+      return;
+    }
+    const message = err instanceof Error ? err.message : ERROR_MESSAGES.generic;
+    toast.error(message);
+  }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    const trimmedText = inputText.trim();
+    const trimmed = inputText.trim();
     const hasImage = Boolean(selectedImage);
-    if ((!trimmedText && !hasImage) || isLoading) return;
+    if ((!trimmed && !hasImage) || isLoading) return;
 
-    const requestMode: 'analyze' | 'close-day' =
-      trimmedText.toLowerCase() === 'cierra el día' ? 'close-day' : 'analyze';
+    const mode: 'analyze' | 'close-day' = trimmed.toLowerCase() === CLOSE_DAY_COMMAND ? 'close-day' : 'analyze';
 
     setIsLoading(true);
-    setSubmitMode(requestMode);
+    setSubmitMode(mode);
 
     try {
-      const { data: userData, error: userError } = await supabase.auth.getUser();
-      if (userError || !userData.user) {
-        toast.error('Tu sesión expiró. Vuelve a iniciar sesión.');
-        window.location.href = '/login';
-        return;
-      }
+      const token = await getSessionToken();
 
-      const { data: sessionData } = await supabase.auth.getSession();
-      const accessToken = sessionData.session?.access_token;
-
-      const result = await performChatRequest({
-        text: trimmedText,
+      const { mode: resultMode, payload } = await sendChat({
+        text: trimmed,
         base64Image: selectedImage?.base64 ?? null,
-        accessToken,
-        mode: requestMode,
+        accessToken: token,
+        mode,
       });
 
-      const payload = result.payload as {
-        error?: string;
-        data?: unknown;
-      };
-
-      if (!result.ok && result.status === 401) {
-        toast.error('Tu sesión expiró. Vuelve a iniciar sesión.');
-        window.location.href = '/login';
-        return;
-      }
-
-      if (!result.ok) {
-        if (result.status === 403) throw new Error('No tienes permisos para esta operación.');
-        if (result.status === 413) throw new Error('La imagen es demasiado grande (máx. 5MB).');
-        if (result.status === 400) throw new Error('Revisa el contenido enviado e inténtalo de nuevo.');
-        throw new Error('No se pudo procesar tu solicitud. Intenta nuevamente.');
-      }
-
-      if (result.mode === 'close-day') {
+      if (resultMode === 'close-day') {
         setFeedback(null);
-        setCloseDayFeedback(payload.data as CloseDayFeedback);
+        setCloseDayFeedback(payload as CloseDayFeedback);
       } else {
-        setFeedback(payload.data as ChatFeedback);
+        setFeedback(payload as ChatFeedback);
         triggerVibration('success');
         setCloseDayFeedback(null);
       }
 
-      setInputText('');
-      clearSelectedImage();
-      stop();
-      textareaRef.current?.focus();
+      resetUiAfterSuccess();
 
       if (onUpdate) await onUpdate();
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'No se pudo enviar el registro.';
-      toast.error(message);
+    } catch (err) {
+      handleServiceError(err);
       setFeedback(null);
     } finally {
       setIsLoading(false);
@@ -150,14 +144,15 @@ export function useChat(onUpdate?: () => void | Promise<void>) {
     return () => {
       recognitionRef.current?.stop();
     };
-  }, []);
+  }, [recognitionRef]);
 
   const handleCloseDayModalClose = createHandleCloseDayModalClose(setCloseDayFeedback);
 
-  const submitLabel = useMemo(
-    () => computeSubmitLabel({ isLoading, submitMode, selectedImage }),
-    [isLoading, submitMode, selectedImage]
-  );
+  const submitLabel = useMemo(() => computeSubmitLabel({ isLoading, submitMode, selectedImage }), [
+    isLoading,
+    submitMode,
+    selectedImage,
+  ]);
 
   return {
     inputText,
