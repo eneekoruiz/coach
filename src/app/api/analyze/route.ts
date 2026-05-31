@@ -102,10 +102,22 @@ export async function POST(request: Request) {
     const authHeader = request.headers.get('authorization') ?? undefined;
     console.info('[api/analyze] authHeader present:', !!authHeader);
 
-    const supabase = authHeader ? createSupabaseClient(authHeader) : await createSupabaseServerClient();
+    // Prefer explicit bearer when valid, but recover with cookie session if token is stale.
+    const cookieSupabase = await createSupabaseServerClient();
+    let supabase = authHeader ? createSupabaseClient(authHeader) : cookieSupabase;
 
     console.info('[api/analyze] Calling supabase.auth.getUser()');
-    const { data: userData, error: userError } = await supabase.auth.getUser();
+    let { data: userData, error: userError } = await supabase.auth.getUser();
+
+    if ((userError || !userData.user) && authHeader) {
+      console.warn('[api/analyze] Bearer auth failed, retrying with cookie session.');
+      const cookieResult = await cookieSupabase.auth.getUser();
+      if (!cookieResult.error && cookieResult.data.user) {
+        supabase = cookieSupabase;
+        userData = cookieResult.data;
+        userError = null;
+      }
+    }
 
     if (userError) {
       console.error('[api/analyze] supabase.auth.getUser error:', userError.message || userError);
