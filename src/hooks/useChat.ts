@@ -86,6 +86,13 @@ export function useChat(onUpdate?: () => void | Promise<void>) {
     setSubmitMode(requestMode);
 
     try {
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      if (userError || !userData.user) {
+        toast.error('Tu sesión expiró. Vuelve a iniciar sesión.');
+        window.location.href = '/login';
+        return;
+      }
+
       const { data: sessionData } = await supabase.auth.getSession();
       const accessToken = sessionData.session?.access_token;
 
@@ -100,6 +107,12 @@ export function useChat(onUpdate?: () => void | Promise<void>) {
         error?: string;
         data?: unknown;
       };
+
+      if (!result.ok && (payload.error || '').toLowerCase().includes('failed to validate user token')) {
+        toast.error('Tu sesión expiró. Vuelve a iniciar sesión.');
+        window.location.href = '/login';
+        return;
+      }
 
       if (!result.ok) throw new Error(payload.error ?? 'Error en la API.');
 
