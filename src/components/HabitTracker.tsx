@@ -216,14 +216,14 @@ function QuickAdd({ onCreate }: { onCreate: (name: string, type: 'positive' | 'n
 
 function RecentMiniList({ logs, habitId }: { logs: Array<{ date: string; habit_tracking: any[] }>; habitId: number }) {
   const entries = logs
-    .slice(0, 30)
+    .slice(0, 60) // fetch limit earlier was 60, show latest 30
     .map((l) => {
       const t = Array.isArray(l.habit_tracking) ? l.habit_tracking : [];
       const rec = t.find((r) => Number(r.habit_id) === habitId);
       return { date: l.date, amount: rec ? Number(rec.amount || 0) : null };
     })
     .filter((x) => x.amount !== null)
-    .slice(0, 10);
+    .slice(0, 30); // keep up to 30 most recent entries
 
   if (entries.length === 0) return <div className="text-xs text-slate-400 mt-2">Sin registros recientes</div>;
 
@@ -231,7 +231,7 @@ function RecentMiniList({ logs, habitId }: { logs: Array<{ date: string; habit_t
   return (
     <div className="flex items-center gap-2 mt-2">
       <div className="hidden md:block">
-        <Sparkline data={numbers} width={80} height={24} />
+        <Sparkline data={numbers} width={120} height={28} />
       </div>
       <div className="flex gap-2 overflow-x-auto">
         {entries.map((e) => (
