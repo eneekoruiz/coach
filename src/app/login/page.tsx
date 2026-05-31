@@ -18,14 +18,17 @@ type LoginPageProps = {
   searchParams?: {
     error?: string;
     success?: string;
+    email?: string;
   };
 };
 
 export default function LoginPage({ searchParams }: LoginPageProps) {
   const errorCode = searchParams?.error;
   const successCode = searchParams?.success;
+  const pendingEmail = searchParams?.email ?? '';
   const errorText = errorCode ? errorMessages[errorCode] ?? 'Error desconocido de autenticación.' : null;
   const successText = successCode ? successMessages[successCode] ?? null : null;
+  const isEmailNotConfirmed = errorCode === 'email_not_confirmed';
 
   return (
     <main className="min-h-dvh bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.96),_rgba(232,238,245,0.92)_38%,_rgba(212,220,232,0.96)_100%)] px-4 py-6 text-slate-900 sm:py-8">
@@ -44,8 +47,19 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
           </div>
 
           {errorText ? (
-            <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900" role="alert">
-              {errorText}
+            <div className="mb-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-4 text-sm text-rose-900" role="alert">
+              <p className="font-semibold">
+                {isEmailNotConfirmed ? 'Necesitas confirmar tu correo' : 'No pudimos iniciar sesión'}
+              </p>
+              <p className="mt-1 leading-6">{errorText}</p>
+              {isEmailNotConfirmed ? (
+                <div className="mt-3 rounded-xl border border-rose-200 bg-white px-3 py-3 text-rose-950">
+                  <p className="font-medium">Qué hacer ahora</p>
+                  <p className="mt-1 leading-6">
+                    Revisa la bandeja de entrada y la carpeta de spam del correo {pendingEmail || 'que usaste al registrarte'}. Abre el mensaje de confirmación y vuelve después a iniciar sesión.
+                  </p>
+                </div>
+              ) : null}
             </div>
           ) : null}
 
@@ -55,7 +69,7 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
             </div>
           ) : null}
 
-          <LoginAuthForm loginAction={login} signupAction={signup} />
+          <LoginAuthForm loginAction={login} signupAction={signup} defaultEmail={pendingEmail} />
         </section>
       </div>
     </main>

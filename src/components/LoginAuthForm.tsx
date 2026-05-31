@@ -3,9 +3,10 @@
 type LoginAuthFormProps = {
   loginAction: (formData: FormData) => Promise<void>;
   signupAction: (formData: FormData) => Promise<void>;
+  defaultEmail?: string;
 };
 
-export default function LoginAuthForm({ loginAction, signupAction }: LoginAuthFormProps) {
+export default function LoginAuthForm({ loginAction, signupAction, defaultEmail = '' }: LoginAuthFormProps) {
   return (
     <form
       className="space-y-4"
@@ -26,6 +27,7 @@ export default function LoginAuthForm({ loginAction, signupAction }: LoginAuthFo
           inputMode="email"
           required
           maxLength={120}
+          defaultValue={defaultEmail}
           className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400"
           placeholder="tu@email.com"
         />

@@ -45,6 +45,10 @@ export async function login(formData: FormData) {
 
   if (error) {
     const code = mapAuthErrorToCode(error.message || '');
+    if (code === 'email_not_confirmed') {
+      redirect(`/login?error=${code}&email=${encodeURIComponent(email)}`);
+    }
+
     redirect(`/login?error=${code}`);
   }
 
@@ -71,6 +75,10 @@ export async function signup(formData: FormData) {
 
   if (error) {
     const code = mapAuthErrorToCode(error.message || '');
+    if (code === 'email_not_confirmed') {
+      redirect(`/login?error=${code}&email=${encodeURIComponent(email)}`);
+    }
+
     redirect(`/login?error=${code}`);
   }
 
