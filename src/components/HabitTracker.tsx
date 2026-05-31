@@ -1,7 +1,8 @@
 "use client";
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import Toast from './Toast';
+import toast from 'react-hot-toast';
+import Sparkline from './Sparkline';
 
 type Habit = {
   id: number;
@@ -16,7 +17,6 @@ export default function HabitTracker() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<Record<number, boolean>>({});
   const [recentLogs, setRecentLogs] = useState<Array<{ date: string; habit_tracking: any[] }>>([]);
-  const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -70,14 +70,12 @@ export default function HabitTracker() {
         body: JSON.stringify({ habit_id: habitId, amount: values[habitId] ?? 0 }),
       });
 
-      if (!res.ok) {
+        if (!res.ok) {
         const payload = await res.json().catch(() => ({}));
         setValues((s) => ({ ...s, [habitId]: prev }));
-        setToast(`Error al guardar: ${payload?.error || res.statusText}`);
-        setTimeout(() => setToast(null), 4000);
+        toast.error(`Error al guardar: ${payload?.error || res.statusText}`);
       } else {
-        setToast('Guardado');
-        setTimeout(() => setToast(null), 2000);
+        toast.success('Guardado');
         // update recent logs optimistically
         const today = new Date().toISOString().slice(0, 10);
         setRecentLogs((r) => {
@@ -126,13 +124,11 @@ export default function HabitTracker() {
       if (newHabit) {
         setHabits((h) => [newHabit, ...h]);
         setValues((s) => ({ ...s, [newHabit.id]: 0 }));
-        setToast('Hábito creado');
-        setTimeout(() => setToast(null), 2000);
+        toast.success('Hábito creado');
       }
     } catch (e) {
       console.error(e);
-      setToast('Error de red');
-      setTimeout(() => setToast(null), 4000);
+      toast.error('Error de red');
     }
   }
 
@@ -190,7 +186,7 @@ export default function HabitTracker() {
           </div>
         </div>
       ))}
-      {toast ? <Toast message={toast} /> : null}
+      {/* react-hot-toast Toaster is placed in root layout */}
     </div>
   );
 }
@@ -233,14 +229,20 @@ function RecentMiniList({ logs, habitId }: { logs: Array<{ date: string; habit_t
 
   if (entries.length === 0) return <div className="text-xs text-slate-400 mt-2">Sin registros recientes</div>;
 
+  const numbers = entries.map((e) => Number(e.amount || 0)).reverse();
   return (
-    <div className="flex gap-2 mt-2 overflow-x-auto">
-      {entries.map((e) => (
-        <div key={e.date} className="text-xs bg-slate-100 px-2 py-1 rounded">
-          <div className="font-medium">{e.amount}</div>
-          <div className="text-[10px] text-slate-500">{e.date.slice(5)}</div>
-        </div>
-      ))}
+    <div className="flex items-center gap-2 mt-2">
+      <div className="hidden md:block">
+        <Sparkline data={numbers} width={80} height={24} />
+      </div>
+      <div className="flex gap-2 overflow-x-auto">
+        {entries.map((e) => (
+          <div key={e.date} className="text-xs bg-slate-100 px-2 py-1 rounded">
+            <div className="font-medium">{e.amount}</div>
+            <div className="text-[10px] text-slate-500">{e.date.slice(5)}</div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
