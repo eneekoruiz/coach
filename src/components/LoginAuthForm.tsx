@@ -30,7 +30,10 @@ export default function LoginAuthForm({
           name="email"
           type="email"
           autoComplete="email"
+          autoCapitalize="none"
+          autoCorrect="off"
           inputMode="email"
+          spellCheck={false}
           required
           maxLength={120}
           defaultValue={defaultEmail}

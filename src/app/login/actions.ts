@@ -7,6 +7,16 @@ function hasSupabaseConfig() {
   return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 }
 
+function getAppUrl() {
+  const explicitSiteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  if (explicitSiteUrl) return explicitSiteUrl.replace(/\/$/, '');
+
+  const vercelUrl = process.env.VERCEL_URL?.trim();
+  if (vercelUrl) return `https://${vercelUrl.replace(/\/$/, '')}`;
+
+  return 'http://localhost:3000';
+}
+
 function mapAuthErrorToCode(message: string) {
   const lower = message.toLowerCase();
   if (lower.includes('invalid login credentials')) return 'invalid_credentials';
@@ -71,6 +81,9 @@ export async function signup(formData: FormData) {
   const { error } = await supabase.auth.signUp({
     email,
     password,
+    options: {
+      emailRedirectTo: `${getAppUrl()}/login`,
+    },
   });
 
   if (error) {
@@ -100,6 +113,9 @@ export async function resendConfirmation(formData: FormData) {
   const { error } = await supabase.auth.resend({
     type: 'signup',
     email,
+    options: {
+      emailRedirectTo: `${getAppUrl()}/login`,
+    },
   });
 
   if (error) {
