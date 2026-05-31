@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import toast from '@/lib/toast';
 
 type SelectedImage = {
   previewUrl: string;
@@ -16,6 +17,7 @@ export function useImageSelection() {
   const [selectedImage, setSelectedImage] = useState<SelectedImage | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const allowedImageTypes = ['image/jpeg', 'image/png', 'image/webp'];
+  const maxImageBytes = 5 * 1024 * 1024;
 
   function handleImageButtonClick() {
     fileInputRef.current?.click();
@@ -25,14 +27,32 @@ export function useImageSelection() {
     const file = event.currentTarget.files?.[0];
     if (!file) return;
     if (!allowedImageTypes.includes(file.type)) {
+      toast.error('Formato no permitido. Usa JPG, PNG o WEBP.');
+      setSelectedImage(null);
+      event.currentTarget.value = '';
+      return;
+    }
+
+    if (file.size > maxImageBytes) {
+      toast.error('La imagen supera 5MB. Elige una más ligera.');
+      setSelectedImage(null);
       event.currentTarget.value = '';
       return;
     }
 
     const reader = new FileReader();
+    reader.onerror = () => {
+      toast.error('No se pudo leer la imagen. Intenta con otro archivo.');
+      setSelectedImage(null);
+      event.currentTarget.value = '';
+    };
     reader.onload = () => {
       const result = typeof reader.result === 'string' ? reader.result : '';
-      if (!result) return;
+      if (!result) {
+        toast.error('No se pudo procesar la imagen seleccionada.');
+        setSelectedImage(null);
+        return;
+      }
       setSelectedImage({
         previewUrl: result,
         base64: stripDataUrlPrefix(result),

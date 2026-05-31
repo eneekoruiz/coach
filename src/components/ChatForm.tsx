@@ -30,6 +30,7 @@ const Square = (props: React.SVGProps<SVGSVGElement>) => (
 interface ChatFormProps {
   textareaRef: React.RefObject<HTMLTextAreaElement | null>;
   fileInputRef: React.RefObject<HTMLInputElement | null>;
+  hasSelectedImage: boolean;
   inputText: string;
   setInputText: (text: string) => void;
   isLoading: boolean;
@@ -45,6 +46,7 @@ interface ChatFormProps {
 export default function ChatForm({
   textareaRef,
   fileInputRef,
+  hasSelectedImage,
   inputText,
   setInputText,
   isLoading,
@@ -115,7 +117,7 @@ export default function ChatForm({
           </button>
           <button
             type="submit"
-            disabled={isLoading || (!inputText.trim() && !fileInputRef?.current?.files?.length)}
+            disabled={isLoading || (!inputText.trim() && !hasSelectedImage)}
             className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-4 py-2 text-sm font-medium text-white transition hover:scale-[1.01] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isLoading ? (

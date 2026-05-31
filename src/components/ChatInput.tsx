@@ -54,6 +54,7 @@ export default function ChatInput({ onUpdate }: ChatInputProps) {
           <ChatForm
             textareaRef={textareaRef}
             fileInputRef={fileInputRef}
+            hasSelectedImage={Boolean(selectedImage)}
             inputText={inputText}
             setInputText={setInputText}
             isLoading={isLoading}

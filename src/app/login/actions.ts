@@ -10,9 +10,15 @@ function hasSupabaseConfig() {
 function mapAuthErrorToCode(message: string) {
   const lower = message.toLowerCase();
   if (lower.includes('invalid login credentials')) return 'invalid_credentials';
+  if (lower.includes('invalid email')) return 'invalid_form';
+  if (lower.includes('password')) return 'invalid_form';
   if (lower.includes('email not confirmed')) return 'email_not_confirmed';
   if (lower.includes('user not found')) return 'invalid_credentials';
   return 'auth_failed';
+}
+
+function isValidEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
 export async function login(formData: FormData) {
@@ -22,6 +28,14 @@ export async function login(formData: FormData) {
 
   const email = String(formData.get('email') ?? '').trim();
   const password = String(formData.get('password') ?? '');
+
+  if (!email || !password) {
+    redirect('/login?error=invalid_form');
+  }
+
+  if (!isValidEmail(email)) {
+    redirect('/login?error=invalid_form');
+  }
 
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase.auth.signInWithPassword({
@@ -44,6 +58,10 @@ export async function signup(formData: FormData) {
 
   const email = String(formData.get('email') ?? '').trim();
   const password = String(formData.get('password') ?? '');
+
+  if (!email || !password || !isValidEmail(email) || password.length < 6) {
+    redirect('/login?error=invalid_form');
+  }
 
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase.auth.signUp({

@@ -2,6 +2,7 @@ import { login, signup } from './actions';
 import LoginAuthForm from '@/components/LoginAuthForm';
 
 const errorMessages: Record<string, string> = {
+  invalid_form: 'Revisa email y contraseña. Formato inválido o campos vacíos.',
   invalid_credentials: 'Email o contraseña inválidos.',
   email_not_confirmed: 'Debes confirmar tu email antes de iniciar sesión.',
   config_missing: 'Falta configuración de Supabase en el servidor.',

@@ -114,7 +114,12 @@ export function useChat(onUpdate?: () => void | Promise<void>) {
         return;
       }
 
-      if (!result.ok) throw new Error(payload.error ?? 'Error en la API.');
+      if (!result.ok) {
+        if (result.status === 403) throw new Error('No tienes permisos para esta operación.');
+        if (result.status === 413) throw new Error('La imagen es demasiado grande (máx. 5MB).');
+        if (result.status === 400) throw new Error('Revisa el contenido enviado e inténtalo de nuevo.');
+        throw new Error('No se pudo procesar tu solicitud. Intenta nuevamente.');
+      }
 
       if (result.mode === 'close-day') {
         setFeedback(null);
