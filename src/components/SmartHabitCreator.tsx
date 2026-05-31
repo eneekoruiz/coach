@@ -2,11 +2,12 @@
 import React, { useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { motion } from 'framer-motion';
+import toast from 'react-hot-toast';
 
 export default function SmartHabitCreator({ onCreated }: { onCreated?: () => void }) {
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
+  
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -46,13 +47,11 @@ export default function SmartHabitCreator({ onCreated }: { onCreated?: () => voi
         throw new Error(typeof createPayload.error === 'string' ? createPayload.error : 'Failed to create habit');
       }
 
-      setToast('Hábito creado ✔️');
+      toast.success('Hábito creado ✔️');
       setText('');
       onCreated?.();
-      setTimeout(() => setToast(null), 3000);
     } catch (err) {
-      setToast(err instanceof Error ? err.message : String(err));
-      setTimeout(() => setToast(null), 4000);
+      toast.error(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
     }
@@ -95,11 +94,7 @@ export default function SmartHabitCreator({ onCreated }: { onCreated?: () => voi
         </div>
       )}
 
-      {toast && (
-        <div className="fixed left-1/2 top-6 z-50 -translate-x-1/2">
-          <div className="rounded-full bg-slate-900 px-4 py-2 text-sm text-white shadow-lg">{toast}</div>
-        </div>
-      )}
+      {/* toasts handled by react-hot-toast Toaster in root layout */}
     </div>
   );
 }

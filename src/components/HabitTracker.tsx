@@ -97,8 +97,7 @@ export default function HabitTracker() {
     } catch (err) {
       console.error(err);
       setValues((s) => ({ ...s, [habitId]: prev }));
-      setToast('Error de red al guardar hábito');
-      setTimeout(() => setToast(null), 4000);
+      toast.error('Error de red al guardar hábito');
     } finally {
       setSaving((s) => ({ ...s, [habitId]: false }));
     }
@@ -115,8 +114,7 @@ export default function HabitTracker() {
       });
       if (!res.ok) {
         const payload = await res.json().catch(() => ({}));
-        setToast(`Error creando hábito: ${payload?.error || res.statusText}`);
-        setTimeout(() => setToast(null), 4000);
+        toast.error(`Error creando hábito: ${payload?.error || res.statusText}`);
         return;
       }
       const payload = await res.json();
