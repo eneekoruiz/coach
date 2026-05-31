@@ -99,15 +99,19 @@ export async function POST(request: Request) {
     }
 
     const authHeader = request.headers.get('authorization') ?? undefined;
+    console.info('[api/analyze] authHeader present:', !!authHeader);
     const supabase = createSupabaseClient(authHeader);
 
+    console.info('[api/analyze] Calling supabase.auth.getUser()');
     const { data: userData, error: userError } = await supabase.auth.getUser();
 
     if (userError) {
+      console.error('[api/analyze] supabase.auth.getUser error:', userError.message || userError);
       throw userError;
     }
 
     const user = userData.user;
+    console.info('[api/analyze] supabase.getUser resolved user id:', user?.id ?? 'null');
 
     if (!user) {
       return NextResponse.json(
@@ -185,15 +189,29 @@ export async function POST(request: Request) {
       console.error('Failed to evaluate/update streaks', e);
     }
 
+    const insertPayload = {
+      user_id: user.id,
+      date: today,
+      health_momentum: nextMomentum,
+      ai_data: analyzedLog,
+      habit_tracking: JSON.stringify(habitReports),
+    } as const;
+
+    // Log minimal insert info for debugging (avoid dumping large ai_data)
+    try {
+      console.info('[api/analyze] Inserting daily_log', {
+        user_id: insertPayload.user_id,
+        date: insertPayload.date,
+        health_momentum: insertPayload.health_momentum,
+        habit_tracking_count: habitReports.length,
+      });
+    } catch (e) {
+      console.error('[api/analyze] Failed to log insert payload summary', e);
+    }
+
     const { data: insertedLog, error: insertError } = await supabase
       .from('daily_logs')
-      .insert({
-        user_id: user.id,
-        date: today,
-        health_momentum: nextMomentum,
-        ai_data: analyzedLog,
-        habit_tracking: JSON.stringify(habitReports),
-      })
+      .insert(insertPayload)
       .select('*')
       .single();
 
