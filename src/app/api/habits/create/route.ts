@@ -14,22 +14,6 @@ const createHabitSchema = z.object({
   tolerance: z.number().int().nonnegative().default(0),
 });
 
-function createAdminClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!url || !serviceRoleKey) {
-    throw new Error('Missing Supabase service role credentials');
-  }
-
-  return createClient(url, serviceRoleKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  });
-}
-
 function createAuthClient(authHeader?: string) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -72,18 +56,29 @@ export async function POST(request: Request) {
       },
     });
 
-    const authClient = authHeader ? createAuthClient(authHeader) : serverClient;
-    const { data: userData, error: userError } = authHeader
+    const bearerClient = authHeader ? createAuthClient(authHeader) : null;
+    let authClient = bearerClient ?? serverClient;
+    let { data: userData, error: userError } = authHeader
       ? await authClient.auth.getUser(authHeader.replace(/^Bearer\s+/i, ''))
       : await authClient.auth.getUser();
 
-    if (userError) throw userError;
+    if ((userError || !userData.user) && authHeader) {
+      const cookieResult = await serverClient.auth.getUser();
+      if (!cookieResult.error && cookieResult.data.user) {
+        authClient = serverClient;
+        userData = cookieResult.data;
+        userError = null;
+      }
+    }
+
+    if (userError) {
+      return NextResponse.json({ error: 'Failed to validate user token.' }, { status: 401 });
+    }
+
     const user = userData.user;
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
-    const supabase = createAdminClient();
 
     const body = await request.json();
     const parsed = createHabitSchema.safeParse(body);
@@ -94,7 +89,7 @@ export async function POST(request: Request) {
 
     const payload = parsed.data;
 
-    const { data, error } = await supabase
+    const { data, error } = await authClient
       .from('user_habits')
       .insert({
         user_id: user.id,
@@ -109,11 +104,17 @@ export async function POST(request: Request) {
       .select('*')
       .single();
 
-    if (error) throw error;
+    if (error) {
+      const lower = (error.message || '').toLowerCase();
+      if (/permission|row-level security|policy|forbidden/.test(lower)) {
+        return NextResponse.json({ error: 'Permission denied when creating habit.' }, { status: 403 });
+      }
+      return NextResponse.json({ error: error.message || 'Failed to create habit.' }, { status: 500 });
+    }
 
     return NextResponse.json({ data }, { status: 200 });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: message || 'Unexpected server error.' }, { status: 500 });
   }
 }
