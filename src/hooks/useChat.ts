@@ -7,7 +7,7 @@ import { type DailyLog } from '@/lib/schema';
 import { triggerVibration } from '@/lib/haptics';
 import { useSpeechRecognition } from './useSpeechRecognition';
 import { useImageSelection } from './useImageSelection';
-import { analyzeRequest, closeDayRequest, performChatRequest } from './useChatApi';
+import { performChatRequest } from './useChatApi';
 import { computeEvaluationText, computeSubmitLabel } from './useChatHelpers';
 import { createHandleCloseDayModalClose } from './useChatActionsHelpers';
 
@@ -108,7 +108,7 @@ export function useChat(onUpdate?: () => void | Promise<void>) {
         data?: unknown;
       };
 
-      if (!result.ok && (payload.error || '').toLowerCase().includes('failed to validate user token')) {
+      if (!result.ok && result.status === 401) {
         toast.error('Tu sesión expiró. Vuelve a iniciar sesión.');
         window.location.href = '/login';
         return;

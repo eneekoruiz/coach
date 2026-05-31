@@ -1,5 +1,3 @@
-import { supabase } from './supabase';
-
 export async function sendCloseDay(accessToken?: string) {
   const response = await fetch('/api/close-day', {
     method: 'POST',
@@ -11,7 +9,7 @@ export async function sendCloseDay(accessToken?: string) {
   });
 
   const payload = await response.json();
-  return { ok: response.ok, payload };
+  return { ok: response.ok, status: response.status, payload };
 }
 
 export async function sendAnalyze(text: string, base64Image: string | null, accessToken?: string) {
@@ -25,5 +23,5 @@ export async function sendAnalyze(text: string, base64Image: string | null, acce
   });
 
   const payload = await response.json();
-  return { ok: response.ok, payload };
+  return { ok: response.ok, status: response.status, payload };
 }
