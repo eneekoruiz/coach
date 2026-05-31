@@ -23,6 +23,8 @@ interface CloseDayModalProps {
 
 export default function CloseDayModal({ closeDayFeedback, onClose }: CloseDayModalProps) {
   const [imgSrc, setImgSrc] = React.useState(closeDayFeedback?.imageUrl || '');
+  const titleId = React.useId();
+  const descriptionId = React.useId();
 
   React.useEffect(() => {
     if (closeDayFeedback?.imageUrl) {
@@ -39,6 +41,7 @@ export default function CloseDayModal({ closeDayFeedback, onClose }: CloseDayMod
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
+        role="presentation"
       >
         <motion.div
           className="relative flex max-h-[90dvh] w-full max-w-none flex-col overflow-hidden rounded-t-[1.5rem] bg-white p-3 shadow-[0_28px_90px_rgba(15,23,42,0.32)] sm:max-h-[85dvh] sm:max-w-2xl sm:rounded-[2rem] sm:p-4"
@@ -46,15 +49,22 @@ export default function CloseDayModal({ closeDayFeedback, onClose }: CloseDayMod
           animate={{ scale: 1, y: 0, opacity: 1 }}
           exit={{ scale: 0.96, y: 14, opacity: 0 }}
           transition={{ type: 'spring', stiffness: 120, damping: 18 }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={titleId}
+          aria-describedby={descriptionId}
         >
           <div className="flex items-start justify-between gap-3 px-1 pb-3">
             <div>
               <p className="text-[10px] uppercase tracking-[0.35em] text-slate-500">
                 Cierre del día
               </p>
-              <h3 className="mt-1 text-lg font-semibold text-slate-900 sm:text-xl">
+              <h3 id={titleId} className="mt-1 text-lg font-semibold text-slate-900 sm:text-xl">
                 Tu Bio-Avatar final
               </h3>
+              <p id={descriptionId} className="mt-1 text-sm text-slate-600">
+                Resumen accesible del cierre diario con imagen, puntuación y recomendaciones.
+              </p>
             </div>
             <button
               type="button"
