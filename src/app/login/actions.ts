@@ -5,7 +5,7 @@ import { createSupabaseServerClient } from '@/lib/supabase-server';
 
 export async function login(formData: FormData) {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-    redirect('/');
+    throw new Error('Supabase configuration missing: set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY');
   }
 
   const email = String(formData.get('email') ?? '').trim();
@@ -26,7 +26,7 @@ export async function login(formData: FormData) {
 
 export async function signup(formData: FormData) {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-    redirect('/');
+    throw new Error('Supabase configuration missing: set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY');
   }
 
   const email = String(formData.get('email') ?? '').trim();
@@ -47,7 +47,7 @@ export async function signup(formData: FormData) {
 
 export async function logout() {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-    redirect('/login');
+    throw new Error('Supabase configuration missing: set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY');
   }
 
   const supabase = await createSupabaseServerClient();
