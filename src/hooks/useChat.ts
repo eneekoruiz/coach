@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { type DailyLog } from '@/lib/schema';
 import { triggerVibration } from '@/lib/haptics';
 import { useSpeechRecognition } from './useSpeechRecognition';
 import { useImageSelection } from './useImageSelection';
@@ -17,7 +18,7 @@ type SelectedImage = {
 type ChatFeedback = {
   previous_health_momentum: number;
   health_momentum: number;
-  ai_data: any;
+  ai_data: DailyLog;
 };
 
 type CloseDayFeedback = {
@@ -92,13 +93,18 @@ export function useChat(onUpdate?: () => void | Promise<void>) {
         mode: requestMode,
       });
 
-      if (!result.ok) throw new Error(result.payload.error ?? 'Error en la API.');
+      const payload = result.payload as {
+        error?: string;
+        data?: unknown;
+      };
+
+      if (!result.ok) throw new Error(payload.error ?? 'Error en la API.');
 
       if (result.mode === 'close-day') {
         setFeedback(null);
-        setCloseDayFeedback(result.payload.data);
+        setCloseDayFeedback(payload.data as CloseDayFeedback);
       } else {
-        setFeedback(result.payload.data);
+        setFeedback(payload.data as ChatFeedback);
         triggerVibration('success');
         setCloseDayFeedback(null);
       }

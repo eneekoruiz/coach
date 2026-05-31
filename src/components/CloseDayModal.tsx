@@ -7,7 +7,29 @@ const X = (props: React.SVGProps<SVGSVGElement>) => (
   </svg>
 );
 
-export default function CloseDayModal({ closeDayFeedback, onClose }: any) {
+interface CloseDayFeedback {
+  imageUrl: string;
+  prompt_imagen: string;
+  puntuacion_global: number;
+  aciertos: string[];
+  error_clave: string;
+  accion_manana: string;
+}
+
+interface CloseDayModalProps {
+  closeDayFeedback: CloseDayFeedback | null;
+  onClose: () => void;
+}
+
+export default function CloseDayModal({ closeDayFeedback, onClose }: CloseDayModalProps) {
+  const [imgSrc, setImgSrc] = React.useState(closeDayFeedback?.imageUrl || '');
+
+  React.useEffect(() => {
+    if (closeDayFeedback?.imageUrl) {
+      setImgSrc(closeDayFeedback.imageUrl);
+    }
+  }, [closeDayFeedback?.imageUrl]);
+
   if (!closeDayFeedback) return null;
 
   return (
@@ -48,9 +70,10 @@ export default function CloseDayModal({ closeDayFeedback, onClose }: any) {
             <div className="overflow-hidden rounded-[1.6rem] border border-slate-200 bg-slate-50">
               <div className="relative aspect-square bg-slate-900/5">
                 <img
-                  src={closeDayFeedback.imageUrl}
+                  src={imgSrc || '/default-avatar.png'}
                   alt="Bio-Avatar final generado con IA"
                   className="h-full w-full object-cover"
+                  onError={() => setImgSrc('/default-avatar.png')}
                 />
                 <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950/70 to-transparent px-4 py-4 text-white">
                   <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">

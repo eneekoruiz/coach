@@ -23,30 +23,29 @@ export default function HabitDashboard() {
   const [selectedHabitId, setSelectedHabitId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
-  async function load() {
-    setLoading(true);
-    const { data: userData } = await supabase.auth.getUser();
-    const userId = userData?.user?.id;
-    if (!userId) {
-      setLoading(false);
-      return;
-    }
-
-    const [habitsResult, logsResult] = await Promise.all([
-      supabase.from('user_habits').select('*').eq('user_id', userId),
-      supabase.from('daily_logs').select('date, habit_tracking').eq('user_id', userId).order('date', { ascending: true }),
-    ]);
-
-    const nextHabits = (habitsResult.data as Habit[]) ?? [];
-    const nextLogs = (logsResult.data as DailyLogRow[]) ?? [];
-
-    setHabits(nextHabits);
-    setLogs(nextLogs);
-    setSelectedHabitId((current) => current ?? nextHabits[0]?.id ?? null);
-    setLoading(false);
-  }
-
   useEffect(() => {
+    async function load() {
+      setLoading(true);
+      const { data: userData } = await supabase.auth.getUser();
+      const userId = userData?.user?.id;
+      if (!userId) {
+        setLoading(false);
+        return;
+      }
+
+      const [habitsResult, logsResult] = await Promise.all([
+        supabase.from('user_habits').select('*').eq('user_id', userId),
+        supabase.from('daily_logs').select('date, habit_tracking').eq('user_id', userId).order('date', { ascending: true }),
+      ]);
+
+      const nextHabits = (habitsResult.data as Habit[]) ?? [];
+      const nextLogs = (logsResult.data as DailyLogRow[]) ?? [];
+
+      setHabits(nextHabits);
+      setLogs(nextLogs);
+      setSelectedHabitId((current) => current ?? nextHabits[0]?.id ?? null);
+      setLoading(false);
+    }
     load();
   }, []);
 

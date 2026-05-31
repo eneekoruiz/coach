@@ -19,10 +19,17 @@ type Props = {
 
 export default function HabitDashboardHabitCard({ habit, selected, onSelect, onQuickAdd }: Props) {
   return (
-    <button
-      type="button"
+    <div
+      role="button"
+      tabIndex={0}
       onClick={() => onSelect(habit.id)}
-      className={`rounded-2xl border p-3 text-left shadow-sm transition ${selected ? 'border-slate-900 bg-slate-950 text-white' : 'bg-white hover:-translate-y-0.5 hover:border-slate-300'}`}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onSelect(habit.id);
+        }
+      }}
+      className={`cursor-pointer rounded-2xl border p-3 text-left shadow-sm transition ${selected ? 'border-slate-900 bg-slate-950 text-white' : 'bg-white hover:-translate-y-0.5 hover:border-slate-300'}`}
     >
       <div className="flex items-center justify-between">
         <div>
@@ -77,6 +84,6 @@ export default function HabitDashboardHabitCard({ habit, selected, onSelect, onQ
           )}
         </div>
       </div>
-    </button>
+    </div>
   );
 }

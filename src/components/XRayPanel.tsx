@@ -1,7 +1,25 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 
-export default function XRayPanel({ theme, displayLog, momentum }: any) {
+import { type DailyLog } from '@/lib/schema';
+
+interface DashboardTheme {
+  background: string;
+  accent: string;
+  glass: string;
+  text: string;
+  subtext: string;
+}
+
+export default function XRayPanel({
+  theme,
+  displayLog,
+  momentum,
+}: {
+  theme: DashboardTheme;
+  displayLog: DailyLog;
+  momentum: number;
+}) {
   return (
     <motion.div
       className="pointer-events-none absolute inset-0 z-20 p-3 sm:p-4 sm:p-6"
@@ -36,7 +54,7 @@ export default function XRayPanel({ theme, displayLog, momentum }: any) {
               <p className="text-xs uppercase tracking-[0.28em] text-slate-500">Aciertos</p>
               <ul className="mt-3 space-y-2 text-sm text-slate-700">
                 {displayLog.metricas.aciertos.length > 0 ? (
-                  displayLog.metricas.aciertos.map((item: any) => (
+                  displayLog.metricas.aciertos.map((item: string) => (
                     <li key={item} className="flex items-start gap-2">
                       <span className="mt-1 h-2 w-2 rounded-full bg-emerald-400" />
                       <span>{item}</span>

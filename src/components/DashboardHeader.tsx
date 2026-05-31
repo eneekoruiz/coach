@@ -17,7 +17,25 @@ const LogOut = (props: React.SVGProps<SVGSVGElement>) => (
 import { logout } from '@/app/login/actions';
 import { triggerVibration } from '@/lib/haptics';
 
-export default function DashboardHeader({ theme, momentum, setRayXModeFromGesture }: any) {
+interface DashboardTheme {
+  background: string;
+  accent: string;
+  glass: string;
+  text: string;
+  subtext: string;
+}
+
+interface DashboardHeaderProps {
+  theme: DashboardTheme;
+  momentum: number;
+  setRayXModeFromGesture: (v: boolean) => void;
+}
+
+export default function DashboardHeader({
+  theme,
+  momentum,
+  setRayXModeFromGesture,
+}: DashboardHeaderProps) {
   return (
     <header
       className={`rounded-[2rem] border px-4 py-4 shadow-[0_14px_60px_rgba(15,23,42,0.08)] backdrop-blur-2xl sm:px-5 ${theme.glass}`}

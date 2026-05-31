@@ -27,6 +27,21 @@ const Square = (props: React.SVGProps<SVGSVGElement>) => (
   </svg>
 );
 
+interface ChatFormProps {
+  textareaRef: React.RefObject<HTMLTextAreaElement | null>;
+  fileInputRef: React.RefObject<HTMLInputElement | null>;
+  inputText: string;
+  setInputText: (text: string) => void;
+  isLoading: boolean;
+  isListening: boolean;
+  isCloseDayCommand: boolean;
+  toggleListening: () => void;
+  handleImageButtonClick: () => void;
+  handleImageSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  handleSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
+  submitLabel: string;
+}
+
 export default function ChatForm({
   textareaRef,
   fileInputRef,
@@ -40,7 +55,7 @@ export default function ChatForm({
   handleImageSelect,
   handleSubmit,
   submitLabel,
-}: any) {
+}: ChatFormProps) {
   return (
     <form
       onSubmit={handleSubmit}

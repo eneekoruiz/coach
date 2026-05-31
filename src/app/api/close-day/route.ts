@@ -33,11 +33,18 @@ function createSupabaseClient(authHeader?: string) {
 
 export async function POST(request: Request) {
   try {
-    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    if (
+      !process.env.GOOGLE_GENERATIVE_AI_API_KEY ||
+      !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+      !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    ) {
+      console.warn(
+        '[BioAvatar] GOOGLE_GENERATIVE_AI_API_KEY or Supabase env vars are missing. Returning safe demo end-of-day summary.'
+      );
       const summary = {
         puntuacion_global: 72,
-        aciertos: ['Sesión local activa', 'Dashboard visible', 'Chat disponible'],
-        error_clave: 'Faltan variables de entorno de Supabase',
+        aciertos: ['Mascota estable', 'Sesión local activa', 'Chat disponible'],
+        error_clave: 'Faltan variables de entorno',
         accion_manana: 'Configura el backend real y vuelve a registrar el día',
         prompt_imagen:
           'a photorealistic german shepherd in a calm bright forest, clean composition, soft morning light, no text',

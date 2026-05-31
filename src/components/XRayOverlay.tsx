@@ -1,6 +1,16 @@
 import React from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 
+import { type DailyLog } from '@/lib/schema';
+
+interface DashboardTheme {
+  background: string;
+  accent: string;
+  glass: string;
+  text: string;
+  subtext: string;
+}
+
 export default function XRayOverlay({
   isXRayMode,
   theme,
@@ -8,8 +18,8 @@ export default function XRayOverlay({
   momentum,
 }: {
   isXRayMode: boolean;
-  theme: any;
-  displayLog: any;
+  theme: DashboardTheme;
+  displayLog: DailyLog;
   momentum: number;
 }) {
   return (
@@ -45,7 +55,7 @@ export default function XRayOverlay({
                   <p className="text-xs uppercase tracking-[0.28em] text-slate-500">Aciertos</p>
                   <ul className="mt-3 space-y-2 text-sm text-slate-700">
                     {displayLog.metricas.aciertos.length > 0 ? (
-                      displayLog.metricas.aciertos.map((item: any) => (
+                      displayLog.metricas.aciertos.map((item: string) => (
                         <li key={item} className="flex items-start gap-2">
                           <span className="mt-1 h-2 w-2 rounded-full bg-emerald-400" />
                           <span>{item}</span>

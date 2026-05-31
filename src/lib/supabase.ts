@@ -10,7 +10,7 @@ function warnSafeMode() {
 }
 
 function createMockBuilder() {
-  const builder: any = {
+  const builder = {
     select() {
       return builder;
     },
@@ -24,7 +24,7 @@ function createMockBuilder() {
       return builder;
     },
     range() {
-      return Promise.resolve({ data: [], error: null, count: 0 });
+      return Promise.resolve({ data: [] as any[], error: null, count: 0 });
     },
     insert() {
       return builder;

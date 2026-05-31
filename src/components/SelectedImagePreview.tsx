@@ -1,10 +1,17 @@
 import React from 'react';
 
+interface SelectedImage {
+  previewUrl: string;
+  base64: string;
+  mimeType: string;
+  fileName: string;
+}
+
 export default function SelectedImagePreview({
   selectedImage,
   onClear,
 }: {
-  selectedImage: any;
+  selectedImage: SelectedImage;
   onClear: () => void;
 }) {
   if (!selectedImage) return null;

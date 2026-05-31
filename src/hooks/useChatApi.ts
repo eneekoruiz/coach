@@ -13,8 +13,8 @@ export async function closeDayRequest(accessToken?: string) {
 }
 
 export type ChatRequestResult =
-  | { ok: boolean; payload: any; mode: 'analyze' }
-  | { ok: boolean; payload: any; mode: 'close-day' };
+  | { ok: boolean; payload: unknown; mode: 'analyze' }
+  | { ok: boolean; payload: unknown; mode: 'close-day' };
 
 export async function performChatRequest(params: {
   text: string;

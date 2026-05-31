@@ -1,6 +1,12 @@
 import React from 'react';
 
-type ChatFeedback = any;
+import { type DailyLog } from '@/lib/schema';
+
+type ChatFeedback = {
+  previous_health_momentum: number;
+  health_momentum: number;
+  ai_data: DailyLog;
+};
 
 function renderPips(level: number) {
   const icons = [1, 2, 3, 4, 5];

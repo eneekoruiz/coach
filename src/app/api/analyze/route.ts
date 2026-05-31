@@ -89,10 +89,12 @@ function normalizeBase64Image(value: string) {
 export async function POST(request: Request) {
   try {
     if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
+      console.warn('[BioAvatar] GOOGLE_GENERATIVE_AI_API_KEY is missing. Returning safe demo response.');
       return createSafeDemoResponse();
     }
 
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      console.warn('[BioAvatar] Supabase env vars are missing. Returning safe demo response.');
       return createSafeDemoResponse();
     }
 
@@ -169,12 +171,16 @@ export async function POST(request: Request) {
     const today = new Date().toISOString().slice(0, 10);
 
     // If Gemini returned habit signals, use them; otherwise expect client to pass habit_tracking in request body
-    const habitReports: Array<{ habit_id: number; amount: number }> =
-      (analyzedLog as any).habits ?? (body as any).habit_tracking ?? [];
+    const dynamicLog = analyzedLog as unknown as Record<string, unknown>;
+    const dynamicBody = body as Record<string, unknown>;
+    const habitReports = ((dynamicLog.habits || dynamicBody.habit_tracking || []) as Array<{
+      habit_id: number;
+      amount: number;
+    }>);
 
     // Evaluate and update streaks in user_habits table
     try {
-      await evaluateAndUpdateStreaks(authHeader, user.id, habitReports as any);
+      await evaluateAndUpdateStreaks(authHeader, user.id, habitReports);
     } catch (e) {
       console.error('Failed to evaluate/update streaks', e);
     }

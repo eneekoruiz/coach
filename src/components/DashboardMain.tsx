@@ -2,12 +2,22 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import XRayOverlay from './XRayOverlay';
 
+import { type DailyLog } from '@/lib/schema';
+
+interface DashboardTheme {
+  background: string;
+  accent: string;
+  glass: string;
+  text: string;
+  subtext: string;
+}
+
 type DashboardMainProps = {
   isXRayMode: boolean;
   setRayXModeFromGesture?: (v: boolean) => void;
   isLoading: boolean;
-  theme: any;
-  displayLog: any;
+  theme: DashboardTheme;
+  displayLog: DailyLog;
   momentum: number;
   energyLevel: number;
   mentalClarity: number;

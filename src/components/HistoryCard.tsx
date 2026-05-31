@@ -6,15 +6,24 @@ const Sparkles = (props: React.SVGProps<SVGSVGElement>) => (
 );
 import { formatSpanishDate, formatShortHeader } from '@/lib/date-utils';
 
+import { type DailyLog } from '@/lib/schema';
+
 type HistoryLog = {
   date: string;
   health_momentum: number;
   avatar_image_url: string | null;
-  ai_data: any;
+  ai_data: DailyLog | null;
 };
 
 export default function HistoryCard({ log }: { log: HistoryLog }) {
   const summary = log.ai_data?.metricas ?? null;
+  const [imgSrc, setImgSrc] = React.useState(log.avatar_image_url || '');
+
+  React.useEffect(() => {
+    if (log.avatar_image_url) {
+      setImgSrc(log.avatar_image_url);
+    }
+  }, [log.avatar_image_url]);
 
   return (
     <details
@@ -25,11 +34,12 @@ export default function HistoryCard({ log }: { log: HistoryLog }) {
         <div className="overflow-hidden rounded-[1.25rem] border border-slate-200 bg-slate-50">
           <div className="relative">
             <div className="aspect-[4/5] w-full bg-gradient-to-b from-slate-100 to-slate-200">
-              {log.avatar_image_url ? (
+              {imgSrc ? (
                 <img
-                  src={log.avatar_image_url}
+                  src={imgSrc}
                   alt={`Bio-Avatar del ${formatSpanishDate(log.date)}`}
                   className="h-full w-full object-cover"
+                  onError={() => setImgSrc('/default-avatar.png')}
                 />
               ) : (
                 <div className="flex h-full w-full items-center justify-center bg-[radial-gradient(circle_at_center,_rgba(255,255,255,0.95),_rgba(226,232,240,0.92))]">
@@ -85,7 +95,7 @@ export default function HistoryCard({ log }: { log: HistoryLog }) {
               <p className="text-[10px] uppercase tracking-[0.3em] text-slate-500">Aciertos</p>
               <div className="mt-3 flex flex-wrap gap-2">
                 {summary.aciertos.length > 0 ? (
-                  summary.aciertos.map((item: any) => (
+                  summary.aciertos.map((item: string) => (
                     <span
                       key={item}
                       className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-900"

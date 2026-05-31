@@ -1,14 +1,14 @@
 import { useRef, useState } from 'react';
 
 export function useSpeechRecognition(onTranscript: (text: string) => void) {
-  const recognitionRef = useRef<any | null>(null);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
   const [isListening, setIsListening] = useState(false);
 
   function toggleListening() {
     if (typeof window === 'undefined') return;
 
     const SpeechRecognitionConstructor =
-      (window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition;
+      window.SpeechRecognition ?? window.webkitSpeechRecognition;
     if (!SpeechRecognitionConstructor) {
       window.alert('Tu navegador no soporta dictado por voz. Prueba en Chrome o Edge.');
       return;
@@ -25,7 +25,7 @@ export function useSpeechRecognition(onTranscript: (text: string) => void) {
     recognition.interimResults = true;
 
     recognition.onstart = () => setIsListening(true);
-    recognition.onresult = (event: any) => {
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
       let transcript = '';
       for (let index = event.resultIndex; index < event.results.length; index += 1) {
         transcript += event.results[index][0].transcript;

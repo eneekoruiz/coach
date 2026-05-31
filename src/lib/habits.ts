@@ -53,7 +53,7 @@ export async function evaluateAndUpdateStreaks(
 
   if (!habits) return [];
 
-  const updates: Array<any> = [];
+  const updates: Array<Partial<UserHabit> & { id: number }> = [];
 
   for (const h of habits as UserHabit[]) {
     const report = reports.find((r) => Number(r.habit_id) === Number(h.id));
