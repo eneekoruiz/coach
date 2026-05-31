@@ -3,10 +3,16 @@
 type LoginAuthFormProps = {
   loginAction: (formData: FormData) => Promise<void>;
   signupAction: (formData: FormData) => Promise<void>;
+  resendConfirmationAction: (formData: FormData) => Promise<void>;
   defaultEmail?: string;
 };
 
-export default function LoginAuthForm({ loginAction, signupAction, defaultEmail = '' }: LoginAuthFormProps) {
+export default function LoginAuthForm({
+  loginAction,
+  signupAction,
+  resendConfirmationAction,
+  defaultEmail = '',
+}: LoginAuthFormProps) {
   return (
     <form
       className="space-y-4"
@@ -64,6 +70,21 @@ export default function LoginAuthForm({ loginAction, signupAction, defaultEmail 
           className="rounded-full border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 transition hover:bg-slate-50"
         >
           Crear Cuenta
+        </button>
+      </div>
+
+      <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-700">
+        <p className="font-medium text-slate-900">¿No te llegó el correo de confirmación?</p>
+        <p className="mt-1 leading-6">
+          Usa el mismo email para solicitar un nuevo enlace. No necesitas escribir la contraseña.
+        </p>
+        <button
+          type="submit"
+          formAction={resendConfirmationAction}
+          formNoValidate
+          className="mt-3 inline-flex rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-900 transition hover:bg-slate-50"
+        >
+          Reenviar confirmación
         </button>
       </div>
     </form>

@@ -1,4 +1,4 @@
-import { login, signup } from './actions';
+import { login, resendConfirmation, signup } from './actions';
 import LoginAuthForm from '@/components/LoginAuthForm';
 
 const errorMessages: Record<string, string> = {
@@ -14,6 +14,7 @@ const errorMessages: Record<string, string> = {
 
 const successMessages: Record<string, string> = {
   signup: 'Cuenta creada. Revisa tu correo para confirmar el email.',
+  confirmation_resent: 'Te enviamos un nuevo correo de confirmación. Revisa tu bandeja de entrada.',
 };
 
 type LoginPageProps = {
@@ -81,7 +82,12 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             </div>
           ) : null}
 
-          <LoginAuthForm loginAction={login} signupAction={signup} defaultEmail={pendingEmail} />
+          <LoginAuthForm
+            loginAction={login}
+            signupAction={signup}
+            resendConfirmationAction={resendConfirmation}
+            defaultEmail={pendingEmail}
+          />
         </section>
       </div>
     </main>

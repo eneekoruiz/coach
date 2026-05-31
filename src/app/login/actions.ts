@@ -85,6 +85,31 @@ export async function signup(formData: FormData) {
   redirect('/login?success=signup');
 }
 
+export async function resendConfirmation(formData: FormData) {
+  if (!hasSupabaseConfig()) {
+    redirect('/login?error=config_missing');
+  }
+
+  const email = String(formData.get('email') ?? '').trim();
+
+  if (!email || !isValidEmail(email)) {
+    redirect('/login?error=invalid_form');
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase.auth.resend({
+    type: 'signup',
+    email,
+  });
+
+  if (error) {
+    const code = mapAuthErrorToCode(error.message || '');
+    redirect(`/login?error=${code}&email=${encodeURIComponent(email)}`);
+  }
+
+  redirect(`/login?success=confirmation_resent&email=${encodeURIComponent(email)}`);
+}
+
 export async function logout() {
   if (!hasSupabaseConfig()) {
     redirect('/login?error=config_missing');
