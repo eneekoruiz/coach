@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
-import toast from 'react-hot-toast';
+import toast from '@/lib/toast';
 import Sparkline from './Sparkline';
 
 type Habit = {
@@ -226,7 +226,7 @@ export default function HabitTracker() {
             </motion.div>
           ))}
         </div>
-        {/* react-hot-toast Toaster is placed in root layout */}
+        {/* Toast container is rendered in root layout */}
 
         {/* Live region for screen readers */}
         <div aria-live="polite" className="sr-only">

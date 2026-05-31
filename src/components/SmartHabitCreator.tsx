@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { motion } from 'framer-motion';
-import toast from 'react-hot-toast';
+import toast from '@/lib/toast';
 
 export default function SmartHabitCreator({ onCreated }: { onCreated?: () => void }) {
   const [text, setText] = useState('');
@@ -94,7 +94,7 @@ export default function SmartHabitCreator({ onCreated }: { onCreated?: () => voi
         </div>
       )}
 
-      {/* toasts handled by react-hot-toast Toaster in root layout */}
+      {/* toasts handled by ToasterClient in root layout */}
     </div>
   );
 }
