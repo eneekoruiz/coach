@@ -11,5 +11,15 @@ export function triggerVibration(type: HapticType) {
     return;
   }
 
+  const navWithActivation = navigator as Navigator & {
+    userActivation?: {
+      isActive?: boolean;
+    };
+  };
+
+  if (navWithActivation.userActivation && !navWithActivation.userActivation.isActive) {
+    return;
+  }
+
   navigator.vibrate(vibrationPatterns[type]);
 }

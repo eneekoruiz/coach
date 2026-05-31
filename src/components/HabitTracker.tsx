@@ -1,5 +1,7 @@
 "use client";
 import React, { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
+import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import toast from 'react-hot-toast';
 import Sparkline from './Sparkline';
@@ -17,6 +19,7 @@ export default function HabitTracker() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<Record<number, boolean>>({});
   const [recentLogs, setRecentLogs] = useState<Array<{ date: string; habit_tracking: any[] }>>([]);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -71,11 +74,15 @@ export default function HabitTracker() {
       });
 
         if (!res.ok) {
-        const payload = await res.json().catch(() => ({}));
-        setValues((s) => ({ ...s, [habitId]: prev }));
-        toast.error(`Error al guardar: ${payload?.error || res.statusText}`);
-      } else {
-        toast.success('Guardado');
+          const payload = await res.json().catch(() => ({}));
+          setValues((s) => ({ ...s, [habitId]: prev }));
+          const msg = `Error al guardar: ${payload?.error || res.statusText}`;
+          toast.error(msg);
+          setStatusMessage(msg);
+        } else {
+          const msg = 'Guardado';
+          toast.success(msg);
+          setStatusMessage(msg);
         // update recent logs optimistically
         const today = new Date().toISOString().slice(0, 10);
         setRecentLogs((r) => {
@@ -97,7 +104,9 @@ export default function HabitTracker() {
     } catch (err) {
       console.error(err);
       setValues((s) => ({ ...s, [habitId]: prev }));
-      toast.error('Error de red al guardar hábito');
+      const msg = 'Error de red al guardar hábito';
+      toast.error(msg);
+      setStatusMessage(msg);
     } finally {
       setSaving((s) => ({ ...s, [habitId]: false }));
     }
@@ -114,7 +123,9 @@ export default function HabitTracker() {
       });
       if (!res.ok) {
         const payload = await res.json().catch(() => ({}));
-        toast.error(`Error creando hábito: ${payload?.error || res.statusText}`);
+        const msg = `Error creando hábito: ${payload?.error || res.statusText}`;
+        toast.error(msg);
+        setStatusMessage(msg);
         return;
       }
       const payload = await res.json();
@@ -122,73 +133,107 @@ export default function HabitTracker() {
       if (newHabit) {
         setHabits((h) => [newHabit, ...h]);
         setValues((s) => ({ ...s, [newHabit.id]: 0 }));
-        toast.success('Hábito creado');
+        const msg = 'Hábito creado';
+        toast.success(msg);
+        setStatusMessage(msg);
       }
     } catch (e) {
       console.error(e);
-      toast.error('Error de red');
+      const msg = 'Error de red';
+      toast.error(msg);
+      setStatusMessage(msg);
     }
   }
 
   if (loading) return <div className="text-sm text-slate-500">Cargando hábitos…</div>;
 
-  if (habits.length === 0)
-    return (
-      <div className="text-sm text-slate-500">
-        No tienes hábitos configurados.
-        <div className="mt-3">
-          <QuickAdd onCreate={createHabitQuick} />
-        </div>
-      </div>
-    );
+  useEffect(() => {
+    if (!statusMessage) return;
+    const t = setTimeout(() => setStatusMessage(null), 3500);
+    return () => clearTimeout(t);
+  }, [statusMessage]);
 
   return (
     <div className="space-y-4">
+      <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+        <div>
+          <div className="text-sm font-semibold text-slate-900">Tracker activo</div>
+          <div className="text-xs text-slate-500">Registro rápido y seguimiento diario</div>
+        </div>
+        <Link
+          href="/"
+          className="rounded-full border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:ring-offset-2"
+          aria-label="Volver al inicio desde el tracker"
+        >
+          Volver al inicio
+        </Link>
+      </div>
+
       <div>
         <QuickAdd onCreate={createHabitQuick} />
       </div>
-      <div className="grid gap-4">
-        {habits.map((h) => (
-          <div key={h.id} className="p-4 border rounded-lg flex flex-col sm:flex-row sm:items-center gap-4 bg-white shadow-sm">
-            <div className="flex-1 min-w-0">
-              <div className="font-medium text-base truncate">{h.name}</div>
-              <div className="text-xs text-slate-500">Tipo: {h.type}</div>
-              <RecentMiniList logs={recentLogs} habitId={h.id} />
-            </div>
+        <div className="grid gap-4">
+          {habits.map((h) => (
+            <motion.div
+              key={h.id}
+              className="p-4 border rounded-lg flex flex-col sm:flex-row sm:items-center gap-4 bg-white shadow-sm"
+              whileHover={{ translateY: -4 }}
+              whileTap={{ scale: 0.995 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+              tabIndex={0}
+              role="group"
+              aria-label={`Hábito ${h.name}`}
+            >
+              <div className="flex-1 min-w-0">
+                <div className="font-medium text-base truncate">{h.name}</div>
+                <div className="text-xs text-slate-500">Tipo: {h.type}</div>
+                <RecentMiniList logs={recentLogs} habitId={h.id} />
+              </div>
 
-            <div className="flex-shrink-0 w-full sm:w-52 flex items-center gap-2">
-              <input
-                type="number"
-                min={0}
-                className="w-20 p-2 border rounded text-right"
-                value={values[h.id] ?? 0}
-                onChange={(e) => setValue(h.id, Number(e.target.value || 0))}
-              />
-              <button
-                className="px-3 py-2 bg-slate-800 text-white rounded disabled:opacity-50"
-                onClick={() => saveHabit(h.id)}
-                disabled={!!saving[h.id]}
-              >
-                {saving[h.id] ? 'Guardando…' : 'Guardar'}
-              </button>
-              {h.type === 'negative' ? (
-                <button
-                  className="px-2 py-1 border rounded text-sm"
-                  onClick={() => {
-                    setValue(h.id, 0);
-                    saveHabit(h.id);
+              <div className="flex-shrink-0 w-full sm:w-52 flex items-center gap-2">
+                <input
+                  type="number"
+                  min={0}
+                  aria-label={`Cantidad para ${h.name}`}
+                  className="w-20 p-2 border rounded text-right focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-300"
+                  value={values[h.id] ?? 0}
+                  onChange={(e) => setValue(h.id, Number(e.target.value || 0))}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') saveHabit(h.id);
                   }}
+                />
+                <button
+                  className="px-3 py-2 bg-slate-800 text-white rounded disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-400"
+                  onClick={() => saveHabit(h.id)}
+                  disabled={!!saving[h.id]}
+                  aria-label={`Guardar hábito ${h.name}`}
                 >
-                  Marcar 0
+                  {saving[h.id] ? 'Guardando…' : 'Guardar'}
                 </button>
-              ) : null}
-            </div>
-          </div>
-        ))}
+                {h.type === 'negative' ? (
+                  <button
+                    className="px-2 py-1 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-300"
+                    onClick={() => {
+                      setValue(h.id, 0);
+                      saveHabit(h.id);
+                    }}
+                    aria-label={`Marcar cero ${h.name}`}
+                  >
+                    Marcar 0
+                  </button>
+                ) : null}
+              </div>
+            </motion.div>
+          ))}
+        </div>
+        {/* react-hot-toast Toaster is placed in root layout */}
+
+        {/* Live region for screen readers */}
+        <div aria-live="polite" className="sr-only">
+          {statusMessage}
+        </div>
       </div>
-      {/* react-hot-toast Toaster is placed in root layout */}
-    </div>
-  );
+    );
 }
 
 function QuickAdd({ onCreate }: { onCreate: (name: string, type: 'positive' | 'negative') => void }) {

@@ -5,6 +5,7 @@ import { NextResponse } from 'next/server';
 
 import { dailyLogSchema } from '@/lib/schema';
 import { evaluateAndUpdateStreaks } from '@/lib/habits';
+import { createSupabaseServerClient } from '@/lib/supabase-server';
 
 export const dynamic = 'force-dynamic';
 
@@ -101,15 +102,7 @@ export async function POST(request: Request) {
     const authHeader = request.headers.get('authorization') ?? undefined;
     console.info('[api/analyze] authHeader present:', !!authHeader);
 
-    // Require auth header in normal mode (demo mode returns earlier)
-    if (!authHeader) {
-      return NextResponse.json(
-        { error: 'Authorization header required. Send Authorization: Bearer <access_token>.' },
-        { status: 401 }
-      );
-    }
-
-    const supabase = createSupabaseClient(authHeader);
+    const supabase = authHeader ? createSupabaseClient(authHeader) : await createSupabaseServerClient();
 
     console.info('[api/analyze] Calling supabase.auth.getUser()');
     const { data: userData, error: userError } = await supabase.auth.getUser();

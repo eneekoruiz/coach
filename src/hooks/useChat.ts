@@ -1,5 +1,8 @@
+'use client';
+
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import toast from 'react-hot-toast';
 import { type DailyLog } from '@/lib/schema';
 import { triggerVibration } from '@/lib/haptics';
 import { useSpeechRecognition } from './useSpeechRecognition';
@@ -115,7 +118,9 @@ export function useChat(onUpdate?: () => void | Promise<void>) {
       textareaRef.current?.focus();
 
       if (onUpdate) await onUpdate();
-    } catch {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'No se pudo enviar el registro.';
+      toast.error(message);
       setFeedback(null);
     } finally {
       setIsLoading(false);

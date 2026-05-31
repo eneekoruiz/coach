@@ -1,5 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
+import { createServerClient } from '@supabase/ssr';
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { z } from 'zod';
 
 export const dynamic = 'force-dynamic';
@@ -28,21 +30,60 @@ function createAdminClient() {
   });
 }
 
+function createAuthClient(authHeader?: string) {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!url || !anonKey) {
+    throw new Error('Missing Supabase credentials');
+  }
+
+  return createClient(url, anonKey, {
+    global: authHeader
+      ? {
+          headers: { Authorization: authHeader },
+        }
+      : undefined,
+  });
+}
+
 export async function POST(request: Request) {
   try {
     const authHeader = request.headers.get('authorization') ?? undefined;
-    if (!authHeader) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const cookieStore = await cookies();
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!url || !anonKey) {
+      throw new Error('Missing Supabase credentials');
     }
 
-    const supabase = createAdminClient();
-    const { data: userData, error: userError } = await supabase.auth.getUser(authHeader.replace(/^Bearer\s+/i, ''));
+    const serverClient = createServerClient(url, anonKey, {
+      cookies: {
+        get(name) {
+          return cookieStore.get(name)?.value;
+        },
+        set(name, value, options) {
+          cookieStore.set({ name, value, ...options });
+        },
+        remove(name, options) {
+          cookieStore.set({ name, value: '', ...options, maxAge: 0 });
+        },
+      },
+    });
+
+    const authClient = authHeader ? createAuthClient(authHeader) : serverClient;
+    const { data: userData, error: userError } = authHeader
+      ? await authClient.auth.getUser(authHeader.replace(/^Bearer\s+/i, ''))
+      : await authClient.auth.getUser();
 
     if (userError) throw userError;
     const user = userData.user;
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const supabase = createAdminClient();
 
     const body = await request.json();
     const parsed = createHabitSchema.safeParse(body);
