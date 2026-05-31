@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import type { Metadata, Viewport } from 'next';
 
 import './globals.css';
-import { Toaster } from 'react-hot-toast';
+import ToasterClient from '@/components/ToasterClient';
 
 export const metadata: Metadata = {
   title: 'Gemelo Digital Fisiológico',
@@ -28,7 +28,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="es">
       <body>
         {children}
-        <Toaster position="bottom-right" />
+        <ToasterClient />
       </body>
     </html>
   );

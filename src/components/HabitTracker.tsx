@@ -147,43 +147,45 @@ export default function HabitTracker() {
       <div>
         <QuickAdd onCreate={createHabitQuick} />
       </div>
-      {habits.map((h) => (
-        <div key={h.id} className="p-4 border rounded-lg flex flex-col md:flex-row md:items-center gap-4">
-          <div className="flex-1">
-            <div className="font-medium">{h.name}</div>
-            <div className="text-xs text-slate-500">Tipo: {h.type}</div>
-            <RecentMiniList logs={recentLogs} habitId={h.id} />
-          </div>
+      <div className="grid gap-4">
+        {habits.map((h) => (
+          <div key={h.id} className="p-4 border rounded-lg flex flex-col sm:flex-row sm:items-center gap-4 bg-white shadow-sm">
+            <div className="flex-1 min-w-0">
+              <div className="font-medium text-base truncate">{h.name}</div>
+              <div className="text-xs text-slate-500">Tipo: {h.type}</div>
+              <RecentMiniList logs={recentLogs} habitId={h.id} />
+            </div>
 
-          <div className="w-full md:w-48 flex items-center gap-2">
-            <input
-              type="number"
-              min={0}
-              className="w-24 p-2 border rounded"
-              value={values[h.id] ?? 0}
-              onChange={(e) => setValue(h.id, Number(e.target.value || 0))}
-            />
-            <button
-              className="px-3 py-2 bg-slate-800 text-white rounded disabled:opacity-50"
-              onClick={() => saveHabit(h.id)}
-              disabled={!!saving[h.id]}
-            >
-              {saving[h.id] ? 'Guardando…' : 'Guardar'}
-            </button>
-            {h.type === 'negative' ? (
+            <div className="flex-shrink-0 w-full sm:w-52 flex items-center gap-2">
+              <input
+                type="number"
+                min={0}
+                className="w-20 p-2 border rounded text-right"
+                value={values[h.id] ?? 0}
+                onChange={(e) => setValue(h.id, Number(e.target.value || 0))}
+              />
               <button
-                className="px-2 py-1 border rounded text-sm"
-                onClick={() => {
-                  setValue(h.id, 0);
-                  saveHabit(h.id);
-                }}
+                className="px-3 py-2 bg-slate-800 text-white rounded disabled:opacity-50"
+                onClick={() => saveHabit(h.id)}
+                disabled={!!saving[h.id]}
               >
-                Marcar 0
+                {saving[h.id] ? 'Guardando…' : 'Guardar'}
               </button>
-            ) : null}
+              {h.type === 'negative' ? (
+                <button
+                  className="px-2 py-1 border rounded text-sm"
+                  onClick={() => {
+                    setValue(h.id, 0);
+                    saveHabit(h.id);
+                  }}
+                >
+                  Marcar 0
+                </button>
+              ) : null}
+            </div>
           </div>
-        </div>
-      ))}
+        ))}
+      </div>
       {/* react-hot-toast Toaster is placed in root layout */}
     </div>
   );
