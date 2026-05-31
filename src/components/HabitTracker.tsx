@@ -145,13 +145,13 @@ export default function HabitTracker() {
     }
   }
 
-  if (loading) return <div className="text-sm text-slate-500">Cargando hábitos…</div>;
-
   useEffect(() => {
     if (!statusMessage) return;
     const t = setTimeout(() => setStatusMessage(null), 3500);
     return () => clearTimeout(t);
   }, [statusMessage]);
+
+  if (loading) return <div className="text-sm text-slate-500">Cargando hábitos…</div>;
 
   return (
     <div className="space-y-4">
