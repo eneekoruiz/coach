@@ -100,6 +100,15 @@ export async function POST(request: Request) {
 
     const authHeader = request.headers.get('authorization') ?? undefined;
     console.info('[api/analyze] authHeader present:', !!authHeader);
+
+    // Require auth header in normal mode (demo mode returns earlier)
+    if (!authHeader) {
+      return NextResponse.json(
+        { error: 'Authorization header required. Send Authorization: Bearer <access_token>.' },
+        { status: 401 }
+      );
+    }
+
     const supabase = createSupabaseClient(authHeader);
 
     console.info('[api/analyze] Calling supabase.auth.getUser()');
@@ -107,7 +116,7 @@ export async function POST(request: Request) {
 
     if (userError) {
       console.error('[api/analyze] supabase.auth.getUser error:', userError.message || userError);
-      throw userError;
+      return NextResponse.json({ error: 'Failed to validate user token.' }, { status: 401 });
     }
 
     const user = userData.user;
@@ -120,7 +129,11 @@ export async function POST(request: Request) {
       );
     }
 
-    const body = (await request.json()) as { text?: unknown; image?: unknown };
+    const body = (await request.json()) as { text?: unknown; image?: unknown; habit_tracking?: unknown };
+    if (!body || typeof body !== 'object') {
+      return NextResponse.json({ error: 'Request body must be a JSON object.' }, { status: 400 });
+    }
+
     const text = typeof body.text === 'string' ? body.text.trim() : '';
     const rawImage = typeof body.image === 'string' ? body.image.trim() : '';
 
@@ -129,6 +142,20 @@ export async function POST(request: Request) {
         { error: 'El body debe incluir text, image o ambos.' },
         { status: 400 }
       );
+    }
+
+    // Basic length checks to avoid excessive payloads
+    if (text && text.length > 5000) {
+      return NextResponse.json({ error: 'text field too long (max 5000 chars).' }, { status: 400 });
+    }
+
+    if (rawImage) {
+      const b64 = normalizeBase64Image(rawImage);
+      const approxBytes = Math.ceil((b64.length * 3) / 4);
+      const maxBytes = 5 * 1024 * 1024; // 5MB
+      if (approxBytes > maxBytes) {
+        return NextResponse.json({ error: 'image payload too large (max 5MB).' }, { status: 413 });
+      }
     }
 
     const systemPrompt =
@@ -145,17 +172,24 @@ export async function POST(request: Request) {
         ]
       : [{ type: 'text' as const, text: analysisText }];
 
-    const { object: analyzedLog } = await generateObject({
-      model: google('gemini-2.5-flash'),
-      system: systemPrompt,
-      messages: [
-        {
-          role: 'user',
-          content: userMessageContent,
-        },
-      ],
-      schema: dailyLogSchema,
-    });
+    let analyzedLog: any;
+    try {
+      const result = await generateObject({
+        model: google('gemini-2.5-flash'),
+        system: systemPrompt,
+        messages: [
+          {
+            role: 'user',
+            content: userMessageContent,
+          },
+        ],
+        schema: dailyLogSchema,
+      });
+      analyzedLog = result.object;
+    } catch (aiError) {
+      console.error('[api/analyze] AI generateObject error:', aiError);
+      return NextResponse.json({ error: 'AI service failure.' }, { status: 502 });
+    }
 
     const { data: lastLog, error: lastLogError } = await supabase
       .from('daily_logs')
@@ -166,7 +200,8 @@ export async function POST(request: Request) {
       .maybeSingle();
 
     if (lastLogError) {
-      throw lastLogError;
+      console.error('[api/analyze] Failed fetching lastLog:', lastLogError);
+      return NextResponse.json({ error: 'Failed to read previous logs.' }, { status: 500 });
     }
 
     const previousMomentum = lastLog?.health_momentum ?? 100;
@@ -177,10 +212,23 @@ export async function POST(request: Request) {
     // If Gemini returned habit signals, use them; otherwise expect client to pass habit_tracking in request body
     const dynamicLog = analyzedLog as unknown as Record<string, unknown>;
     const dynamicBody = body as Record<string, unknown>;
-    const habitReports = ((dynamicLog.habits || dynamicBody.habit_tracking || []) as Array<{
-      habit_id: number;
-      amount: number;
-    }>);
+    // Normalize and validate habit reports coming either from AI or client
+    const rawHabitReports = (dynamicLog.habits || dynamicBody.habit_tracking || []) as unknown;
+    let habitReports: Array<{ habit_id: number; amount: number }> = [];
+    if (Array.isArray(rawHabitReports)) {
+      habitReports = rawHabitReports
+        .map((r) => {
+          if (!r || typeof r !== 'object') return null;
+          const hr = r as Record<string, unknown>;
+          const habit_id = Number(hr.habit_id);
+          const amount = Number(hr.amount ?? 0);
+          if (Number.isFinite(habit_id) && Number.isFinite(amount)) return { habit_id, amount };
+          return null;
+        })
+        .filter((x): x is { habit_id: number; amount: number } => x !== null);
+    } else if (rawHabitReports) {
+      console.warn('[api/analyze] habit_tracking provided but not an array; ignoring');
+    }
 
     // Evaluate and update streaks in user_habits table
     try {
@@ -216,7 +264,12 @@ export async function POST(request: Request) {
       .single();
 
     if (insertError) {
-      throw insertError;
+      console.error('[api/analyze] insert error:', insertError.message || insertError);
+      const lower = (insertError.message || '').toLowerCase();
+      if (/permission|row-level security|policy|forbidden/.test(lower)) {
+        return NextResponse.json({ error: 'Permission denied when writing daily log.' }, { status: 403 });
+      }
+      return NextResponse.json({ error: insertError.message || 'Failed to insert daily log.' }, { status: 500 });
     }
 
     return NextResponse.json(
