@@ -110,7 +110,7 @@ export async function updateTodayHabit(params: UpdateTodayHabitParams) {
         user_id: userId,
         date: today,
         health_momentum: 100,
-        ai_data: null,
+        ai_data: {},
         habit_tracking: [{ habit_id: habitId, amount }],
       })
       .select('*')

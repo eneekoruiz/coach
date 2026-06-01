@@ -97,12 +97,14 @@ export async function evaluateAndUpdateStreaks(
     }
   }
 
-  // Apply updates sequentially
-  for (const u of updates) {
-    const { id, ...cols } = u;
-    const { error } = await supabase.from('user_habits').update(cols).eq('id', id);
-    if (error) console.error('Failed to update habit', id, error.message);
-  }
+  // Apply updates in parallel
+  await Promise.all(
+    updates.map(async (u) => {
+      const { id, ...cols } = u;
+      const { error } = await supabase.from('user_habits').update(cols).eq('id', id);
+      if (error) console.error('Failed to update habit', id, error.message);
+    })
+  );
 
   return updates;
 }
