@@ -1,6 +1,7 @@
 'use server';
 
 import { redirect } from 'next/navigation';
+import { isRedirectError } from 'next/dist/client/components/redirect-error';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 
 function hasSupabaseConfig() {
@@ -39,30 +40,33 @@ export async function login(formData: FormData) {
   const email = String(formData.get('email') ?? '').trim();
   const password = String(formData.get('password') ?? '');
 
-  if (!email || !password) {
+  if (!email || !password || !isValidEmail(email)) {
     redirect('/login?error=invalid_form');
   }
 
-  if (!isValidEmail(email)) {
-    redirect('/login?error=invalid_form');
-  }
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
 
-  const supabase = await createSupabaseServerClient();
-  const { error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
-
-  if (error) {
-    const code = mapAuthErrorToCode(error.message || '');
-    if (code === 'email_not_confirmed') {
-      redirect(`/login?error=${code}&email=${encodeURIComponent(email)}`);
+    if (error) {
+      const code = mapAuthErrorToCode(error.message || '');
+      if (code === 'email_not_confirmed') {
+        redirect(`/login?error=${code}&email=${encodeURIComponent(email)}`);
+      }
+      redirect(`/login?error=${code}`);
     }
 
-    redirect(`/login?error=${code}`);
+    redirect('/');
+  } catch (err) {
+    if (isRedirectError(err)) {
+      throw err;
+    }
+    console.error('[Auth Action] Login unexpected error:', err);
+    redirect('/login?error=auth_failed');
   }
-
-  redirect('/');
 }
 
 export async function signup(formData: FormData) {
@@ -77,25 +81,37 @@ export async function signup(formData: FormData) {
     redirect('/login?error=invalid_form');
   }
 
-  const supabase = await createSupabaseServerClient();
-  const { error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      emailRedirectTo: `${getAppUrl()}/login`,
-    },
-  });
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: `${getAppUrl()}/auth/callback`,
+      },
+    });
 
-  if (error) {
-    const code = mapAuthErrorToCode(error.message || '');
-    if (code === 'email_not_confirmed') {
-      redirect(`/login?error=${code}&email=${encodeURIComponent(email)}`);
+    if (error) {
+      const code = mapAuthErrorToCode(error.message || '');
+      if (code === 'email_not_confirmed') {
+        redirect(`/login?error=${code}&email=${encodeURIComponent(email)}`);
+      }
+      redirect(`/login?error=${code}`);
     }
 
-    redirect(`/login?error=${code}`);
-  }
+    // Check if user requires email confirmation
+    if (data.user && (!data.session || (data.user.identities && data.user.identities.length === 0))) {
+      redirect(`/login?success=signup_pending&email=${encodeURIComponent(email)}`);
+    }
 
-  redirect('/login?success=signup');
+    redirect('/');
+  } catch (err) {
+    if (isRedirectError(err)) {
+      throw err;
+    }
+    console.error('[Auth Action] Signup unexpected error:', err);
+    redirect('/login?error=auth_failed');
+  }
 }
 
 export async function resendConfirmation(formData: FormData) {
@@ -109,21 +125,29 @@ export async function resendConfirmation(formData: FormData) {
     redirect('/login?error=invalid_form');
   }
 
-  const supabase = await createSupabaseServerClient();
-  const { error } = await supabase.auth.resend({
-    type: 'signup',
-    email,
-    options: {
-      emailRedirectTo: `${getAppUrl()}/login`,
-    },
-  });
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email,
+      options: {
+        emailRedirectTo: `${getAppUrl()}/auth/callback`,
+      },
+    });
 
-  if (error) {
-    const code = mapAuthErrorToCode(error.message || '');
-    redirect(`/login?error=${code}&email=${encodeURIComponent(email)}`);
+    if (error) {
+      const code = mapAuthErrorToCode(error.message || '');
+      redirect(`/login?error=${code}&email=${encodeURIComponent(email)}`);
+    }
+
+    redirect(`/login?success=confirmation_resent&email=${encodeURIComponent(email)}`);
+  } catch (err) {
+    if (isRedirectError(err)) {
+      throw err;
+    }
+    console.error('[Auth Action] Resend unexpected error:', err);
+    redirect('/login?error=auth_failed');
   }
-
-  redirect(`/login?success=confirmation_resent&email=${encodeURIComponent(email)}`);
 }
 
 export async function logout() {
@@ -131,12 +155,20 @@ export async function logout() {
     redirect('/login?error=config_missing');
   }
 
-  const supabase = await createSupabaseServerClient();
-  const { error } = await supabase.auth.signOut();
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { error } = await supabase.auth.signOut();
 
-  if (error) {
+    if (error) {
+      redirect('/login?error=logout_failed');
+    }
+
+    redirect('/login');
+  } catch (err) {
+    if (isRedirectError(err)) {
+      throw err;
+    }
+    console.error('[Auth Action] Logout unexpected error:', err);
     redirect('/login?error=logout_failed');
   }
-
-  redirect('/login');
 }

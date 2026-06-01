@@ -23,14 +23,22 @@ export async function fetchHistoryPage(pageNumber = 1) {
 
   if (error) throw new Error(error.message);
 
-  const logs = (data ?? []).map((item: any) => ({
-    date: item.date,
-    health_momentum: item.health_momentum,
-    avatar_image_url: item.avatar_image_url,
-    ai_data: dailyLogSchema.safeParse(item.ai_data).success
-      ? dailyLogSchema.parse(item.ai_data)
-      : null,
-  }));
+  const logs = (data ?? []).map((item) => {
+    const record = item as {
+      date: string;
+      health_momentum: number;
+      avatar_image_url: string | null;
+      ai_data: unknown;
+    };
+    return {
+      date: record.date,
+      health_momentum: record.health_momentum,
+      avatar_image_url: record.avatar_image_url,
+      ai_data: dailyLogSchema.safeParse(record.ai_data).success
+        ? dailyLogSchema.parse(record.ai_data)
+        : null,
+    };
+  });
 
   const totalPages = Math.max(1, Math.ceil((count ?? 0) / PAGE_SIZE));
 

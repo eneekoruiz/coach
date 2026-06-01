@@ -7,6 +7,8 @@ const errorMessages: Record<string, string> = {
   email_not_confirmed: 'Debes confirmar tu email antes de iniciar sesión.',
   email_confirmation_link_expired:
     'El enlace de confirmación expiró o ya no es válido. Pide un nuevo correo de confirmación.',
+  email_link_invalid:
+    'El enlace de confirmación es inválido o expiró. Pide un nuevo correo de confirmación.',
   config_missing: 'Falta configuración de Supabase en el servidor.',
   auth_failed: 'No se pudo iniciar sesión. Intenta nuevamente.',
   logout_failed: 'No se pudo cerrar sesión correctamente.',
@@ -14,6 +16,7 @@ const errorMessages: Record<string, string> = {
 
 const successMessages: Record<string, string> = {
   signup: 'Cuenta creada. Revisa tu correo para confirmar el email.',
+  signup_pending: 'Revisa tu bandeja de entrada para activar tu Bio-Avatar.',
   confirmation_resent: 'Te enviamos un nuevo correo de confirmación. Revisa tu bandeja de entrada.',
 };
 

@@ -1,17 +1,8 @@
 import React from 'react';
-
-type Habit = {
-  id: number;
-  name: string;
-  type: 'positive' | 'negative';
-  tolerance_threshold: number;
-  current_streak: number;
-  longest_streak: number;
-  shields: number;
-};
+import { type HabitRow } from '@/types/habits';
 
 type Props = {
-  habit: Habit;
+  habit: HabitRow;
   selected: boolean;
   onSelect: (habitId: number) => void;
   onQuickAdd: (habitId: number, amount: number) => Promise<void>;

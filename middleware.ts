@@ -32,54 +32,34 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Create an initial response
   let response = NextResponse.next({
     request: {
       headers: request.headers,
     },
   });
 
+  // Setup the server client with standard cookies interface
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: {
-      get(name) {
-        return request.cookies.get(name)?.value;
+      getAll() {
+        return request.cookies.getAll();
       },
-      set(name, value, options) {
-        request.cookies.set({
-          name,
-          value,
-          ...options,
-        });
+      setAll(cookiesToSet) {
+        cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
         response = NextResponse.next({
           request: {
             headers: request.headers,
           },
         });
-        response.cookies.set({
-          name,
-          value,
-          ...options,
-        });
-      },
-      remove(name, options) {
-        request.cookies.set({
-          name,
-          value: '',
-          ...options,
-        });
-        response = NextResponse.next({
-          request: {
-            headers: request.headers,
-          },
-        });
-        response.cookies.set({
-          name,
-          value: '',
-          ...options,
-        });
+        cookiesToSet.forEach(({ name, value, options }) =>
+          response.cookies.set(name, value, options)
+        );
       },
     },
   });
 
+  // Safe and strict validation calling getUser() instead of getSession()
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -97,13 +77,37 @@ export async function middleware(request: NextRequest) {
       request.nextUrl.pathname.startsWith('/habits'))
   ) {
     const redirectUrl = new URL('/login', request.url);
-    return NextResponse.redirect(redirectUrl);
+    const redirectResponse = NextResponse.redirect(redirectUrl);
+    // CRITICAL: Copy updated session cookies so token refreshes or deletions are propagated to the browser during redirect
+    response.cookies.getAll().forEach((cookie) => {
+      redirectResponse.cookies.set(cookie.name, cookie.value, {
+        path: cookie.path,
+        domain: cookie.domain,
+        maxAge: cookie.maxAge,
+        secure: cookie.secure,
+        httpOnly: cookie.httpOnly,
+        sameSite: cookie.sameSite,
+      });
+    });
+    return redirectResponse;
   }
 
   // If user session exists and trying to access /login, redirect to /
   if (user && request.nextUrl.pathname === '/login') {
     const redirectUrl = new URL('/', request.url);
-    return NextResponse.redirect(redirectUrl);
+    const redirectResponse = NextResponse.redirect(redirectUrl);
+    // CRITICAL: Copy refreshed session cookies to prevent session loss on redirect
+    response.cookies.getAll().forEach((cookie) => {
+      redirectResponse.cookies.set(cookie.name, cookie.value, {
+        path: cookie.path,
+        domain: cookie.domain,
+        maxAge: cookie.maxAge,
+        secure: cookie.secure,
+        httpOnly: cookie.httpOnly,
+        sameSite: cookie.sameSite,
+      });
+    });
+    return redirectResponse;
   }
 
   return response;

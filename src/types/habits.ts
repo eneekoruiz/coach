@@ -2,8 +2,10 @@ export type HabitType = 'positive' | 'negative';
 
 export interface HabitRow {
   id: number;
+  user_id?: string;
   name: string;
   type: HabitType;
+  is_custom?: boolean;
   tolerance_threshold: number;
   current_streak: number;
   longest_streak: number;

@@ -1,18 +1,9 @@
 import HabitCalendar from '@/components/HabitCalendar';
-
-type Habit = {
-  id: number;
-  name: string;
-  type: 'positive' | 'negative';
-  tolerance_threshold: number;
-  current_streak: number;
-  longest_streak: number;
-  shields: number;
-};
+import { type HabitRow } from '@/types/habits';
 
 type Entry = { date: string; status: 'perfect' | 'yellow' | 'broken' | 'missed' };
 
-export default function HabitDashboardDetail({ habit, entries }: { habit: Habit; entries: Entry[] }) {
+export default function HabitDashboardDetail({ habit, entries }: { habit: HabitRow; entries: Entry[] }) {
   return (
     <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">

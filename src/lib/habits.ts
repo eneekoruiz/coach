@@ -1,16 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-
-type UserHabit = {
-  id: number;
-  user_id: string;
-  name: string;
-  type: 'positive' | 'negative';
-  is_custom: boolean;
-  tolerance_threshold: number;
-  current_streak: number;
-  longest_streak: number;
-  shields: number;
-};
+import { type HabitRow } from '@/types/habits';
 
 export function isMissingHabitTableError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error);
@@ -39,7 +28,7 @@ function createSupabaseClient(authHeader?: string) {
   });
 }
 
-export function computeHabitOutcome(habit: UserHabit, amount: number) {
+export function computeHabitOutcome(habit: HabitRow, amount: number) {
   // returns state: 'perfect' | 'yellow' | 'broken' | 'no-data'
   if (habit.type === 'negative') {
     if (amount === 0) return 'perfect';
@@ -72,9 +61,9 @@ export async function evaluateAndUpdateStreaks(
 
   if (!habits) return [];
 
-  const updates: Array<Partial<UserHabit> & { id: number }> = [];
+  const updates: Array<Partial<HabitRow> & { id: number }> = [];
 
-  for (const h of habits as UserHabit[]) {
+  for (const h of habits as HabitRow[]) {
     const report = reports.find((r) => Number(r.habit_id) === Number(h.id));
     const amount = report ? Number(report.amount || 0) : 0;
 
@@ -118,7 +107,7 @@ export async function evaluateAndUpdateStreaks(
   return updates;
 }
 
-export function buildHabitVisualDescriptors(habits: UserHabit[]) {
+export function buildHabitVisualDescriptors(habits: HabitRow[]) {
   const descriptors: string[] = [];
 
   let allPerfect = true;
