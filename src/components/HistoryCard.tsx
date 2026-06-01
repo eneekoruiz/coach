@@ -1,3 +1,5 @@
+'use client';
+
 import React from 'react';
 const Sparkles = (props: React.SVGProps<SVGSVGElement>) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="text-slate-400" aria-hidden="true" {...props}>
