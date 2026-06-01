@@ -13,13 +13,15 @@ export async function sendCloseDay(accessToken?: string) {
 }
 
 export async function sendAnalyze(text: string, base64Image: string | null, accessToken?: string) {
+  const local_date = new Date().toLocaleDateString('sv').slice(0, 10);
+
   const response = await fetch('/api/analyze', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
     },
-    body: JSON.stringify({ text, image: base64Image }),
+    body: JSON.stringify({ text, image: base64Image, local_date }),
   });
 
   const payload = await response.json();

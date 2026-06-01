@@ -154,13 +154,14 @@ export interface AnalyzeParams {
   text: string;
   rawImage?: string | null;
   habitReports: Array<{ habit_id: number; amount: number }>;
+  localDate?: string;
   authHeader?: string;
   supabase: SupabaseClient;
   user: User;
 }
 
 export async function analyzeAndPersistDailyLog(params: AnalyzeParams) {
-  const { text, rawImage, habitReports, authHeader, supabase, user } = params;
+  const { text, rawImage, habitReports, localDate, authHeader, supabase, user } = params;
 
   if (rawImage) {
     const normalizedImage = normalizeBase64Image(rawImage);
@@ -171,7 +172,7 @@ export async function analyzeAndPersistDailyLog(params: AnalyzeParams) {
     }
   }
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDate || new Date().toISOString().slice(0, 10);
 
   // 1) Check if a daily log already exists for today
   const { data: todayLog, error: todayLogError } = await supabase
@@ -214,7 +215,7 @@ export async function analyzeAndPersistDailyLog(params: AnalyzeParams) {
   };
 
   if (todayLog && todayLog.ai_data) {
-    const aiData = todayLog.ai_data as any;
+    const aiData = todayLog.ai_data as unknown as DailyLog;
     currentState = {
       water_ml: Math.max(
         typeof aiData.water_ml === 'number' ? aiData.water_ml : 0,

@@ -35,7 +35,7 @@ const fallbackLog: DailyLog = {
 export default function HomeDashboard() {
   const [isXRayMode, setIsXRayMode] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
-  const { isLoading, lastLog, momentum, reload } = useDashboard();
+  const { isLoading, lastLog, momentum, insightText, reload } = useDashboard();
 
   const theme = useMemo(() => {
     if (momentum >= 75) {
@@ -99,6 +99,7 @@ export default function HomeDashboard() {
           momentum={momentum}
           energyLevel={energyLevel}
           mentalClarity={mentalClarity}
+          insightText={insightText}
         />
       </div>
 

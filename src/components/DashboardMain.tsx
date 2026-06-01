@@ -23,6 +23,7 @@ type DashboardMainProps = {
   momentum: number;
   energyLevel: number;
   mentalClarity: number;
+  insightText: string;
 };
 
 function clampMomentum(value: number) {
@@ -68,6 +69,7 @@ export default function DashboardMain({
   momentum,
   energyLevel,
   mentalClarity,
+  insightText,
 }: DashboardMainProps) {
   const normalizedMomentum = clampMomentum(momentum);
 
@@ -115,6 +117,17 @@ export default function DashboardMain({
                   ? 'Tu mascota se mantiene estable, pero puedes mejorar el registro de hábitos para energizarla.'
                   : '¡Tu mascota está enferma y en peligro! Registra agua y comida sana urgentemente para salvarla.'}
               </p>
+
+              {/* Pro-active Coach Insights Banner */}
+              <div className="mt-4 w-full max-w-xs rounded-2xl border border-sky-100 bg-sky-50/70 p-3 text-left flex gap-2.5 items-start shadow-xs">
+                <span className="text-base leading-none mt-0.5">💡</span>
+                <div>
+                  <p className="text-[9px] uppercase tracking-wider text-sky-600 font-extrabold">Consejo del Bio-Avatar</p>
+                  <p className="mt-1 text-[11px] text-slate-700 font-semibold leading-relaxed">
+                    {insightText}
+                  </p>
+                </div>
+              </div>
 
               <div className="mt-5 flex gap-3.5 justify-center">
                 <div className="rounded-2xl border border-slate-200/80 bg-white/70 px-4 py-2 text-center min-w-[5.5rem] shadow-xs">

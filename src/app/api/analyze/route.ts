@@ -27,6 +27,7 @@ const analyzeRequestSchema = z
     text: z.string().trim().max(MAX_TEXT_LENGTH).nullable().optional(),
     image: z.string().trim().min(1).nullable().optional(),
     habit_tracking: z.array(habitReportSchema).nullable().optional(),
+    local_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   })
   .strict()
   .superRefine((value, ctx) => {
@@ -108,6 +109,7 @@ export async function POST(request: Request) {
         text: body.text ?? '',
         rawImage: body.image,
         habitReports: body.habit_tracking ?? [],
+        localDate: body.local_date,
         authHeader,
         supabase,
         user,
