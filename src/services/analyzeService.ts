@@ -48,9 +48,22 @@ function mapDatabaseError(message: string): { status: number; code: string } {
 }
 
 function mergeDailyLogs(existing: DailyLog, incoming: DailyLog): DailyLog {
+  const mergedHabits: Record<string, number> = { ...(existing.habits_count || {}) };
+  if (incoming.habits_count) {
+    for (const [key, val] of Object.entries(incoming.habits_count)) {
+      mergedHabits[key] = Math.max(mergedHabits[key] || 0, val || 0);
+    }
+  }
+
   return {
     comidas: [...(existing.comidas || []), ...(incoming.comidas || [])],
-    hidratacion_ml: (existing.hidratacion_ml || 0) + (incoming.hidratacion_ml || 0),
+    hidratacion_ml: Math.max(existing.hidratacion_ml || 0, incoming.hidratacion_ml || 0),
+    water_ml: Math.max(existing.water_ml || 0, incoming.water_ml || 0),
+    total_kcal: Math.max(existing.total_kcal || 0, incoming.total_kcal || 0),
+    protein_g: Math.max(existing.protein_g || 0, incoming.protein_g || 0),
+    carbs_g: Math.max(existing.carbs_g || 0, incoming.carbs_g || 0),
+    fats_g: Math.max(existing.fats_g || 0, incoming.fats_g || 0),
+    habits_count: mergedHabits,
     toxinas: Array.from(new Set([...(existing.toxinas || []), ...(incoming.toxinas || [])])),
     bio_avatar: {
       estado_fisiologico: incoming.bio_avatar?.estado_fisiologico || existing.bio_avatar?.estado_fisiologico || '',
@@ -92,6 +105,12 @@ export function createSafeDemoResponse() {
       },
     ],
     hidratacion_ml: 0,
+    water_ml: 0,
+    total_kcal: 0,
+    protein_g: 0,
+    carbs_g: 0,
+    fats_g: 0,
+    habits_count: {},
     toxinas: [],
     bio_avatar: {
       estado_fisiologico: 'Modo Prueba',
@@ -145,8 +164,74 @@ export async function analyzeAndPersistDailyLog(params: AnalyzeParams) {
     }
   }
 
+  const today = new Date().toISOString().slice(0, 10);
+
+  // 1) Check if a daily log already exists for today
+  const { data: todayLog, error: todayLogError } = await supabase
+    .from('daily_logs')
+    .select('id, health_momentum, ai_data, habit_tracking')
+    .eq('user_id', user.id)
+    .eq('date', today)
+    .maybeSingle();
+
+  if (todayLogError) {
+    const dbStatus = mapDatabaseError(todayLogError.message || '');
+    throw new DatabaseError('No se pudo verificar el registro diario de hoy.', dbStatus.code);
+  }
+
+  // 2) Get previous health momentum from the last log before today
+  const { data: previousLog, error: previousLogError } = await supabase
+    .from('daily_logs')
+    .select('health_momentum')
+    .eq('user_id', user.id)
+    .lt('date', today)
+    .order('date', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (previousLogError) {
+    const dbStatus = mapDatabaseError(previousLogError.message || '');
+    throw new DatabaseError('No se pudo leer el histórico del usuario.', dbStatus.code);
+  }
+
+  const previousMomentum = previousLog?.health_momentum ?? 100;
+  const currentMomentum = todayLog ? todayLog.health_momentum : previousMomentum;
+
+  let currentState = {
+    water_ml: 0,
+    total_kcal: 0,
+    protein_g: 0,
+    carbs_g: 0,
+    fats_g: 0,
+    habits_count: {} as Record<string, number>,
+  };
+
+  if (todayLog && todayLog.ai_data) {
+    const aiData = todayLog.ai_data as any;
+    currentState = {
+      water_ml: typeof aiData.water_ml === 'number' ? aiData.water_ml : 0,
+      total_kcal: typeof aiData.total_kcal === 'number' ? aiData.total_kcal : 0,
+      protein_g: typeof aiData.protein_g === 'number' ? aiData.protein_g : 0,
+      carbs_g: typeof aiData.carbs_g === 'number' ? aiData.carbs_g : 0,
+      fats_g: typeof aiData.fats_g === 'number' ? aiData.fats_g : 0,
+      habits_count: (aiData.habits_count && typeof aiData.habits_count === 'object') ? aiData.habits_count : {},
+    };
+  }
+
+  let toneInstruction = '';
+  if (currentMomentum > 80) {
+    toneInstruction = 'Tu tono de voz debe ser alegre, orgulloso y con mucha energía. Felicita al usuario con entusiasmo por mantener la salud de su Bio-Avatar tan alta.';
+  } else if (currentMomentum >= 30) {
+    toneInstruction = 'Tu tono de voz debe ser el de un coach neutral, motivador y alentador, ayudando al usuario a seguir adelante y mejorar.';
+  } else {
+    toneInstruction = 'Tu tono de voz debe ser de preocupación genuina, debilidad y tristeza. Suplícale al usuario que beba agua o coma sano para salvarte y restaurar tu energía.';
+  }
+
+  const stateStr = JSON.stringify(currentState);
   const systemPrompt =
-    'Eres un evaluador metabólico proactivo. Tu tarea es analizar con rigor el texto y la imagen del usuario y devolver exclusivamente un objeto que cumpla el esquema. No incluyas texto extra, no expliques tu razonamiento y no inventes claves fuera del contrato. Debes inferir el estado fisiológico diario, detectar señales nutricionales, de hidratación y toxinas, y calcular una variación de inercia útil para el seguimiento longitudinal. ' +
+    'Eres un evaluador metabólico proactivo. Tu tarea es analizar con rigor el texto y la imagen del usuario y devolver exclusivamente un objeto que cumpla el esquema. No incluyas texto extra, no expliques tu razonamiento y no inventes claves fuera del contrato. Debes inferir el estado fisiológico diario, detectar señales nutricionales, de hidratación y toxinas, y calcular una variación de inercia útil para el seguimiento longitudinal. \n' +
+    `El estado actual del usuario HOY es: ${stateStr}. Tu tarea es leer el nuevo mensaje del usuario y SUMAR los nuevos valores al estado actual. Regla inquebrantable: Los hábitos acumulativos (como fumar o beber agua) NUNCA pueden disminuir en el mismo día. Si el estado actual es 3 y el usuario dice 'me fumé otro', el nuevo valor es 4. Nunca devuelvas un valor menor al estado actual. \n` +
+    `Tu salud actual (health_momentum) es ${currentMomentum}. ${toneInstruction} \n` +
     'IMPORTANTE: Los saludos simples (como "hola", "buenos días") o check-ins conversacionales comunes (como "te mando un audio", "comencemos") NO deben ser considerados fuera de tema. En estos casos, establece "metricas.error_clave" en un valor neutral (como "saludo") y pon en "metricas.accion_manana" un mensaje cordial en primera persona invitando al usuario a registrar sus hábitos (ej: "¡Hola! Estoy listo para registrar tus comidas, bebida y hábitos de hoy. ¿Qué te gustaría apuntar?"). ' +
     'Únicamente cuando el mensaje sea totalmente ajeno a hábitos, nutrición, salud o bienestar (como problemas de matemáticas avanzadas, programación de software, debates políticos, etc.), debes establecer el valor exacto de "fuera_de_tema" en el campo "metricas.error_clave", y colocar en "metricas.accion_manana" un mensaje explicativo cordial indicando que tu propósito es el seguimiento de hábitos.';
 
@@ -188,38 +273,6 @@ export async function analyzeAndPersistDailyLog(params: AnalyzeParams) {
     const message = aiError instanceof Error ? aiError.message : 'AI service failure.';
     throw new AiServiceError('No se pudo procesar la respuesta del motor de IA.', message);
   }
-
-  const today = new Date().toISOString().slice(0, 10);
-
-  // Check if a daily log already exists for today
-  const { data: todayLog, error: todayLogError } = await supabase
-    .from('daily_logs')
-    .select('id, health_momentum, ai_data, habit_tracking')
-    .eq('user_id', user.id)
-    .eq('date', today)
-    .maybeSingle();
-
-  if (todayLogError) {
-    const dbStatus = mapDatabaseError(todayLogError.message || '');
-    throw new DatabaseError('No se pudo verificar el registro diario de hoy.', dbStatus.code);
-  }
-
-  // Get previous health momentum from the last log before today
-  const { data: previousLog, error: previousLogError } = await supabase
-    .from('daily_logs')
-    .select('health_momentum')
-    .eq('user_id', user.id)
-    .lt('date', today)
-    .order('date', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (previousLogError) {
-    const dbStatus = mapDatabaseError(previousLogError.message || '');
-    throw new DatabaseError('No se pudo leer el histórico del usuario.', dbStatus.code);
-  }
-
-  const previousMomentum = previousLog?.health_momentum ?? 100;
 
   if (analyzedLog.metricas.error_clave === 'fuera_de_tema') {
     const currentMomentum = todayLog ? todayLog.health_momentum : previousMomentum;

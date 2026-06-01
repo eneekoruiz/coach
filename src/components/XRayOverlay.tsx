@@ -114,17 +114,23 @@ export default function XRayOverlay({
               <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="rounded-2xl border border-slate-200 bg-white/70 p-4">
                   <p className="text-[10px] uppercase tracking-[0.28em] text-slate-500">
-                    Hidratación
+                    Nutrientes Hoy
                   </p>
-                  <p className="mt-2 text-lg font-semibold text-slate-900">
-                    {displayLog.hidratacion_ml} ml
-                  </p>
+                  <div className="mt-2 space-y-1 text-xs text-slate-700">
+                    <p><span className="font-bold text-slate-800">Calorías:</span> {displayLog.total_kcal} kcal</p>
+                    <p><span className="font-bold text-slate-800">Proteína:</span> {displayLog.protein_g} g</p>
+                    <p><span className="font-bold text-slate-800">Carbos:</span> {displayLog.carbs_g} g</p>
+                    <p><span className="font-bold text-slate-800">Grasa:</span> {displayLog.fats_g} g</p>
+                  </div>
                 </div>
                 <div className="rounded-2xl border border-slate-200 bg-white/70 p-4">
-                  <p className="text-[10px] uppercase tracking-[0.28em] text-slate-500">Toxinas</p>
-                  <p className="mt-2 text-lg font-semibold text-slate-900">
-                    {displayLog.toxinas.length > 0 ? displayLog.toxinas.join(', ') : 'Ninguna'}
+                  <p className="text-[10px] uppercase tracking-[0.28em] text-slate-500">
+                    Agua y Toxinas
                   </p>
+                  <div className="mt-2 space-y-1 text-xs text-slate-700">
+                    <p><span className="font-bold text-slate-800">Agua:</span> {displayLog.water_ml} ml</p>
+                    <p><span className="font-bold text-slate-800">Toxinas:</span> {displayLog.toxinas.length > 0 ? displayLog.toxinas.join(', ') : 'Ninguna'}</p>
+                  </div>
                 </div>
               </div>
             </div>

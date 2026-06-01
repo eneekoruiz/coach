@@ -42,6 +42,33 @@ export const dailyLogSchema = z
         accion_manana: z.string().min(1),
       })
       .strict(),
+    water_ml: z.preprocess((val) => {
+      const num = Number(val);
+      return isNaN(num) ? 0 : Math.max(0, Math.round(num));
+    }, z.number().int().nonnegative()),
+    total_kcal: z.preprocess((val) => {
+      const num = Number(val);
+      return isNaN(num) ? 0 : Math.max(0, Math.round(num));
+    }, z.number().int().nonnegative()),
+    protein_g: z.preprocess((val) => {
+      const num = Number(val);
+      return isNaN(num) ? 0 : Math.max(0, Math.round(num));
+    }, z.number().int().nonnegative()),
+    carbs_g: z.preprocess((val) => {
+      const num = Number(val);
+      return isNaN(num) ? 0 : Math.max(0, Math.round(num));
+    }, z.number().int().nonnegative()),
+    fats_g: z.preprocess((val) => {
+      const num = Number(val);
+      return isNaN(num) ? 0 : Math.max(0, Math.round(num));
+    }, z.number().int().nonnegative()),
+    habits_count: z.record(
+      z.string(),
+      z.preprocess((val) => {
+        const num = Number(val);
+        return isNaN(num) ? 0 : Math.max(0, Math.round(num));
+      }, z.number().int().nonnegative())
+    ),
   })
   .strict();
 

@@ -5,6 +5,12 @@ import { dailyLogSchema, type DailyLog } from '@/lib/schema';
 const fallbackLog: DailyLog = {
   comidas: [],
   hidratacion_ml: 0,
+  water_ml: 0,
+  total_kcal: 0,
+  protein_g: 0,
+  carbs_g: 0,
+  fats_g: 0,
+  habits_count: {},
   toxinas: [],
   bio_avatar: {
     estado_fisiologico: 'equilibrio estable',
