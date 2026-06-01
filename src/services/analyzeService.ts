@@ -55,10 +55,17 @@ function mergeDailyLogs(existing: DailyLog, incoming: DailyLog): DailyLog {
     }
   }
 
+  const finalWater = Math.max(
+    existing.water_ml || 0,
+    existing.hidratacion_ml || 0,
+    incoming.water_ml || 0,
+    incoming.hidratacion_ml || 0
+  );
+
   return {
     comidas: [...(existing.comidas || []), ...(incoming.comidas || [])],
-    hidratacion_ml: Math.max(existing.hidratacion_ml || 0, incoming.hidratacion_ml || 0),
-    water_ml: Math.max(existing.water_ml || 0, incoming.water_ml || 0),
+    hidratacion_ml: finalWater,
+    water_ml: finalWater,
     total_kcal: Math.max(existing.total_kcal || 0, incoming.total_kcal || 0),
     protein_g: Math.max(existing.protein_g || 0, incoming.protein_g || 0),
     carbs_g: Math.max(existing.carbs_g || 0, incoming.carbs_g || 0),
@@ -209,7 +216,10 @@ export async function analyzeAndPersistDailyLog(params: AnalyzeParams) {
   if (todayLog && todayLog.ai_data) {
     const aiData = todayLog.ai_data as any;
     currentState = {
-      water_ml: typeof aiData.water_ml === 'number' ? aiData.water_ml : 0,
+      water_ml: Math.max(
+        typeof aiData.water_ml === 'number' ? aiData.water_ml : 0,
+        typeof aiData.hidratacion_ml === 'number' ? aiData.hidratacion_ml : 0
+      ),
       total_kcal: typeof aiData.total_kcal === 'number' ? aiData.total_kcal : 0,
       protein_g: typeof aiData.protein_g === 'number' ? aiData.protein_g : 0,
       carbs_g: typeof aiData.carbs_g === 'number' ? aiData.carbs_g : 0,

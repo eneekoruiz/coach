@@ -140,7 +140,7 @@ export default function ChatFeedbackPanel({
         <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
           <p className="text-[10px] uppercase tracking-[0.28em] text-slate-500">Hidratación</p>
           <p className="mt-2 text-2xl font-semibold text-slate-900">
-            {feedback.ai_data.hidratacion_ml} ml
+            {feedback.ai_data.water_ml ?? feedback.ai_data.hidratacion_ml} ml
           </p>
           <p className="mt-1 text-xs text-slate-500">Dato estructurado desde la IA.</p>
         </div>
