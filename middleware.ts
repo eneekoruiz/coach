@@ -84,9 +84,14 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // If no user session exists and trying to access protected route, redirect to /login
+  const hasAuthParams =
+    request.nextUrl.searchParams.has('code') ||
+    request.nextUrl.searchParams.has('token_hash');
+
+  // If no user session exists, auth params are not present, and trying to access protected route, redirect to /login
   if (
     !user &&
+    !hasAuthParams &&
     (request.nextUrl.pathname === '/' ||
       request.nextUrl.pathname.startsWith('/history') ||
       request.nextUrl.pathname.startsWith('/habits'))
