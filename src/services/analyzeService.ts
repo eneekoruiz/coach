@@ -91,7 +91,7 @@ export function createSafeDemoResponse() {
 
 export interface AnalyzeParams {
   text: string;
-  rawImage?: string;
+  rawImage?: string | null;
   habitReports: Array<{ habit_id: number; amount: number }>;
   authHeader?: string;
   supabase: SupabaseClient;

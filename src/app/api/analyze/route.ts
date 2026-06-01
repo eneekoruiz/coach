@@ -23,9 +23,9 @@ const habitReportSchema = z
 
 const analyzeRequestSchema = z
   .object({
-    text: z.string().trim().max(MAX_TEXT_LENGTH).optional(),
-    image: z.string().trim().min(1).optional(),
-    habit_tracking: z.array(habitReportSchema).optional(),
+    text: z.string().trim().max(MAX_TEXT_LENGTH).nullable().optional(),
+    image: z.string().trim().min(1).nullable().optional(),
+    habit_tracking: z.array(habitReportSchema).nullable().optional(),
   })
   .strict()
   .superRefine((value, ctx) => {
