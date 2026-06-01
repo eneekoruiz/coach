@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { type HabitRow } from '@/types/habits';
 
 export function isMissingHabitTableError(error: unknown) {
@@ -42,12 +42,10 @@ export function computeHabitOutcome(habit: HabitRow, amount: number) {
 }
 
 export async function evaluateAndUpdateStreaks(
-  authHeader: string | undefined,
+  supabase: SupabaseClient,
   userId: string,
   reports: Array<{ habit_id: number; amount: number }>
 ) {
-  const supabase = createSupabaseClient(authHeader);
-
   const { data: habits, error } = await supabase.from('user_habits').select('*').eq('user_id', userId);
 
   if (error) {

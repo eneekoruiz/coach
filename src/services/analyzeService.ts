@@ -180,7 +180,7 @@ export async function analyzeAndPersistDailyLog(params: AnalyzeParams) {
   const today = new Date().toISOString().slice(0, 10);
 
   try {
-    await evaluateAndUpdateStreaks(authHeader, user.id, habitReports);
+    await evaluateAndUpdateStreaks(supabase, user.id, habitReports);
   } catch (e) {
     const message = e instanceof Error ? e.message : 'Failed to evaluate/update streaks';
     const dbStatus = mapDatabaseError(message);
