@@ -8,7 +8,6 @@ import {
   ImageTooLargeError,
   AiServiceError,
   DatabaseError,
-  OffTopicError,
 } from '@/services/analyzeService';
 
 export const dynamic = 'force-dynamic';
@@ -113,9 +112,6 @@ export async function POST(request: Request) {
 
       return NextResponse.json({ status: 200, data: result }, { status: 200 });
     } catch (err) {
-      if (err instanceof OffTopicError) {
-        return jsonError(400, 'off_topic', err.message);
-      }
       if (err instanceof ImageTooLargeError) {
         return jsonError(413, 'image_too_large', err.message);
       }

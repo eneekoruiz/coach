@@ -27,6 +27,24 @@ export default function ChatFeedbackPanel({
 }) {
   if (!feedback) return null;
 
+  if (feedback.ai_data?.metricas?.error_clave === 'fuera_de_tema') {
+    return (
+      <div className="rounded-[1.25rem] border border-amber-200/80 bg-amber-50/70 p-4 shadow-sm backdrop-blur-md">
+        <div className="flex items-start gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-amber-600 text-lg text-white shadow-sm">
+            🐶
+          </div>
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-amber-700">Coach Bio-Avatar</p>
+            <p className="mt-1.5 text-sm leading-6 text-slate-800">
+              {feedback.ai_data.metricas.accion_manana}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-3 rounded-[1.4rem] border border-slate-200/80 bg-slate-50/80 p-4">
       <div className="grid gap-3 lg:grid-cols-2">

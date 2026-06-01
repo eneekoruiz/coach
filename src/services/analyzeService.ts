@@ -18,7 +18,6 @@ export class DatabaseError extends Error {
     super(message);
   }
 }
-export class OffTopicError extends Error {}
 
 function normalizeBase64Image(value: string): string {
   const trimmedValue = value.trim();
@@ -154,13 +153,6 @@ export async function analyzeAndPersistDailyLog(params: AnalyzeParams) {
     throw new AiServiceError('No se pudo procesar la respuesta del motor de IA.', message);
   }
 
-  if (analyzedLog.metricas.error_clave === 'fuera_de_tema') {
-    throw new OffTopicError(
-      analyzedLog.metricas.accion_manana ||
-        'Lo siento, mi propósito es ayudarte a registrar tus hábitos y cuidar de tu Bio-Avatar. Por favor, indícame qué has comido o bebido hoy.'
-    );
-  }
-
   const { data: lastLog, error: lastLogError } = await supabase
     .from('daily_logs')
     .select('health_momentum')
@@ -175,9 +167,29 @@ export async function analyzeAndPersistDailyLog(params: AnalyzeParams) {
   }
 
   const previousMomentum = lastLog?.health_momentum ?? 100;
+  const today = new Date().toISOString().slice(0, 10);
+
+  if (analyzedLog.metricas.error_clave === 'fuera_de_tema') {
+    return {
+      user_id: user.id,
+      previous_health_momentum: previousMomentum,
+      health_momentum: previousMomentum,
+      daily_log: {
+        id: 'off-topic-log',
+        user_id: user.id,
+        date: today,
+        health_momentum: previousMomentum,
+        ai_data: analyzedLog,
+        avatar_image_url: null,
+        close_day_data: null,
+        created_at: new Date().toISOString(),
+      },
+      ai_data: analyzedLog,
+    };
+  }
+
   const delta = analyzedLog.metricas.variacion_inercia;
   const nextMomentum = Math.min(100, Math.max(0, previousMomentum + delta));
-  const today = new Date().toISOString().slice(0, 10);
 
   try {
     await evaluateAndUpdateStreaks(supabase, user.id, habitReports);
