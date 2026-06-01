@@ -90,7 +90,7 @@ export function useChat(onUpdate?: () => void | Promise<void>) {
       return;
     }
     if (err instanceof BadRequestError) {
-      toast.error('Revisa el contenido enviado e inténtalo de nuevo.');
+      toast.error(err.message);
       return;
     }
     const message = err instanceof Error ? err.message : ERROR_MESSAGES.generic;

@@ -4,7 +4,12 @@ import { performChatRequest } from '@/hooks/useChatApi';
 export class SessionExpiredError extends Error {}
 export class ForbiddenError extends Error {}
 export class PayloadTooLargeError extends Error {}
-export class BadRequestError extends Error {}
+export class BadRequestError extends Error {
+  constructor(message: string) {
+    super(message);
+    Object.setPrototypeOf(this, BadRequestError.prototype);
+  }
+}
 
 export async function getSessionToken(): Promise<string> {
   const { data } = await supabase.auth.getSession();
@@ -31,7 +36,11 @@ export async function sendChat<T = unknown>(params: {
     if (result.status === 401) throw new SessionExpiredError('Unauthorized');
     if (result.status === 403) throw new ForbiddenError('Forbidden');
     if (result.status === 413) throw new PayloadTooLargeError('Payload too large');
-    if (result.status === 400) throw new BadRequestError('Bad request');
+    if (result.status === 400) {
+      const payload = result.payload as { error?: { message?: string } } | undefined;
+      const errMsg = payload?.error?.message || 'Revisa el contenido enviado e inténtalo de nuevo.';
+      throw new BadRequestError(errMsg);
+    }
     throw new Error('Chat service error');
   }
 

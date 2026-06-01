@@ -18,6 +18,7 @@ export class DatabaseError extends Error {
     super(message);
   }
 }
+export class OffTopicError extends Error {}
 
 function normalizeBase64Image(value: string): string {
   const trimmedValue = value.trim();
@@ -111,7 +112,8 @@ export async function analyzeAndPersistDailyLog(params: AnalyzeParams) {
   }
 
   const systemPrompt =
-    'Eres un evaluador metabólico proactivo. Tu tarea es analizar con rigor el texto y la imagen del usuario y devolver exclusivamente un objeto que cumpla el esquema. No incluyas texto extra, no expliques tu razonamiento y no inventes claves fuera del contrato. Debes inferir el estado fisiológico diario, detectar señales nutricionales, de hidratación y toxinas, y calcular una variación de inercia útil para el seguimiento longitudinal.';
+    'Eres un evaluador metabólico proactivo. Tu tarea es analizar con rigor el texto y la imagen del usuario y devolver exclusivamente un objeto que cumpla el esquema. No incluyas texto extra, no expliques tu razonamiento y no inventes claves fuera del contrato. Debes inferir el estado fisiológico diario, detectar señales nutricionales, de hidratación y toxinas, y calcular una variación de inercia útil para el seguimiento longitudinal. ' +
+    'IMPORTANTE: Si el mensaje del usuario (texto o imagen) está totalmente fuera de tema (por ejemplo, preguntas generales, problemas de matemáticas o programación, saludos genéricos como "hola", etc. sin relación alguna con comida, hidratación, hábitos o salud), debes establecer el valor exacto de "fuera_de_tema" en el campo "metricas.error_clave", y colocar en "metricas.accion_manana" un mensaje explicativo cordial para el usuario (ej: "Lo siento, mi propósito es ayudarte a registrar tus hábitos y cuidar de tu Bio-Avatar. Por favor, indícame qué has comido o bebido hoy.").';
 
   const analysisText = text
     ? `${systemPrompt}\n\nTexto del usuario:\n${text}`
@@ -150,6 +152,13 @@ export async function analyzeAndPersistDailyLog(params: AnalyzeParams) {
     if (aiError instanceof AiServiceError) throw aiError;
     const message = aiError instanceof Error ? aiError.message : 'AI service failure.';
     throw new AiServiceError('No se pudo procesar la respuesta del motor de IA.', message);
+  }
+
+  if (analyzedLog.metricas.error_clave === 'fuera_de_tema') {
+    throw new OffTopicError(
+      analyzedLog.metricas.accion_manana ||
+        'Lo siento, mi propósito es ayudarte a registrar tus hábitos y cuidar de tu Bio-Avatar. Por favor, indícame qué has comido o bebido hoy.'
+    );
   }
 
   const { data: lastLog, error: lastLogError } = await supabase
