@@ -13,7 +13,7 @@ import { useSpeechRecognition } from './useSpeechRecognition';
 import { useImageSelection } from './useImageSelection';
 import { computeEvaluationText, computeSubmitLabel } from './useChatHelpers';
 import { createHandleCloseDayModalClose } from './useChatActionsHelpers';
-import { getSessionToken, sendChat, SessionExpiredError, ForbiddenError, PayloadTooLargeError, BadRequestError } from '@/services/chatService';
+import { getSessionToken, sendChat, SessionExpiredError, ForbiddenError, PayloadTooLargeError, BadRequestError, RateLimitError } from '@/services/chatService';
 import { CLOSE_DAY_COMMAND, LOGIN_ROUTE, ERROR_MESSAGES } from '@/constants/config';
 
 type SelectedImage = {
@@ -90,6 +90,10 @@ export function useChat(onUpdate?: () => void | Promise<void>) {
       return;
     }
     if (err instanceof BadRequestError) {
+      toast.error(err.message);
+      return;
+    }
+    if (err instanceof RateLimitError) {
       toast.error(err.message);
       return;
     }

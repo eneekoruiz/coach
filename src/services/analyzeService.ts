@@ -269,45 +269,25 @@ export async function analyzeAndPersistDailyLog(params: AnalyzeParams) {
     throw new DatabaseError('No se pudieron actualizar las rachas de hábitos.', dbStatus.code);
   }
 
-  let finalRecord;
-  if (todayLog) {
-    const { data: updated, error: updateError } = await supabase
-      .from('daily_logs')
-      .update({
-        health_momentum: nextMomentum,
-        ai_data: finalAiData,
-        habit_tracking: finalTracking,
-      })
-      .eq('id', todayLog.id)
-      .select('*')
-      .single();
+  const upsertPayload = {
+    user_id: user.id,
+    date: today,
+    health_momentum: nextMomentum,
+    ai_data: finalAiData,
+    habit_tracking: finalTracking,
+  };
 
-    if (updateError) {
-      const dbStatus = mapDatabaseError(updateError.message || '');
-      throw new DatabaseError('No se pudo actualizar el registro de hoy.', dbStatus.code);
-    }
-    finalRecord = updated;
-  } else {
-    const insertPayload = {
-      user_id: user.id,
-      date: today,
-      health_momentum: nextMomentum,
-      ai_data: finalAiData,
-      habit_tracking: finalTracking,
-    };
+  const { data: upsertedLog, error: upsertError } = await supabase
+    .from('daily_logs')
+    .upsert(upsertPayload, { onConflict: 'user_id,date' })
+    .select('*')
+    .single();
 
-    const { data: inserted, error: insertError } = await supabase
-      .from('daily_logs')
-      .insert(insertPayload)
-      .select('*')
-      .single();
-
-    if (insertError) {
-      const dbStatus = mapDatabaseError(insertError.message || '');
-      throw new DatabaseError('No se pudo guardar el registro diario.', dbStatus.code);
-    }
-    finalRecord = inserted;
+  if (upsertError) {
+    const dbStatus = mapDatabaseError(upsertError.message || '');
+    throw new DatabaseError('No se pudo guardar o actualizar el registro diario de hoy.', dbStatus.code);
   }
+  const finalRecord = upsertedLog;
 
   return {
     user_id: user.id,

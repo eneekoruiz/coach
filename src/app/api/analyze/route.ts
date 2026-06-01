@@ -11,6 +11,7 @@ import {
 } from '@/services/analyzeService';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 30; // Extend duration for Gemini API responses on Vercel
 
 const MAX_TEXT_LENGTH = 5000;
 
@@ -48,6 +49,7 @@ function jsonError(
 ) {
   return NextResponse.json(
     {
+      success: false,
       error: {
         code,
         message,
@@ -60,14 +62,13 @@ function jsonError(
 
 export async function POST(request: Request) {
   try {
+    // 1) Verify presence of Gemini API key immediately
     if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
-      console.warn('[BioAvatar] GOOGLE_GENERATIVE_AI_API_KEY is missing. Returning safe demo response.');
-      return NextResponse.json({ status: 200, data: createSafeDemoResponse() }, { status: 200 });
+      throw new Error('La variable de entorno GOOGLE_GENERATIVE_AI_API_KEY no está configurada.');
     }
 
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-      console.warn('[BioAvatar] Supabase env vars are missing. Returning safe demo response.');
-      return NextResponse.json({ status: 200, data: createSafeDemoResponse() }, { status: 200 });
+      throw new Error('Las variables de entorno de Supabase no están configuradas.');
     }
 
     const authHeader = request.headers.get('authorization') ?? undefined;
@@ -75,7 +76,8 @@ export async function POST(request: Request) {
     let auth;
     try {
       auth = await resolveAuthenticatedClient(authHeader);
-    } catch {
+    } catch (authErr) {
+      console.error('[ANALYZE_API_ERROR] Authentication failed:', authErr);
       return jsonError(401, 'unauthorized', 'No se pudo validar la sesión del usuario.');
     }
 
@@ -84,7 +86,8 @@ export async function POST(request: Request) {
     let rawBody: unknown;
     try {
       rawBody = await request.json();
-    } catch {
+    } catch (jsonErr) {
+      console.error('[ANALYZE_API_ERROR] Invalid JSON body:', jsonErr);
       return jsonError(400, 'invalid_json', 'El body debe ser un JSON válido.');
     }
 
@@ -112,11 +115,22 @@ export async function POST(request: Request) {
 
       return NextResponse.json({ status: 200, data: result }, { status: 200 });
     } catch (err) {
-      console.error('[Analyze API Error]:', err);
+      console.error('[ANALYZE_API_ERROR] Processing failed:', err);
       if (err instanceof ImageTooLargeError) {
         return jsonError(413, 'image_too_large', err.message);
       }
       if (err instanceof AiServiceError) {
+        const isRateLimit = /quota exceeded|rate limit|429/i.test(err.message + ' ' + (err.reason || ''));
+        if (isRateLimit) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: 'RATE_LIMIT',
+              message: 'El Bio-Avatar está procesando demasiada información. Por favor, espera un minuto.',
+            },
+            { status: 429 }
+          );
+        }
         return jsonError(502, 'ai_service_failure', err.message, err.reason);
       }
       if (err instanceof DatabaseError) {
@@ -125,10 +139,8 @@ export async function POST(request: Request) {
       throw err;
     }
   } catch (error) {
-    console.error('[Unexpected Analyze Error]:', error);
+    console.error('[ANALYZE_API_ERROR] Unexpected error:', error);
     const message = error instanceof Error ? error.message : 'Error desconocido';
-    return jsonError(503, 'unexpected_error', 'Falló el análisis o la persistencia en base de datos.', {
-      reason: message,
-    });
+    return jsonError(500, 'unexpected_error', `Falló el análisis: ${message}`);
   }
 }
