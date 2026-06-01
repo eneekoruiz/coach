@@ -16,7 +16,8 @@ jobs:
         with:
           node-version: 20
       - name: Install dependencies
-        run: npm ci
+        # use --legacy-peer-deps to avoid peer dependency install failures in CI
+        run: npm ci --legacy-peer-deps
       - name: Run lint
         run: npm run lint
       - name: Build
