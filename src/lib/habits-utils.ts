@@ -52,7 +52,13 @@ export function getTodayIsoDate(): string {
 }
 
 export function getSafeMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === 'object') {
+    if ('message' in error && typeof error.message === 'string') {
+      return error.message;
+    }
+  }
+  return String(error);
 }
 
 export async function parseJsonResponse<T>(response: Response): Promise<T | null> {
