@@ -112,6 +112,7 @@ export async function POST(request: Request) {
 
       return NextResponse.json({ status: 200, data: result }, { status: 200 });
     } catch (err) {
+      console.error('[Analyze API Error]:', err);
       if (err instanceof ImageTooLargeError) {
         return jsonError(413, 'image_too_large', err.message);
       }
@@ -124,6 +125,7 @@ export async function POST(request: Request) {
       throw err;
     }
   } catch (error) {
+    console.error('[Unexpected Analyze Error]:', error);
     const message = error instanceof Error ? error.message : 'Error desconocido';
     return jsonError(503, 'unexpected_error', 'Falló el análisis o la persistencia en base de datos.', {
       reason: message,

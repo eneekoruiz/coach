@@ -13,18 +13,30 @@ export const dailyLogSchema = z
           .strict()
       )
       .min(0),
-    hidratacion_ml: z.number().int().nonnegative(),
+    hidratacion_ml: z.preprocess((val) => {
+      const num = Number(val);
+      return isNaN(num) ? 0 : Math.max(0, Math.round(num));
+    }, z.number().int().nonnegative()),
     toxinas: z.array(z.string().min(1)),
     bio_avatar: z
       .object({
         estado_fisiologico: z.string().min(1),
-        energia_fisica: z.number().int().min(1).max(5),
-        claridad_mental: z.number().int().min(1).max(5),
+        energia_fisica: z.preprocess((val) => {
+          const num = Number(val);
+          return isNaN(num) ? 3 : Math.min(5, Math.max(1, Math.round(num)));
+        }, z.number().int().min(1).max(5)),
+        claridad_mental: z.preprocess((val) => {
+          const num = Number(val);
+          return isNaN(num) ? 3 : Math.min(5, Math.max(1, Math.round(num)));
+        }, z.number().int().min(1).max(5)),
       })
       .strict(),
     metricas: z
       .object({
-        variacion_inercia: z.number().int(),
+        variacion_inercia: z.preprocess((val) => {
+          const num = Number(val);
+          return isNaN(num) ? 0 : Math.round(num);
+        }, z.number().int()),
         aciertos: z.array(z.string().min(1)),
         error_clave: z.string().min(1),
         accion_manana: z.string().min(1),
