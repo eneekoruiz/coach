@@ -2,6 +2,8 @@
 
 Proyecto de ejemplo.
 
+Note: small edit to trigger CI and redeploy.
+
 ## Development
 
 Start the dev server locally:
