@@ -44,5 +44,6 @@ export async function sendChat<T = unknown>(params: {
     throw new Error('Chat service error');
   }
 
-  return { mode: result.mode, payload: result.payload as T };
+  const parsedPayload = result.payload as { data?: T } | null | undefined;
+  return { mode: result.mode, payload: (parsedPayload?.data ?? result.payload) as T };
 }
