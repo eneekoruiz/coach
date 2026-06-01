@@ -47,6 +47,41 @@ function mapDatabaseError(message: string): { status: number; code: string } {
   return { status: 503, code: 'database_unavailable' };
 }
 
+function mergeDailyLogs(existing: DailyLog, incoming: DailyLog): DailyLog {
+  return {
+    comidas: [...(existing.comidas || []), ...(incoming.comidas || [])],
+    hidratacion_ml: (existing.hidratacion_ml || 0) + (incoming.hidratacion_ml || 0),
+    toxinas: Array.from(new Set([...(existing.toxinas || []), ...(incoming.toxinas || [])])),
+    bio_avatar: {
+      estado_fisiologico: incoming.bio_avatar?.estado_fisiologico || existing.bio_avatar?.estado_fisiologico || '',
+      energia_fisica: incoming.bio_avatar?.energia_fisica ?? existing.bio_avatar?.energia_fisica ?? 3,
+      claridad_mental: incoming.bio_avatar?.claridad_mental ?? existing.bio_avatar?.claridad_mental ?? 3,
+    },
+    metricas: {
+      variacion_inercia: (existing.metricas?.variacion_inercia || 0) + (incoming.metricas?.variacion_inercia || 0),
+      aciertos: Array.from(new Set([...(existing.metricas?.aciertos || []), ...(incoming.metricas?.aciertos || [])])),
+      error_clave: incoming.metricas?.error_clave || existing.metricas?.error_clave || '',
+      accion_manana: incoming.metricas?.accion_manana || existing.metricas?.accion_manana || '',
+    },
+  };
+}
+
+function mergeHabitTracking(
+  existing: Array<{ habit_id: number; amount: number }>,
+  incoming: Array<{ habit_id: number; amount: number }>
+): Array<{ habit_id: number; amount: number }> {
+  const merged = [...existing];
+  for (const item of incoming) {
+    const idx = merged.findIndex((r) => r.habit_id === item.habit_id);
+    if (idx >= 0) {
+      merged[idx].amount = item.amount;
+    } else {
+      merged.push(item);
+    }
+  }
+  return merged;
+}
+
 export function createSafeDemoResponse() {
   const analyzedLog: DailyLog = {
     comidas: [
@@ -154,32 +189,49 @@ export async function analyzeAndPersistDailyLog(params: AnalyzeParams) {
     throw new AiServiceError('No se pudo procesar la respuesta del motor de IA.', message);
   }
 
-  const { data: lastLog, error: lastLogError } = await supabase
+  const today = new Date().toISOString().slice(0, 10);
+
+  // Check if a daily log already exists for today
+  const { data: todayLog, error: todayLogError } = await supabase
+    .from('daily_logs')
+    .select('id, health_momentum, ai_data, habit_tracking')
+    .eq('user_id', user.id)
+    .eq('date', today)
+    .maybeSingle();
+
+  if (todayLogError) {
+    const dbStatus = mapDatabaseError(todayLogError.message || '');
+    throw new DatabaseError('No se pudo verificar el registro diario de hoy.', dbStatus.code);
+  }
+
+  // Get previous health momentum from the last log before today
+  const { data: previousLog, error: previousLogError } = await supabase
     .from('daily_logs')
     .select('health_momentum')
     .eq('user_id', user.id)
+    .lt('date', today)
     .order('date', { ascending: false })
     .limit(1)
     .maybeSingle();
 
-  if (lastLogError) {
-    const dbStatus = mapDatabaseError(lastLogError.message || '');
+  if (previousLogError) {
+    const dbStatus = mapDatabaseError(previousLogError.message || '');
     throw new DatabaseError('No se pudo leer el histórico del usuario.', dbStatus.code);
   }
 
-  const previousMomentum = lastLog?.health_momentum ?? 100;
-  const today = new Date().toISOString().slice(0, 10);
+  const previousMomentum = previousLog?.health_momentum ?? 100;
 
   if (analyzedLog.metricas.error_clave === 'fuera_de_tema') {
+    const currentMomentum = todayLog ? todayLog.health_momentum : previousMomentum;
     return {
       user_id: user.id,
-      previous_health_momentum: previousMomentum,
-      health_momentum: previousMomentum,
+      previous_health_momentum: currentMomentum,
+      health_momentum: currentMomentum,
       daily_log: {
-        id: 'off-topic-log',
+        id: todayLog ? todayLog.id : 'off-topic-log',
         user_id: user.id,
         date: today,
-        health_momentum: previousMomentum,
+        health_momentum: currentMomentum,
         ai_data: analyzedLog,
         avatar_image_url: null,
         close_day_data: null,
@@ -189,7 +241,24 @@ export async function analyzeAndPersistDailyLog(params: AnalyzeParams) {
     };
   }
 
-  const delta = analyzedLog.metricas.variacion_inercia;
+  let finalAiData = analyzedLog;
+  let finalTracking = habitReports;
+
+  if (todayLog) {
+    const existingAi = dailyLogSchema.safeParse(todayLog.ai_data).success
+      ? dailyLogSchema.parse(todayLog.ai_data)
+      : null;
+    if (existingAi) {
+      finalAiData = mergeDailyLogs(existingAi, analyzedLog);
+    }
+
+    const existingTracking = Array.isArray(todayLog.habit_tracking)
+      ? (todayLog.habit_tracking as Array<{ habit_id: number; amount: number }>)
+      : [];
+    finalTracking = mergeHabitTracking(existingTracking, habitReports);
+  }
+
+  const delta = finalAiData.metricas.variacion_inercia;
   const nextMomentum = Math.min(100, Math.max(0, previousMomentum + delta));
 
   try {
@@ -200,30 +269,51 @@ export async function analyzeAndPersistDailyLog(params: AnalyzeParams) {
     throw new DatabaseError('No se pudieron actualizar las rachas de hábitos.', dbStatus.code);
   }
 
-  const insertPayload = {
-    user_id: user.id,
-    date: today,
-    health_momentum: nextMomentum,
-    ai_data: analyzedLog,
-    habit_tracking: habitReports,
-  };
+  let finalRecord;
+  if (todayLog) {
+    const { data: updated, error: updateError } = await supabase
+      .from('daily_logs')
+      .update({
+        health_momentum: nextMomentum,
+        ai_data: finalAiData,
+        habit_tracking: finalTracking,
+      })
+      .eq('id', todayLog.id)
+      .select('*')
+      .single();
 
-  const { data: insertedLog, error: insertError } = await supabase
-    .from('daily_logs')
-    .insert(insertPayload)
-    .select('*')
-    .single();
+    if (updateError) {
+      const dbStatus = mapDatabaseError(updateError.message || '');
+      throw new DatabaseError('No se pudo actualizar el registro de hoy.', dbStatus.code);
+    }
+    finalRecord = updated;
+  } else {
+    const insertPayload = {
+      user_id: user.id,
+      date: today,
+      health_momentum: nextMomentum,
+      ai_data: finalAiData,
+      habit_tracking: finalTracking,
+    };
 
-  if (insertError) {
-    const dbStatus = mapDatabaseError(insertError.message || '');
-    throw new DatabaseError('No se pudo guardar el registro diario.', dbStatus.code);
+    const { data: inserted, error: insertError } = await supabase
+      .from('daily_logs')
+      .insert(insertPayload)
+      .select('*')
+      .single();
+
+    if (insertError) {
+      const dbStatus = mapDatabaseError(insertError.message || '');
+      throw new DatabaseError('No se pudo guardar el registro diario.', dbStatus.code);
+    }
+    finalRecord = inserted;
   }
 
   return {
     user_id: user.id,
     previous_health_momentum: previousMomentum,
     health_momentum: nextMomentum,
-    daily_log: insertedLog,
-    ai_data: analyzedLog,
+    daily_log: finalRecord,
+    ai_data: finalAiData,
   };
 }
