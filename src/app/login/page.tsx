@@ -18,11 +18,7 @@ const successMessages: Record<string, string> = {
 };
 
 type LoginPageProps = {
-  searchParams?: {
-    error?: string;
-    success?: string;
-    email?: string;
-  } | Promise<{
+  searchParams: Promise<{
     error?: string;
     success?: string;
     email?: string;
@@ -30,7 +26,7 @@ type LoginPageProps = {
 };
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
-  const resolvedSearchParams = await Promise.resolve(searchParams);
+  const resolvedSearchParams = await searchParams;
   const errorCode = resolvedSearchParams?.error;
   const successCode = resolvedSearchParams?.success;
   const pendingEmail = resolvedSearchParams?.email ?? '';

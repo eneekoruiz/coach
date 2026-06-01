@@ -653,9 +653,10 @@ export default function HabitTracker() {
         return;
       }
 
-      if (isHabitRow(payload?.data)) {
-        setHabits((current) => [payload.data, ...current]);
-        setValues((current) => ({ ...current, [payload.data.id]: 0 }));
+      const createdHabit = payload?.data;
+      if (isHabitRow(createdHabit)) {
+        setHabits((current) => [createdHabit, ...current]);
+        setValues((current) => ({ ...current, [createdHabit.id]: 0 }));
         const message = 'Hábito creado';
         setStatusMessage(message);
         toast.success(message);

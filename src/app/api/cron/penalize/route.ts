@@ -36,11 +36,9 @@ export async function GET(req: Request) {
     // 1) get all user ids (admin API preferred, fallback to auth.users)
     let userIds: string[] = [];
     try {
-      // admin API may exist on service role key
-      // @ts-expect-error admin API potentially missing from types
-      const allUsers = await (supabase.auth as any).admin.listUsers();
-      if (allUsers?.data?.users && Array.isArray(allUsers.data.users)) {
-        userIds = allUsers.data.users.map((u: { id?: string }) => String(u.id)).filter(Boolean);
+      const allUsers = await supabase.auth.admin.listUsers();
+      if (allUsers.data.users && Array.isArray(allUsers.data.users)) {
+        userIds = allUsers.data.users.map((user) => String(user.id)).filter(Boolean);
       }
     } catch (e) {
       // fallback: query auth.users

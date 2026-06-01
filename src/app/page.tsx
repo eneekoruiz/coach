@@ -3,17 +3,11 @@ import { redirect } from 'next/navigation';
 import HomeDashboard from '@/components/HomeDashboard';
 
 type HomePageProps = {
-  searchParams?:
-    | {
-        error?: string;
-        error_code?: string;
-        error_description?: string;
-      }
-    | Promise<{
-        error?: string;
-        error_code?: string;
-        error_description?: string;
-      }>;
+  searchParams: Promise<{
+    error?: string;
+    error_code?: string;
+    error_description?: string;
+  }>;
 };
 
 function isExpiredConfirmationCallback(searchParams?: {
@@ -34,7 +28,7 @@ function isExpiredConfirmationCallback(searchParams?: {
 }
 
 export default async function Page({ searchParams }: HomePageProps) {
-  const resolvedSearchParams = await Promise.resolve(searchParams);
+  const resolvedSearchParams = await searchParams;
 
   if (isExpiredConfirmationCallback(resolvedSearchParams)) {
     redirect('/login?error=email_confirmation_link_expired');

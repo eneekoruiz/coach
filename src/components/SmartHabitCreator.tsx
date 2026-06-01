@@ -63,7 +63,7 @@ export default function SmartHabitCreator({ onCreated }: { onCreated?: () => voi
         <label className="sr-only">¿Qué quieres cambiar?</label>
         <motion.textarea
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setText(e.target.value)}
           placeholder="¿Qué quieres cambiar en tu vida hoy? (Ej: Leer 10 páginas, no comer azúcar...)"
           className="w-full resize-none rounded-2xl border border-slate-200 bg-white px-4 py-4 text-lg leading-6 placeholder:text-slate-400"
           rows={3}

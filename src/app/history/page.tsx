@@ -37,9 +37,9 @@ type HistoryLog = {
 };
 
 type HistoryPageProps = {
-  searchParams?: {
+  searchParams: Promise<{
     page?: string;
-  };
+  }>;
 };
 
 const PAGE_SIZE = 6;
@@ -76,7 +76,7 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
     );
   }
 
-  const resolvedSearchParams = searchParams ?? {};
+  const resolvedSearchParams = (await searchParams) ?? {};
   const requestedPage = Math.max(1, Number(resolvedSearchParams.page ?? '1') || 1);
 
   const { fetchHistoryPage } = await import('@/lib/history-server');
