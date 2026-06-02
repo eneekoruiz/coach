@@ -1,4 +1,4 @@
-import React, { useTransition, useOptimistic } from 'react';
+import React, { useState, useTransition, useOptimistic } from 'react';
 import { motion } from 'framer-motion';
 import type { HabitRow, DailyLogRow } from '@/types/habits';
 import { toNumber, buildMiniSeries } from '@/lib/habits-utils';
@@ -79,6 +79,7 @@ export default function HabitTrackerCard({
     value,
     (state, newValue: number) => newValue
   );
+  const [mode, setMode] = useState<'quick' | 'direct'>('quick');
 
   const handleIncrement = () => {
     const nextVal = optimisticValue + 1;
@@ -164,62 +165,179 @@ export default function HabitTrackerCard({
         </p>
       </div>
 
-      <div className="mt-4 flex items-center gap-2">
-        <label className="sr-only" htmlFor={`habit-${habit.id}`}>{`Cantidad para ${habit.name}`}</label>
-        
+      {/* Selector de Modo de Registro */}
+      <div className="mt-4 flex rounded-2xl bg-slate-100 p-1">
         <button
           type="button"
-          onClick={handleDecrement}
-          disabled={isPending}
-          className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 transition active:scale-95 disabled:opacity-50"
+          onClick={() => setMode('quick')}
+          className={`flex-1 rounded-xl py-1.5 text-xs font-bold transition-all ${
+            mode === 'quick'
+              ? 'bg-white text-slate-950 shadow-sm'
+              : 'text-slate-500 hover:text-slate-800'
+          }`}
         >
-          -
+          ⚡ Registro 1 a 1
         </button>
-
-        <input
-          id={`habit-${habit.id}`}
-          type="number"
-          min={0}
-          inputMode="numeric"
-          value={optimisticValue}
-          onChange={(event) => onValueChange(habit.id, toNumber(event.target.value))}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter') handleSaveDirect(optimisticValue);
-          }}
-          disabled={isPending}
-          className="w-20 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-center text-sm font-medium text-slate-950 outline-none transition focus:border-slate-300 focus:bg-white"
-        />
-
         <button
           type="button"
-          onClick={handleIncrement}
-          disabled={isPending}
-          className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 transition active:scale-95 disabled:opacity-50"
+          onClick={() => setMode('direct')}
+          className={`flex-1 rounded-xl py-1.5 text-xs font-bold transition-all ${
+            mode === 'direct'
+              ? 'bg-white text-slate-950 shadow-sm'
+              : 'text-slate-500 hover:text-slate-800'
+          }`}
         >
-          +
+          📅 Total del Día
         </button>
+      </div>
 
-        <button
-          type="button"
-          onClick={() => handleSaveDirect(optimisticValue)}
-          disabled={isPending}
-          className="inline-flex h-10 items-center justify-center rounded-full bg-slate-950 px-4 text-sm font-medium text-white transition hover:scale-[1.01] active:scale-[0.98] disabled:opacity-60"
-        >
-          Guardar
-        </button>
-        {habit.type === 'negative' ? (
-          <button
-            type="button"
-            onClick={() => {
-              onValueChange(habit.id, 0);
-              handleSaveDirect(0);
-            }}
-            disabled={isPending}
-            className="inline-flex h-10 items-center justify-center rounded-full border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-60"
-          >
-            Marcar 0
-          </button>
-        ) : null}
+      {/* Contenido según el Modo */}
+      <div className="mt-3">
+        {mode === 'quick' ? (
+          <div className="flex flex-col items-center justify-center py-4 bg-slate-50 rounded-2xl border border-slate-100/60">
+            <span className="text-4xl font-extrabold tracking-tight text-slate-950 select-none">
+              {optimisticValue}
+            </span>
+            <span className="text-[10px] uppercase tracking-[0.15em] text-slate-400 mt-1 select-none font-medium">
+              {habit.type === 'negative' ? 'caídas hoy' : 'logros hoy'}
+            </span>
+            
+            <div className="mt-4 flex items-center gap-4">
+              {/* Decremento (-1) para deshacer error */}
+              <button
+                type="button"
+                onClick={handleDecrement}
+                disabled={isPending || optimisticValue === 0}
+                className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 transition active:scale-90 disabled:opacity-30 disabled:pointer-events-none shadow-sm"
+                title="Restar 1 (Deshacer error)"
+              >
+                <span className="text-base font-bold">-1</span>
+              </button>
+
+              {/* Botón principal gigante y animado para +1 */}
+              <button
+                type="button"
+                onClick={handleIncrement}
+                disabled={isPending}
+                className={`relative group inline-flex h-20 w-20 flex-col items-center justify-center rounded-full text-white shadow-md transition active:scale-95 disabled:opacity-50 select-none ${
+                  habit.type === 'negative'
+                    ? 'bg-gradient-to-br from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700'
+                    : 'bg-gradient-to-br from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700'
+                }`}
+              >
+                <span className="text-2xl font-black">+1</span>
+                <span className="text-[8px] uppercase tracking-wider font-bold opacity-90 mt-0.5">
+                  {habit.type === 'negative' ? 'Añadir' : 'Registrar'}
+                </span>
+              </button>
+
+              {/* Botón rápido o indicador */}
+              {habit.type === 'negative' ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onValueChange(habit.id, 0);
+                    handleSaveDirect(0);
+                  }}
+                  disabled={isPending || optimisticValue === 0}
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 transition active:scale-90 disabled:opacity-30 disabled:pointer-events-none shadow-sm"
+                  title="Marcar día limpio (0 consumos)"
+                >
+                  <span className="text-xs font-bold">Limpio</span>
+                </button>
+              ) : (
+                <div className="w-11 h-11 flex items-center justify-center">
+                  {optimisticValue > 0 && (
+                    <span className="text-emerald-500 text-xl font-bold animate-bounce">✓</span>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-100/60">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                Total acumulado del día:
+              </span>
+              <span className="text-sm font-black text-slate-900 bg-white px-3 py-1 rounded-xl border border-slate-100 shadow-sm">
+                {optimisticValue}
+              </span>
+            </div>
+            
+            <div className="flex items-center gap-2 mt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  const val = Math.max(0, optimisticValue - 5);
+                  onValueChange(habit.id, val);
+                }}
+                disabled={isPending}
+                className="px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-bold text-slate-600 hover:bg-slate-50 active:scale-95 transition disabled:opacity-50"
+              >
+                -5
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const val = Math.max(0, optimisticValue - 1);
+                  onValueChange(habit.id, val);
+                }}
+                disabled={isPending}
+                className="px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-bold text-slate-600 hover:bg-slate-50 active:scale-95 transition disabled:opacity-50"
+              >
+                -1
+              </button>
+              
+              <input
+                id={`habit-${habit.id}`}
+                type="number"
+                min={0}
+                inputMode="numeric"
+                value={optimisticValue}
+                onChange={(event) => onValueChange(habit.id, toNumber(event.target.value))}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') handleSaveDirect(optimisticValue);
+                }}
+                disabled={isPending}
+                className="flex-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-center text-base font-semibold text-slate-950 focus:border-slate-300 focus:outline-none transition shadow-inner min-w-[50px]"
+                placeholder="0"
+              />
+              
+              <button
+                type="button"
+                onClick={() => {
+                  const val = optimisticValue + 1;
+                  onValueChange(habit.id, val);
+                }}
+                disabled={isPending}
+                className="px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-bold text-slate-600 hover:bg-slate-50 active:scale-95 transition disabled:opacity-50"
+              >
+                +1
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const val = optimisticValue + 5;
+                  onValueChange(habit.id, val);
+                }}
+                disabled={isPending}
+                className="px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-bold text-slate-600 hover:bg-slate-50 active:scale-95 transition disabled:opacity-50"
+              >
+                +5
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => handleSaveDirect(optimisticValue)}
+              disabled={isPending}
+              className="mt-2 w-full py-2.5 rounded-xl bg-slate-950 text-white font-bold text-sm hover:bg-slate-900 active:scale-[0.98] disabled:opacity-60 transition shadow-sm"
+            >
+              {isPending ? 'Guardando...' : 'Guardar Total del Día'}
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="mt-4 flex items-start gap-3 rounded-2xl bg-slate-50 p-3">
