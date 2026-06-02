@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import toast from '@/lib/toast';
 import { isMissingHabitTableError } from '@/lib/habits';
+import { getNormalizedDate } from '@/lib/date-utils';
 import type { HabitRow, DailyLogRow, HabitType, HabitTrackingEntry } from '@/types/habits';
 import {
   isHabitRow,
@@ -13,6 +15,7 @@ import {
 } from '@/lib/habits-utils';
 
 export function useHabits() {
+  const router = useRouter();
   const [habits, setHabits] = useState<HabitRow[]>([]);
   const [values, setValues] = useState<Record<number, number>>({});
   const [recentLogs, setRecentLogs] = useState<DailyLogRow[]>([]);
@@ -21,6 +24,22 @@ export function useHabits() {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [savingMap, setSavingMap] = useState<Record<number, boolean>>({});
+  const [selectedDate, setSelectedDate] = useState(() => getNormalizedDate(new Date()));
+
+  // Auto-sync input values with logs of the selectedDate
+  useEffect(() => {
+    if (habits.length === 0) return;
+    const targetLog = recentLogs.find((l) => l.date === selectedDate);
+    const tracking = targetLog?.habit_tracking ?? [];
+    setValues((prev) => {
+      const nextValues = { ...prev };
+      for (const habit of habits) {
+        const match = tracking.find((entry) => Number(entry.habit_id) === habit.id);
+        nextValues[habit.id] = match ? Number(match.amount) : 0;
+      }
+      return nextValues;
+    });
+  }, [selectedDate, recentLogs, habits]);
 
   // Auto-clear status messages
   useEffect(() => {
@@ -141,10 +160,10 @@ export function useHabits() {
     return token;
   }, []);
 
-  const saveHabit = useCallback(
-    async (habitId: number) => {
+  const saveHabitValue = useCallback(
+    async (habitId: number, nextValue: number) => {
       const previousValue = values[habitId] ?? 0;
-      setSavingMap((current) => ({ ...current, [habitId]: true }));
+      setValues((current) => ({ ...current, [habitId]: nextValue }));
 
       try {
         const token = await getTokenOrThrow();
@@ -154,23 +173,18 @@ export function useHabits() {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ habit_id: habitId, amount: previousValue }),
+          body: JSON.stringify({ habit_id: habitId, amount: nextValue, date: selectedDate }),
         });
 
-        const payload = await parseJsonResponse<{ error?: string }>(response);
         if (!response.ok) {
-          setValues((current) => ({ ...current, [habitId]: previousValue }));
-          const message = payload?.error ? `Error al guardar: ${payload.error}` : 'Error al guardar el hábito.';
-          setStatusMessage(message);
-          toast.error(message);
-          return;
+          const payload = await parseJsonResponse<{ error?: string }>(response);
+          throw new Error(payload?.error || 'Error al guardar.');
         }
 
-        const today = getTodayIsoDate();
         setRecentLogs((currentLogs) => {
           const nextLogs = [...currentLogs];
-          const index = nextLogs.findIndex((log) => log.date === today);
-          const trackingEntry: HabitTrackingEntry = { habit_id: habitId, amount: previousValue };
+          const index = nextLogs.findIndex((log) => log.date === selectedDate);
+          const trackingEntry: HabitTrackingEntry = { habit_id: habitId, amount: nextValue };
 
           if (index >= 0) {
             const existingTracking = nextLogs[index].habit_tracking ?? [];
@@ -185,30 +199,42 @@ export function useHabits() {
 
             nextLogs[index] = { ...nextLogs[index], habit_tracking: nextTracking };
           } else {
-            nextLogs.unshift({ date: today, habit_tracking: [trackingEntry] });
+            nextLogs.unshift({ date: selectedDate, habit_tracking: [trackingEntry] });
           }
 
-          return nextLogs.slice(0, 60);
+          return nextLogs;
         });
 
         const message = 'Guardado';
         setStatusMessage(message);
         toast.success(message);
+        router.refresh();
       } catch (error) {
+        setValues((current) => ({ ...current, [habitId]: previousValue }));
         const message = getSafeMessage(error);
         if (isUnauthorizedError(message)) {
           window.location.href = '/login';
           return;
         }
-
-        setValues((current) => ({ ...current, [habitId]: previousValue }));
-        setStatusMessage(message);
         toast.error(message);
+        throw error;
+      }
+    },
+    [values, getTokenOrThrow, router, selectedDate]
+  );
+
+  const saveHabit = useCallback(
+    async (habitId: number) => {
+      setSavingMap((current) => ({ ...current, [habitId]: true }));
+      try {
+        await saveHabitValue(habitId, values[habitId] ?? 0);
+      } catch {
+        // Error already handled and toasted
       } finally {
         setSavingMap((current) => ({ ...current, [habitId]: false }));
       }
     },
-    [values, getTokenOrThrow]
+    [saveHabitValue, values]
   );
 
   const createHabitQuick = useCallback(
@@ -269,7 +295,10 @@ export function useHabits() {
     errorMessage,
     savingMap,
     saveHabit,
+    saveHabitValue,
     createHabitQuick,
     updateHabitValue,
+    selectedDate,
+    setSelectedDate,
   };
 }

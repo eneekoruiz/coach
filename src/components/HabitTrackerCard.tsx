@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useTransition, useOptimistic } from 'react';
 import { motion } from 'framer-motion';
 import type { HabitRow, DailyLogRow } from '@/types/habits';
 import { toNumber, buildMiniSeries } from '@/lib/habits-utils';
@@ -10,6 +10,7 @@ interface HabitTrackerCardProps {
   saving: boolean;
   onValueChange: (habitId: number, nextValue: number) => void;
   onSave: (habitId: number) => void;
+  onSaveValue: (habitId: number, nextValue: number) => Promise<void>;
   recentLogs: DailyLogRow[];
 }
 
@@ -70,8 +71,52 @@ export default function HabitTrackerCard({
   saving,
   onValueChange,
   onSave,
+  onSaveValue,
   recentLogs,
 }: HabitTrackerCardProps) {
+  const [isPending, startTransition] = useTransition();
+  const [optimisticValue, setOptimisticValue] = useOptimistic(
+    value,
+    (state, newValue: number) => newValue
+  );
+
+  const handleIncrement = () => {
+    const nextVal = optimisticValue + 1;
+    onValueChange(habit.id, nextVal);
+    startTransition(async () => {
+      setOptimisticValue(nextVal);
+      try {
+        await onSaveValue(habit.id, nextVal);
+      } catch {
+        onValueChange(habit.id, value);
+      }
+    });
+  };
+
+  const handleDecrement = () => {
+    const nextVal = Math.max(0, optimisticValue - 1);
+    onValueChange(habit.id, nextVal);
+    startTransition(async () => {
+      setOptimisticValue(nextVal);
+      try {
+        await onSaveValue(habit.id, nextVal);
+      } catch {
+        onValueChange(habit.id, value);
+      }
+    });
+  };
+
+  const handleSaveDirect = (val: number) => {
+    startTransition(async () => {
+      setOptimisticValue(val);
+      try {
+        await onSaveValue(habit.id, val);
+      } catch {
+        // Rollback is automated
+      }
+    });
+  };
+
   const streakProgress =
     habit.longest_streak > 0
       ? (habit.current_streak / habit.longest_streak) * 100
@@ -121,35 +166,56 @@ export default function HabitTrackerCard({
 
       <div className="mt-4 flex items-center gap-2">
         <label className="sr-only" htmlFor={`habit-${habit.id}`}>{`Cantidad para ${habit.name}`}</label>
+        
+        <button
+          type="button"
+          onClick={handleDecrement}
+          disabled={isPending}
+          className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 transition active:scale-95 disabled:opacity-50"
+        >
+          -
+        </button>
+
         <input
           id={`habit-${habit.id}`}
           type="number"
           min={0}
           inputMode="numeric"
-          value={value}
+          value={optimisticValue}
           onChange={(event) => onValueChange(habit.id, toNumber(event.target.value))}
           onKeyDown={(event) => {
-            if (event.key === 'Enter') onSave(habit.id);
+            if (event.key === 'Enter') handleSaveDirect(optimisticValue);
           }}
-          className="w-24 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-right text-sm font-medium text-slate-950 outline-none transition focus:border-slate-300 focus:bg-white focus:ring-2 focus:ring-slate-200"
+          disabled={isPending}
+          className="w-20 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-center text-sm font-medium text-slate-950 outline-none transition focus:border-slate-300 focus:bg-white"
         />
+
         <button
           type="button"
-          onClick={() => onSave(habit.id)}
-          disabled={saving}
-          className="inline-flex h-10 items-center justify-center rounded-full bg-slate-950 px-4 text-sm font-medium text-white transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60"
+          onClick={handleIncrement}
+          disabled={isPending}
+          className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 transition active:scale-95 disabled:opacity-50"
         >
-          {saving ? 'Guardando…' : 'Guardar'}
+          +
+        </button>
+
+        <button
+          type="button"
+          onClick={() => handleSaveDirect(optimisticValue)}
+          disabled={isPending}
+          className="inline-flex h-10 items-center justify-center rounded-full bg-slate-950 px-4 text-sm font-medium text-white transition hover:scale-[1.01] active:scale-[0.98] disabled:opacity-60"
+        >
+          Guardar
         </button>
         {habit.type === 'negative' ? (
           <button
             type="button"
             onClick={() => {
               onValueChange(habit.id, 0);
-              onSave(habit.id);
+              handleSaveDirect(0);
             }}
-            disabled={saving}
-            className="inline-flex h-10 items-center justify-center rounded-full border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={isPending}
+            className="inline-flex h-10 items-center justify-center rounded-full border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-60"
           >
             Marcar 0
           </button>

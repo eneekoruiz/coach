@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { useHabits } from '@/hooks/useHabits';
 import { buildSummaryCards } from '@/lib/habits-utils';
+import { getNormalizedDate } from '@/lib/date-utils';
 import HabitTrackerSummaryCards from './HabitTrackerSummaryCards';
 import HabitTrackerQuickAddForm from './HabitTrackerQuickAddForm';
 import HabitTrackerCard from './HabitTrackerCard';
@@ -64,9 +65,15 @@ export default function HabitTracker() {
     errorMessage,
     savingMap,
     saveHabit,
+    saveHabitValue,
     createHabitQuick,
     updateHabitValue,
+    selectedDate,
+    setSelectedDate,
   } = useHabits();
+
+  const todayStr = getNormalizedDate(new Date());
+  const yesterdayStr = getNormalizedDate(new Date(Date.now() - 24 * 60 * 60 * 1000));
 
   const summaryCards = buildSummaryCards(habits, recentLogs);
 
@@ -101,6 +108,39 @@ export default function HabitTracker() {
         </div>
       </div>
 
+      {/* Selector de fecha de registro (GDPR-friendly y edición histórica) */}
+      <div className="rounded-[1.5rem] border border-slate-200 bg-white p-4 shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-semibold text-slate-800">Fecha de Registro</h3>
+          <p className="text-xs text-slate-400">Puedes registrar datos de hoy o modificar días anteriores.</p>
+        </div>
+        <div className="flex items-center gap-2 p-1.5 bg-slate-50 border border-slate-200/60 rounded-2xl w-fit">
+          <button
+            type="button"
+            onClick={() => setSelectedDate(todayStr)}
+            className={`px-4 py-1.5 rounded-xl text-xs font-bold transition ${selectedDate === todayStr ? 'bg-slate-950 text-white shadow-sm' : 'text-slate-600 hover:text-slate-800'}`}
+          >
+            Hoy
+          </button>
+          <button
+            type="button"
+            onClick={() => setSelectedDate(yesterdayStr)}
+            className={`px-4 py-1.5 rounded-xl text-xs font-bold transition ${selectedDate === yesterdayStr ? 'bg-slate-950 text-white shadow-sm' : 'text-slate-600 hover:text-slate-800'}`}
+          >
+            Ayer
+          </button>
+          <div className="relative flex items-center pl-2 border-l border-slate-200">
+            <input
+              type="date"
+              value={selectedDate}
+              max={todayStr}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="bg-transparent text-xs font-bold text-slate-600 focus:outline-none cursor-pointer pr-1"
+            />
+          </div>
+        </div>
+      </div>
+
       {authRequired ? (
         <StatusBanner tone="info" message="Inicia sesión para ver y registrar tus hábitos." />
       ) : null}
@@ -126,6 +166,7 @@ export default function HabitTracker() {
               saving={Boolean(savingMap[habit.id])}
               onValueChange={updateHabitValue}
               onSave={saveHabit}
+              onSaveValue={saveHabitValue}
               recentLogs={recentLogs}
             />
           ))}

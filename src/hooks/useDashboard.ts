@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { dailyLogSchema, type DailyLog } from '@/lib/schema';
+import { calculatePerfectDayStreak } from '@/services/calculateStreaks';
 
 const fallbackLog: DailyLog = {
   comidas: [],
@@ -29,6 +30,7 @@ export function useDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [lastLog, setLastLog] = useState<DailyLog | null>(null);
   const [momentum, setMomentum] = useState(100);
+  const [streak, setStreak] = useState(0);
   const [insightText, setInsightText] = useState('Registrando tu comportamiento...');
 
   const loadDashboard = useCallback(async () => {
@@ -48,7 +50,7 @@ export function useDashboard() {
         .from('daily_logs')
         .select('health_momentum, ai_data, date')
         .order('date', { ascending: false })
-        .limit(7);
+        .limit(15);
 
       if (error) {
         throw error;
@@ -62,6 +64,15 @@ export function useDashboard() {
       setLastLog(logsList[0] ?? fallbackLog);
       const latestRecord = records?.[0];
       setMomentum(typeof latestRecord?.health_momentum === 'number' ? latestRecord.health_momentum : 100);
+
+      // Compute streak of perfect days
+      const currentStreak = calculatePerfectDayStreak(
+        (records ?? []).map((r) => ({
+          date: r.date,
+          health_momentum: Number(r.health_momentum ?? 100),
+        }))
+      );
+      setStreak(currentStreak);
 
       // Generate Insight Text
       if (logsList.length >= 3) {
@@ -99,5 +110,5 @@ export function useDashboard() {
     void loadDashboard();
   }, [loadDashboard]);
 
-  return { isLoading, lastLog, momentum, insightText, reload: loadDashboard };
+  return { isLoading, lastLog, momentum, streak, insightText, reload: loadDashboard };
 }

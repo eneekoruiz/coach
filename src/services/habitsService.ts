@@ -4,6 +4,9 @@ import { type SupabaseClient } from '@supabase/supabase-js';
 import { z } from 'zod';
 
 import { isMissingHabitTableError } from '@/lib/habits';
+import { getNormalizedDate } from '@/lib/date-utils';
+import { upsertDailyLog } from '@/services/dailyLogService';
+import { dailyLogSchema, type DailyLog } from '@/lib/schema';
 
 const habitSchema = z.object({
   name: z.string().min(1),
@@ -65,7 +68,9 @@ export interface UpdateTodayHabitParams {
   supabase: SupabaseClient;
   userId: string;
   habitId: number;
-  amount: number;
+  amount?: number;
+  delta?: number;
+  date?: string;
 }
 
 type HabitTrackingEntry = {
@@ -86,62 +91,130 @@ function parseHabitTracking(value: unknown): HabitTrackingEntry[] {
   return [];
 }
 
-export async function updateTodayHabit(params: UpdateTodayHabitParams) {
-  const { supabase, userId, habitId, amount } = params;
-  const today = new Date().toISOString().slice(0, 10);
+function normalizeHabitKey(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, '_')
+    .replace(/[^a-z0-9_]/g, '');
+}
 
-  // Fetch today's daily_log if exists
+export async function updateTodayHabit(params: UpdateTodayHabitParams) {
+  const { supabase, userId, habitId, amount, delta, date } = params;
+  const targetDate = date || getNormalizedDate(new Date());
+
+  // 1) Fetch habit to get its name and type
+  const { data: habit, error: habitError } = await supabase
+    .from('user_habits')
+    .select('name, type')
+    .eq('id', habitId)
+    .single();
+
+  if (habitError || !habit) {
+    throw new Error(habitError?.message || 'No se encontró el hábito solicitado en la base de datos.');
+  }
+
+  const normalizedKey = normalizeHabitKey(habit.name);
+
+  // 2) Fetch today's daily_log if exists
   const { data: existing, error: fetchError } = await supabase
     .from('daily_logs')
-    .select('id, habit_tracking')
+    .select('id, health_momentum, ai_data, habit_tracking')
     .eq('user_id', userId)
-    .eq('date', today)
+    .eq('date', targetDate)
     .maybeSingle();
 
   if (fetchError) {
     throw new Error(fetchError.message);
   }
 
+  // Get previous health momentum from the last log before targetDate if none exists
+  let healthMomentum = existing?.health_momentum ?? 100;
   if (!existing) {
-    // Insert new daily_log minimal
-    const { data: inserted, error: insertError } = await supabase
+    const { data: previousLog } = await supabase
       .from('daily_logs')
-      .insert({
-        user_id: userId,
-        date: today,
-        health_momentum: 100,
-        ai_data: {},
-        habit_tracking: [{ habit_id: habitId, amount }],
-      })
-      .select('*')
-      .single();
+      .select('health_momentum')
+      .eq('user_id', userId)
+      .lt('date', targetDate)
+      .order('date', { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-    if (insertError) {
-      throw new Error(insertError.message || 'Failed to insert daily log.');
+    if (previousLog) {
+      healthMomentum = previousLog.health_momentum;
     }
-    return inserted;
   }
 
-  const current = parseHabitTracking(existing.habit_tracking);
-  const idx = current.findIndex((r) => Number(r.habit_id) === habitId);
-  if (idx >= 0) {
-    current[idx].amount = amount;
+  // 3) Parse and initialize ai_data
+  let aiData: DailyLog = {
+    comidas: [],
+    hidratacion_ml: 0,
+    water_ml: 0,
+    total_kcal: 0,
+    protein_g: 0,
+    carbs_g: 0,
+    fats_g: 0,
+    habits_count: {},
+    toxinas: [],
+    bio_avatar: { estado_fisiologico: 'estable', energia_fisica: 3, claridad_mental: 3 },
+    metricas: { variacion_inercia: 0, aciertos: [], error_clave: '', accion_manana: '' },
+  };
+
+  if (existing?.ai_data) {
+    const validated = dailyLogSchema.safeParse(existing.ai_data);
+    if (validated.success) {
+      aiData = validated.data;
+    }
+  }
+
+  // 4) Calculate the new tracking value
+  const currentTracking = existing?.habit_tracking
+    ? parseHabitTracking(existing.habit_tracking)
+    : [];
+
+  const existingEntry = currentTracking.find((r) => Number(r.habit_id) === habitId);
+  const oldAmount = existingEntry ? existingEntry.amount : 0;
+
+  let newAmount = oldAmount;
+  if (delta !== undefined) {
+    newAmount = Math.max(0, oldAmount + delta);
+  } else if (amount !== undefined) {
+    newAmount = Math.max(0, amount);
+  }
+
+  // Update tracking entry
+  if (existingEntry) {
+    existingEntry.amount = newAmount;
   } else {
-    current.push({ habit_id: habitId, amount });
+    currentTracking.push({ habit_id: habitId, amount: newAmount });
   }
 
-  const { error: updateError, data: updated } = await supabase
-    .from('daily_logs')
-    .update({ habit_tracking: current })
-    .eq('id', existing.id)
-    .select('*')
-    .single();
+  // 5) Sincronizar ai_data
+  if (!aiData.habits_count) {
+    aiData.habits_count = {};
+  }
+  aiData.habits_count[normalizedKey] = newAmount;
 
-  if (updateError) {
-    throw new Error(updateError.message || 'Failed to update daily log.');
+  // Si es un hábito de agua/hidratación, sincronizamos water_ml
+  const isWater = normalizedKey.includes('agua') || normalizedKey.includes('hidratacion');
+  if (isWater) {
+    const waterVolume = newAmount > 100 ? newAmount : newAmount * 250;
+    aiData.water_ml = waterVolume;
+    aiData.hidratacion_ml = waterVolume;
   }
 
-  return updated;
+  // 6) Persistir usando la Fuente Única de Verdad
+  const updatedLog = await upsertDailyLog({
+    supabase,
+    userId,
+    date: targetDate,
+    healthMomentum,
+    aiData,
+    habitTracking: currentTracking,
+  });
+
+  return updatedLog;
 }
 
 export async function parseHabitFromText(text: string): Promise<ParsedHabit> {

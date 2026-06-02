@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { revalidatePath } from 'next/cache';
 
 import { resolveAuthenticatedClient } from '@/services/authService';
 import { updateTodayHabit } from '@/services/habitsService';
@@ -30,14 +31,32 @@ export async function POST(request: Request) {
     }
 
     const habitId = Number(body.habit_id);
-    const amount = Number(body.amount ?? 0);
-
     if (!Number.isFinite(habitId) || habitId <= 0) {
-      return NextResponse.json({ error: 'habit_id required' }, { status: 400 });
+      return NextResponse.json({ error: 'habit_id required and must be positive' }, { status: 400 });
     }
 
-    if (!Number.isFinite(amount) || amount < 0) {
-      return NextResponse.json({ error: 'amount must be a non-negative number' }, { status: 400 });
+    let amount: number | undefined;
+    if (body.amount !== undefined) {
+      amount = Number(body.amount);
+      if (!Number.isFinite(amount) || amount < 0) {
+        return NextResponse.json({ error: 'amount must be a non-negative number' }, { status: 400 });
+      }
+    }
+
+    let delta: number | undefined;
+    if (body.delta !== undefined) {
+      delta = Number(body.delta);
+      if (!Number.isFinite(delta)) {
+        return NextResponse.json({ error: 'delta must be a finite number' }, { status: 400 });
+      }
+    }
+
+    let date: string | undefined;
+    if (body.date !== undefined) {
+      if (typeof body.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(body.date)) {
+        return NextResponse.json({ error: 'date must be in YYYY-MM-DD format' }, { status: 400 });
+      }
+      date = body.date;
     }
 
     try {
@@ -46,7 +65,12 @@ export async function POST(request: Request) {
         userId: user.id,
         habitId,
         amount,
+        delta,
+        date,
       });
+
+      // Purge cache of the dashboard/home path to ensure fresh data
+      revalidatePath('/');
 
       return NextResponse.json({ data }, { status: 200 });
     } catch (err) {

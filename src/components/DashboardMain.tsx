@@ -21,6 +21,7 @@ type DashboardMainProps = {
   theme: DashboardTheme;
   displayLog: DailyLog;
   momentum: number;
+  streak: number;
   energyLevel: number;
   mentalClarity: number;
   insightText: string;
@@ -67,6 +68,7 @@ export default function DashboardMain({
   theme,
   displayLog,
   momentum,
+  streak,
   energyLevel,
   mentalClarity,
   insightText,
@@ -141,6 +143,10 @@ export default function DashboardMain({
                 <div className="rounded-2xl border border-slate-200/80 bg-white/70 px-4 py-2 text-center min-w-[5.5rem] shadow-xs">
                   <p className="text-[8px] uppercase tracking-wider text-slate-400 font-bold">Inercia</p>
                   <p className="text-sm font-extrabold text-slate-800">{normalizedMomentum}%</p>
+                </div>
+                <div className="rounded-2xl border border-slate-200/80 bg-white/70 px-4 py-2 text-center min-w-[5.5rem] shadow-xs">
+                  <p className="text-[8px] uppercase tracking-wider text-slate-400 font-bold">🔥 Racha</p>
+                  <p className="text-sm font-extrabold text-slate-800">{streak} {streak === 1 ? 'día' : 'días'}</p>
                 </div>
               </div>
             </div>

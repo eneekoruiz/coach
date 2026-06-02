@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useTransition, useOptimistic } from 'react';
 import { type HabitRow } from '@/types/habits';
 
 type Props = {
@@ -6,9 +6,36 @@ type Props = {
   selected: boolean;
   onSelect: (habitId: number) => void;
   onQuickAdd: (habitId: number, amount: number) => Promise<void>;
+  todayAmount: number;
 };
 
-export default function HabitDashboardHabitCard({ habit, selected, onSelect, onQuickAdd }: Props) {
+export default function HabitDashboardHabitCard({ habit, selected, onSelect, onQuickAdd, todayAmount }: Props) {
+  const [isPending, startTransition] = useTransition();
+  const [optimisticAmount, setOptimisticAmount] = useOptimistic(
+    todayAmount,
+    (state, nextVal: number) => nextVal
+  );
+
+  const handleQuickAdd = (amount: number) => {
+    // If it's a checklist habit (tolerance <= 1), toggle between 0 and 1
+    // If it's a numeric count habit, increment or decrement
+    let nextVal = optimisticAmount;
+    if (habit.tolerance_threshold <= 1) {
+      nextVal = optimisticAmount === 0 ? 1 : 0;
+    } else {
+      nextVal = amount === 1 ? optimisticAmount + 1 : Math.max(0, optimisticAmount - 1);
+    }
+
+    startTransition(async () => {
+      setOptimisticAmount(nextVal);
+      try {
+        await onQuickAdd(habit.id, amount);
+      } catch (err) {
+        // Rollback is automatically triggered on rejection
+      }
+    });
+  };
+
   return (
     <div
       role="button"
@@ -20,7 +47,9 @@ export default function HabitDashboardHabitCard({ habit, selected, onSelect, onQ
           onSelect(habit.id);
         }
       }}
-      className={`cursor-pointer rounded-2xl border p-3 text-left shadow-sm transition ${selected ? 'border-slate-900 bg-slate-950 text-white' : 'bg-white hover:-translate-y-0.5 hover:border-slate-300'}`}
+      className={`cursor-pointer rounded-2xl border p-3 text-left shadow-sm transition ${
+        selected ? 'border-slate-900 bg-slate-950 text-white' : 'bg-white hover:-translate-y-0.5 hover:border-slate-300'
+      }`}
     >
       <div className="flex items-center justify-between">
         <div>
@@ -30,9 +59,14 @@ export default function HabitDashboardHabitCard({ habit, selected, onSelect, onQ
           </div>
         </div>
 
-        <span className="rounded-full border px-2 py-1 text-[11px] uppercase tracking-[0.28em]">
-          {habit.type}
-        </span>
+        <div className="flex flex-col items-end gap-1">
+          <span className="rounded-full border px-2 py-0.5 text-[10px] bg-white/10 uppercase tracking-[0.15em]">
+            {habit.type}
+          </span>
+          <span className="text-[11px] font-bold opacity-80">
+            Hoy: {optimisticAmount}
+          </span>
+        </div>
       </div>
 
       <div className="mt-3 flex items-center justify-between gap-2">
@@ -45,9 +79,10 @@ export default function HabitDashboardHabitCard({ habit, selected, onSelect, onQ
             <button
               onClick={async (event) => {
                 event.stopPropagation();
-                await onQuickAdd(habit.id, 1);
+                handleQuickAdd(1);
               }}
-              className="rounded-full bg-emerald-500 px-3 py-2 text-white"
+              disabled={isPending}
+              className="rounded-full bg-emerald-500 px-3 py-2 text-white transition active:scale-95 disabled:opacity-50"
             >
               ✓
             </button>
@@ -56,18 +91,20 @@ export default function HabitDashboardHabitCard({ habit, selected, onSelect, onQ
               <button
                 onClick={async (event) => {
                   event.stopPropagation();
-                  await onQuickAdd(habit.id, 0);
+                  handleQuickAdd(0);
                 }}
-                className="rounded-full border px-2 py-1 text-sm"
+                disabled={isPending}
+                className="rounded-full border px-2 py-1 text-sm transition active:scale-95 disabled:opacity-50"
               >
                 -
               </button>
               <button
                 onClick={async (event) => {
                   event.stopPropagation();
-                  await onQuickAdd(habit.id, 1);
+                  handleQuickAdd(1);
                 }}
-                className="rounded-full bg-slate-900 px-3 py-1 text-sm text-white"
+                disabled={isPending}
+                className="rounded-full bg-slate-900 px-3 py-1 text-sm text-white transition active:scale-95 disabled:opacity-50"
               >
                 +
               </button>

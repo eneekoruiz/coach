@@ -16,6 +16,8 @@ const LogOut = (props: React.SVGProps<SVGSVGElement>) => (
 );
 import { logout } from '@/app/login/actions';
 import { triggerVibration } from '@/lib/haptics';
+import { supabase } from '@/lib/supabase';
+import toast from '@/lib/toast';
 
 interface DashboardTheme {
   background: string;
@@ -28,12 +30,14 @@ interface DashboardTheme {
 interface DashboardHeaderProps {
   theme: DashboardTheme;
   momentum: number;
+  streak: number;
   setRayXModeFromGesture: (v: boolean) => void;
 }
 
 export default function DashboardHeader({
   theme,
   momentum,
+  streak,
   setRayXModeFromGesture,
 }: DashboardHeaderProps) {
   return (
@@ -75,6 +79,38 @@ export default function DashboardHeader({
               Salir
             </button>
           </form>
+          <button
+            type="button"
+            onClick={async () => {
+              try {
+                const { data: sessionData } = await supabase.auth.getSession();
+                const token = sessionData.session?.access_token;
+                const headers: Record<string, string> = {};
+                if (token) {
+                  headers['Authorization'] = `Bearer ${token}`;
+                }
+                const res = await fetch('/api/user/export-data', { headers });
+                if (!res.ok) throw new Error('Error en el servidor al exportar datos.');
+
+                const blob = await res.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `bio-avatar-datos-gdpr.json`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                window.URL.revokeObjectURL(url);
+                toast.success('¡Datos exportados con éxito!');
+              } catch (err) {
+                console.error(err);
+                toast.error('No se pudieron exportar los datos. Inténtalo de nuevo.');
+              }
+            }}
+            className="inline-flex items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-800 shadow-sm transition hover:bg-slate-50"
+          >
+            📥 Exportar Datos (GDPR)
+          </button>
           <button
             type="button"
             onPointerDown={() => {

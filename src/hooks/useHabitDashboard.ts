@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { type HabitRow, type DailyLogRow } from '@/types/habits';
+import toast from '@/lib/toast';
 
 export function useHabitDashboard() {
+  const router = useRouter();
   const [habits, setHabits] = useState<HabitRow[]>([]);
   const [logs, setLogs] = useState<DailyLogRow[]>([]);
   const [selectedHabitId, setSelectedHabitId] = useState<number | null>(null);
@@ -41,18 +44,26 @@ export function useHabitDashboard() {
   }, []);
 
   async function updateToday(habitId: number, amount: number) {
+    const delta = amount === 0 ? -1 : 1;
     try {
       const res = await fetch('/api/habits/update-today', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ habit_id: habitId, amount }),
+        body: JSON.stringify({ habit_id: habitId, delta }),
       });
-      if (res.ok) {
-        // reload data after updating today
-        await loadData();
+      if (!res.ok) {
+        const payload = await res.json().catch(() => ({}));
+        throw new Error(payload?.error || 'Error al actualizar el hábito.');
       }
+      // reload data after updating today
+      await loadData();
+      router.refresh();
+      toast.success('Hábito actualizado');
     } catch (err) {
       console.error('Failed to update habit value', err);
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(msg);
+      throw err;
     }
   }
 
@@ -84,6 +95,7 @@ export function useHabitDashboard() {
 
   return {
     habits,
+    logs,
     selectedHabitId,
     setSelectedHabitId,
     loading,

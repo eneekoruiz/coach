@@ -4,6 +4,7 @@ import { type SupabaseClient, type User } from '@supabase/supabase-js';
 
 import { dailyLogSchema, type DailyLog } from '@/lib/schema';
 import { evaluateAndUpdateStreaks } from '@/lib/habits';
+import { upsertDailyLog } from '@/services/dailyLogService';
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
@@ -51,25 +52,22 @@ function mergeDailyLogs(existing: DailyLog, incoming: DailyLog): DailyLog {
   const mergedHabits: Record<string, number> = { ...(existing.habits_count || {}) };
   if (incoming.habits_count) {
     for (const [key, val] of Object.entries(incoming.habits_count)) {
-      mergedHabits[key] = Math.max(mergedHabits[key] || 0, val || 0);
+      mergedHabits[key] = (mergedHabits[key] || 0) + (val || 0);
     }
   }
 
-  const finalWater = Math.max(
-    existing.water_ml || 0,
-    existing.hidratacion_ml || 0,
-    incoming.water_ml || 0,
-    incoming.hidratacion_ml || 0
-  );
+  const finalWater =
+    (existing.water_ml || existing.hidratacion_ml || 0) +
+    (incoming.water_ml || incoming.hidratacion_ml || 0);
 
   return {
     comidas: [...(existing.comidas || []), ...(incoming.comidas || [])],
     hidratacion_ml: finalWater,
     water_ml: finalWater,
-    total_kcal: Math.max(existing.total_kcal || 0, incoming.total_kcal || 0),
-    protein_g: Math.max(existing.protein_g || 0, incoming.protein_g || 0),
-    carbs_g: Math.max(existing.carbs_g || 0, incoming.carbs_g || 0),
-    fats_g: Math.max(existing.fats_g || 0, incoming.fats_g || 0),
+    total_kcal: (existing.total_kcal || 0) + (incoming.total_kcal || 0),
+    protein_g: (existing.protein_g || 0) + (incoming.protein_g || 0),
+    carbs_g: (existing.carbs_g || 0) + (incoming.carbs_g || 0),
+    fats_g: (existing.fats_g || 0) + (incoming.fats_g || 0),
     habits_count: mergedHabits,
     toxinas: Array.from(new Set([...(existing.toxinas || []), ...(incoming.toxinas || [])])),
     bio_avatar: {
@@ -333,25 +331,21 @@ export async function analyzeAndPersistDailyLog(params: AnalyzeParams) {
     throw new DatabaseError('No se pudieron actualizar las rachas de hábitos.', dbStatus.code);
   }
 
-  const upsertPayload = {
-    user_id: user.id,
-    date: today,
-    health_momentum: nextMomentum,
-    ai_data: finalAiData,
-    habit_tracking: finalTracking,
-  };
-
-  const { data: upsertedLog, error: upsertError } = await supabase
-    .from('daily_logs')
-    .upsert(upsertPayload, { onConflict: 'user_id,date' })
-    .select('*')
-    .single();
-
-  if (upsertError) {
-    const dbStatus = mapDatabaseError(upsertError.message || '');
+  let finalRecord;
+  try {
+    finalRecord = await upsertDailyLog({
+      supabase,
+      userId: user.id,
+      date: today,
+      healthMomentum: nextMomentum,
+      aiData: finalAiData,
+      habitTracking: finalTracking,
+    });
+  } catch (upsertError) {
+    const msg = upsertError instanceof Error ? upsertError.message : String(upsertError);
+    const dbStatus = mapDatabaseError(msg);
     throw new DatabaseError('No se pudo guardar o actualizar el registro diario de hoy.', dbStatus.code);
   }
-  const finalRecord = upsertedLog;
 
   return {
     user_id: user.id,
