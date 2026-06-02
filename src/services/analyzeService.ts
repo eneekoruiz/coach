@@ -32,6 +32,15 @@ function approximateBase64Bytes(base64Value: string): number {
   return Math.floor((sanitized.length * 3) / 4) - padding;
 }
 
+function normalizeHabitKey(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, '_')
+    .replace(/[^a-z0-9_]/g, '');
+}
+
 function mapDatabaseError(message: string): { status: number; code: string } {
   const lower = message.toLowerCase();
 
@@ -172,7 +181,30 @@ export async function analyzeAndPersistDailyLog(params: AnalyzeParams) {
 
   const today = localDate || new Date().toISOString().slice(0, 10);
 
-  // 1) Check if a daily log already exists for today
+  // 1) Fetch active habits to inject into systemPrompt and map habits_count to actual IDs
+  const { data: userHabits, error: habitsError } = await supabase
+    .from('user_habits')
+    .select('id, name, type')
+    .eq('user_id', user.id);
+
+  if (habitsError) {
+    const dbStatus = mapDatabaseError(habitsError.message || '');
+    throw new DatabaseError('No se pudo verificar el listado de hábitos del usuario.', dbStatus.code);
+  }
+
+  const habitKeysMap: Record<string, { id: number; name: string; type: string }> = {};
+  if (userHabits) {
+    for (const h of userHabits) {
+      const key = normalizeHabitKey(h.name);
+      habitKeysMap[key] = { id: h.id, name: h.name, type: h.type };
+    }
+  }
+
+  const habitsListStr = userHabits && userHabits.length > 0
+    ? userHabits.map((h) => `- "${h.name}" (usar clave: "${normalizeHabitKey(h.name)}" en habits_count). Tipo: ${h.type}.`).join('\n')
+    : 'Ninguno';
+
+  // 2) Check if a daily log already exists for today
   const { data: todayLog, error: todayLogError } = await supabase
     .from('daily_logs')
     .select('id, health_momentum, ai_data, habit_tracking')
@@ -185,7 +217,7 @@ export async function analyzeAndPersistDailyLog(params: AnalyzeParams) {
     throw new DatabaseError('No se pudo verificar el registro diario de hoy.', dbStatus.code);
   }
 
-  // 2) Get previous health momentum from the last log before today
+  // 3) Get previous health momentum from the last log before today
   const { data: previousLog, error: previousLogError } = await supabase
     .from('daily_logs')
     .select('health_momentum')
@@ -239,7 +271,9 @@ export async function analyzeAndPersistDailyLog(params: AnalyzeParams) {
   const stateStr = JSON.stringify(currentState);
   const systemPrompt =
     'Eres un evaluador metabólico proactivo. Tu tarea es analizar con rigor el texto y la imagen del usuario y devolver exclusivamente un objeto que cumpla el esquema. No incluyas texto extra, no expliques tu razonamiento y no inventes claves fuera del contrato. Debes inferir el estado fisiológico diario, detectar señales nutricionales, de hidratación y toxinas, y calcular una variación de inercia útil para el seguimiento longitudinal. \n' +
-    `El estado actual del usuario HOY es: ${stateStr}. Tu tarea es leer el nuevo mensaje del usuario y SUMAR los nuevos valores al estado actual. Regla inquebrantable: Los hábitos acumulativos (como fumar o beber agua) NUNCA pueden disminuir en el mismo día. Si el estado actual es 3 y el usuario dice 'me fumé otro', el nuevo valor es 4. Nunca devuelvas un valor menor al estado actual. \n` +
+    `El listado de hábitos activos que el usuario está siguiendo hoy es el siguiente:\n${habitsListStr}\n` +
+    'Si el usuario menciona que ha realizado o incurrido en alguno de estos hábitos (ej: "he fumado", "me tomé un cigarro", "he bebido agua", "completé mi caminata"), debes registrarlo e incrementar su valor en "habits_count" usando exactamente la clave provista en la lista anterior.\n' +
+    `El estado actual de hábitos acumulados de HOY es: ${stateStr}. Tu tarea es leer el nuevo mensaje del usuario y SUMAR las nuevas ocurrencias al estado actual de hábitos. Regla inquebrantable: Los hábitos acumulativos (como fumar o beber agua) NUNCA pueden disminuir en el mismo día. Si el estado actual es 3 y el usuario dice 'me fumé otro', el nuevo valor es 4. Nunca devuelvas un valor menor al estado de hábitos actual. \n` +
     `Tu salud actual (health_momentum) es ${currentMomentum}. ${toneInstruction} \n` +
     'IMPORTANTE: Los saludos simples (como "hola", "buenos días") o check-ins conversacionales comunes (como "te mando un audio", "comencemos") NO deben ser considerados fuera de tema. En estos casos, establece "metricas.error_clave" en un valor neutral (como "saludo") y pon en "metricas.accion_manana" un mensaje cordial en primera persona invitando al usuario a registrar sus hábitos (ej: "¡Hola! Estoy listo para registrar tus comidas, bebida y hábitos de hoy. ¿Qué te gustaría apuntar?"). ' +
     'Únicamente cuando el mensaje sea totalmente ajeno a hábitos, nutrición, salud o bienestar (como problemas de matemáticas avanzadas, programación de software, debates políticos, etc.), debes establecer el valor exacto de "fuera_de_tema" en el campo "metricas.error_clave", y colocar en "metricas.accion_manana" un mensaje explicativo cordial indicando que tu propósito es el seguimiento de hábitos.';
@@ -303,8 +337,19 @@ export async function analyzeAndPersistDailyLog(params: AnalyzeParams) {
     };
   }
 
+  // Map parsed habits_count back to database tracking entries
+  const aiTracking: Array<{ habit_id: number; amount: number }> = [];
+  if (analyzedLog.habits_count) {
+    for (const [key, amount] of Object.entries(analyzedLog.habits_count)) {
+      const habitInfo = habitKeysMap[key];
+      if (habitInfo) {
+        aiTracking.push({ habit_id: habitInfo.id, amount: Number(amount) });
+      }
+    }
+  }
+
   let finalAiData = analyzedLog;
-  let finalTracking = habitReports;
+  let finalTracking = mergeHabitTracking(habitReports, aiTracking);
 
   if (todayLog) {
     const existingAi = dailyLogSchema.safeParse(todayLog.ai_data).success
@@ -317,14 +362,14 @@ export async function analyzeAndPersistDailyLog(params: AnalyzeParams) {
     const existingTracking = Array.isArray(todayLog.habit_tracking)
       ? (todayLog.habit_tracking as Array<{ habit_id: number; amount: number }>)
       : [];
-    finalTracking = mergeHabitTracking(existingTracking, habitReports);
+    finalTracking = mergeHabitTracking(existingTracking, finalTracking);
   }
 
   const delta = finalAiData.metricas.variacion_inercia;
   const nextMomentum = Math.min(100, Math.max(0, previousMomentum + delta));
 
   try {
-    await evaluateAndUpdateStreaks(supabase, user.id, habitReports);
+    await evaluateAndUpdateStreaks(supabase, user.id, finalTracking);
   } catch (e) {
     const message = e instanceof Error ? e.message : 'Failed to evaluate/update streaks';
     const dbStatus = mapDatabaseError(message);
