@@ -136,6 +136,7 @@ export default function HomeDashboard() {
             transition={{ type: 'spring', stiffness: 120, damping: 18 }}
           >
             <ChatInput
+              momentum={momentum}
               onUpdate={async () => {
                 await reload();
               }}

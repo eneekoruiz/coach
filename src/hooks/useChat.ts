@@ -38,7 +38,7 @@ type CloseDayFeedback = {
   imageUrl: string;
 };
 
-export function useChat(onUpdate?: () => void | Promise<void>) {
+export function useChat(onUpdate?: () => void | Promise<void>, momentum?: number) {
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [submitMode, setSubmitMode] = useState<'analyze' | 'close-day' | null>(null);
@@ -109,6 +109,114 @@ export function useChat(onUpdate?: () => void | Promise<void>) {
     if ((!trimmed && !hasImage) || isLoading) return;
 
     const mode: 'analyze' | 'close-day' = trimmed.toLowerCase() === CLOSE_DAY_COMMAND ? 'close-day' : 'analyze';
+
+    // Normalización de texto para las comprobaciones del interceptor local
+    const normalizedText = trimmed
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '') // Eliminar diacríticos (tildes)
+      .replace(/[¿?¡!.,;:#$%&()*+\-\/\\<=>@\[\]^_\`{|}~]/g, '') // Eliminar signos de puntuación y símbolos
+      .trim();
+
+    let localResponse: string | null = null;
+
+    if (!hasImage && mode === 'analyze') {
+      const words = normalizedText.split(/\s+/).filter(Boolean);
+
+      // 1) Heurística para palabras sin sentido (gibberish)
+      const hasGibberish = words.some((word) => {
+        if (word.length >= 3) {
+          // No contiene vocales (típico de sss, sdfg, qwer, etc.)
+          const hasVowels = /[aeiouy]/i.test(word);
+          if (!hasVowels) return true;
+
+          // Combinaciones conocidas de teclado
+          const keyboardMashes = ['asdf', 'qwerty', 'zxcv', 'dfgh', 'hjkl', 'lkjh', 'qwer', 'mnbvc', 'asd'];
+          if (keyboardMashes.some((pattern) => word.includes(pattern))) return true;
+
+          // Letra repetida 3 o más veces consecutivas (ej: jjjj, aaaa)
+          if (/(.)\1{2,}/.test(word)) return true;
+        }
+        return false;
+      });
+
+      // 2) Heurística para textos extremadamente cortos que no son respuestas válidas
+      const isTooShort = normalizedText.length > 0 && normalizedText.length <= 2 &&
+        !['ok', 'si', 'no', 'ya', 'he', 'go', 'up'].includes(normalizedText);
+
+      if (hasGibberish) {
+        localResponse = '¡Ups! Parece que eso ha sido un error de teclado o una palabra sin sentido. Cuéntame con palabras claras si has registrado algún hábito hoy, como \'beber agua\' o \'comida sana\'.';
+      } else if (isTooShort) {
+        localResponse = 'Ese mensaje es demasiado corto. Intenta escribir una frase sobre tus hábitos de hoy, por ejemplo: \'he tomado 2 vasos de agua\'.';
+      } else {
+        // 3) Diccionario local de saludos y comandos conversacionales comunes
+        const greetings = [
+          'hola', 'buenas', 'buenos dias', 'buenas noches', 'buen dia', 'buenas tardes',
+          'hey', 'hello', 'hi', 'alo', 'saludos', 'que hay', 'que tal'
+        ];
+        const help = [
+          'ayuda', 'help', 'que puedes hacer', 'como funciona esto', 'como funciona',
+          'comandos', 'guia', 'instrucciones', 'explicame'
+        ];
+        const identity = [
+          'quien eres', 'que eres', 'como te llamas', 'tu nombre', 'quien sos', 'que eres tu'
+        ];
+        const smallTalk = [
+          'como estas', 'como va', 'como te va', 'todo bien', 'que haces'
+        ];
+        const thanks = [
+          'gracias', 'thank you', 'ok', 'vale', 'perfecto', 'de nada', 'gracias coach', 'bien'
+        ];
+
+        if (greetings.includes(normalizedText)) {
+          localResponse = '¡Hola! 😊 Estoy listo para ayudarte a registrar tus hábitos, comidas, hidratación o ejercicio de hoy. ¿Qué te gustaría añadir?';
+        } else if (help.includes(normalizedText)) {
+          localResponse = 'Puedo ayudarte a registrar tus hábitos en tiempo real. Escribe cosas como \'he bebido 3 vasos de agua\', \'he almorzado ensalada de pollo\' o \'no he fumado nada hoy\'. Al final del día, escribe \'cerrar dia\' para generar un informe completo.';
+        } else if (identity.includes(normalizedText)) {
+          localResponse = 'Soy tu Coach Bio-Avatar, un asistente inteligente diseñado para registrar tus rutinas de salud diarias y mantener a tu mascota digital feliz y activa.';
+        } else if (smallTalk.includes(normalizedText)) {
+          localResponse = '¡Todo va estupendamente por aquí, listo para registrar tus avances! ¿Qué tal va tu hidratación y alimentación hoy?';
+        } else if (thanks.includes(normalizedText)) {
+          localResponse = '¡De nada! Aquí estaré cuando quieras registrar algo más. ¡A seguir mejorando ese momentum! 💪';
+        }
+      }
+    }
+
+    if (localResponse) {
+      // Interceptado localmente. No consume llamadas a Supabase/Gemini.
+      const currentMomentum = momentum ?? 100;
+      setFeedback({
+        previous_health_momentum: currentMomentum,
+        health_momentum: currentMomentum,
+        ai_data: {
+          comidas: [],
+          hidratacion_ml: 0,
+          water_ml: 0,
+          total_kcal: 0,
+          protein_g: 0,
+          carbs_g: 0,
+          fats_g: 0,
+          habits_count: {},
+          toxinas: [],
+          bio_avatar: {
+            estado_fisiologico: 'estable',
+            energia_fisica: 3,
+            claridad_mental: 3,
+          },
+          metricas: {
+            variacion_inercia: 0,
+            aciertos: [],
+            error_clave: 'fuera_de_tema', // Fuerza el renderizado del mensaje simple en el ChatFeedbackPanel
+            accion_manana: localResponse,
+          },
+        },
+      });
+
+      triggerVibration('success');
+      setCloseDayFeedback(null);
+      resetUiAfterSuccess();
+      return;
+    }
 
     setIsLoading(true);
     setSubmitMode(mode);

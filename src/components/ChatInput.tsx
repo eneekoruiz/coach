@@ -7,9 +7,12 @@ import SelectedImagePreview from '@/components/SelectedImagePreview';
 import ChatForm from '@/components/ChatForm';
 import CloseDayModal from '@/components/CloseDayModal';
 
-type ChatInputProps = { onUpdate?: () => void | Promise<void> };
+type ChatInputProps = {
+  onUpdate?: () => void | Promise<void>;
+  momentum?: number;
+};
 
-export default function ChatInput({ onUpdate }: ChatInputProps) {
+export default function ChatInput({ onUpdate, momentum }: ChatInputProps) {
   const {
     inputText,
     setInputText,
@@ -29,7 +32,7 @@ export default function ChatInput({ onUpdate }: ChatInputProps) {
     handleCloseDayModalClose,
     submitLabel,
     evaluationText,
-  } = useChat(onUpdate);
+  } = useChat(onUpdate, momentum);
 
   return (
     <>
