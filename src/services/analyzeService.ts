@@ -70,6 +70,13 @@ function mergeDailyLogs(existing: DailyLog, incoming: DailyLog): DailyLog {
     incoming.water_ml || incoming.hidratacion_ml || 0
   );
 
+  const mergedPropuestas = Array.from(
+    new Map(
+      [...(existing.propuestas_habitos || []), ...(incoming.propuestas_habitos || [])]
+        .map(item => [item.nombre.toLowerCase(), item])
+    ).values()
+  );
+
   return {
     comidas: [...(existing.comidas || []), ...(incoming.comidas || [])],
     hidratacion_ml: finalWater,
@@ -79,6 +86,7 @@ function mergeDailyLogs(existing: DailyLog, incoming: DailyLog): DailyLog {
     carbs_g: Math.max(existing.carbs_g || 0, incoming.carbs_g || 0),
     fats_g: Math.max(existing.fats_g || 0, incoming.fats_g || 0),
     habits_count: mergedHabits,
+    propuestas_habitos: mergedPropuestas,
     toxinas: Array.from(new Set([...(existing.toxinas || []), ...(incoming.toxinas || [])])),
     bio_avatar: {
       estado_fisiologico: incoming.bio_avatar?.estado_fisiologico || existing.bio_avatar?.estado_fisiologico || '',
@@ -276,12 +284,13 @@ export async function analyzeAndPersistDailyLog(params: AnalyzeParams) {
   const systemPrompt =
     'Eres un evaluador metabólico proactivo. Tu tarea es analizar con rigor el texto y la imagen del usuario y devolver exclusivamente un objeto que cumpla el esquema. No incluyas texto extra, no expliques tu razonamiento y no inventes claves fuera del contrato. Debes inferir el estado fisiológico diario, detectar señales nutricionales, de hidratación y toxinas, y calcular una variación de inercia útil para el seguimiento longitudinal. \n' +
     `El listado de hábitos activos que el usuario está siguiendo hoy es el siguiente:\n${habitsListStr}\n` +
-    'Si el usuario menciona que ha realizado o incurrido en alguno de estos hábitos (ej: "he fumado", "me tomé un cigarro", "he bebido agua", "completé mi caminata"), debes registrarlo e incrementar su valor en "habits_count" usando exactamente la clave provista en la lista anterior.\n' +
+    'Si el usuario menciona que ha realizado o incurrido en alguno de estos hábitos (ej: "he fumado", "me tomé un cigarro", "he bebido agua", "completé mi caminata"), debes registrarlo e incrementar su valor en "habits_count" usando exactamente la clave provista en la lista anterior. Si el usuario menciona haber incurrido en un hábito o actividad repetitiva/rutinaria (ej. "fumar", "fumé", "ejercicio", "meditar", "ciclismo") que NO figura en el listado de hábitos activos provistos arriba, NO inventes claves en "habits_count" ni lo cuentes ahí; en su lugar, debes agregarlo a "propuestas_habitos" indicando su nombre legible en infinitivo o primera persona (ej. "Fumar", "Meditar") y su tipo ("positive" o "negative" según corresponda) para que el sistema sugiera su creación.\n' +
     `El estado actual de hábitos acumulados de HOY es: ${stateStr}. Tu tarea es leer el nuevo mensaje del usuario y SUMAR las nuevas ocurrencias al estado actual de hábitos. Regla inquebrantable: Los hábitos acumulativos (como fumar o beber agua) NUNCA pueden disminuir en el mismo día. Si el estado actual es 3 y el usuario dice 'me fumé otro', el nuevo valor es 4. Nunca devuelvas un valor menor al estado de hábitos actual. \n` +
+    `Regla de Estimación de Nutrientes de Alimentos: Si el usuario indica haber consumido algún alimento o bebida (por ejemplo, "he comido un bocadillo de atún y un café con leche"), debes de forma realista estimar sus macronutrientes y calorías basándote en porciones estándar (ej. bocadillo de atún tiene aprox. 320 kcal, 18g proteína, 38g carbohidratos, 10g grasas; un café con leche tiene aprox. 80 kcal, 4g proteína, 6g carbohidratos, 4g grasas). Debes sumar estas estimaciones a los valores acumulados correspondientes en total_kcal, protein_g, carbs_g y fats_g basándote en el estado actual de HOY recibido: ${stateStr}. Nunca ignores o dejes a 0 estos valores si el usuario reporta comidas.\n` +
     `Regla de conversión de líquidos: Si el usuario menciona beber un vaso/taza o porción de agua estándar, equivale a exactamente ${defaultGlassSize} ml. Si menciona una botella de agua, equivale a exactamente 500 ml (a menos que se diga otra cantidad específica). Debes retornar el total acumulado de agua del día en "water_ml" y "hidratacion_ml" sumando estas porciones al estado actual.\n` +
     `Tu salud actual (health_momentum) es ${currentMomentum}. ${toneInstruction} \n` +
     `Regla de Cohesión Inquebrantable: En "metricas.accion_manana" y en cualquier texto explicativo que redactes, si te refieres al valor de la salud del usuario o inercia de salud de su Bio-Avatar, debes usar EXACTAMENTE el valor de salud actual provisto (${currentMomentum}) sin alterarlo ni inventarte otro número diferente. \n` +
-    'IMPORTANTE: Los saludos simples (como "hola", "buenos días") o check-ins conversacionales comunes (como "te mando un audio", "comencemos") NO deben ser considerados fuera de tema. En estos casos, establece "metricas.error_clave" en un valor neutral (como "saludo") y pon en "metricas.accion_manana" un mensaje cordial en primera persona invitando al usuario a registrar sus hábitos (ej: "¡Hola! Estoy listo para registrar tus comidas, bebida y hábitos de hoy. ¿Qué te gustaría apuntar?"). ' +
+    'IMPORTANTE: Los saludos simples (como "hola", "buenos días") o check-ins conversacionales comunes (como "te mando un audio", "comencemos") NO deben ser considerados fuera de tema. En estos casos, establece "metricas.error_clave" en un valor neutral (como "saludo") y pon en "metricas.accion_manana" un mensaje cordial en primera persona invitando al usuario a registrar tus hábitos (ej: "¡Hola! Estoy listo para registrar tus comidas, bebida y hábitos de hoy. ¿Qué te gustaría apuntar?"). ' +
     'Únicamente cuando el mensaje sea totalmente ajeno a hábitos, nutrición, salud o bienestar (como problemas de matemáticas avanzadas, programación de software, debates políticos, etc.), debes establecer el valor exacto de "fuera_de_tema" en el campo "metricas.error_clave", y colocar en "metricas.accion_manana" un mensaje explicativo cordial indicando que tu propósito es el seguimiento de hábitos.';
 
   const analysisText = text

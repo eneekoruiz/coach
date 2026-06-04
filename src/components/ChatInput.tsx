@@ -61,7 +61,7 @@ export default function ChatInput({ onUpdate, momentum, onClose }: ChatInputProp
 
         <div className="flex min-h-0 flex-1 flex-col gap-3 px-3 py-3 sm:px-4 sm:py-4">
           {feedback ? (
-            <ChatFeedbackPanel feedback={feedback} evaluationText={evaluationText} />
+            <ChatFeedbackPanel feedback={feedback} evaluationText={evaluationText} onUpdate={onUpdate} />
           ) : null}
 
           {selectedImage ? (

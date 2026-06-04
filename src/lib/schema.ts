@@ -69,6 +69,16 @@ export const dailyLogSchema = z
         return isNaN(num) ? 0 : Math.max(0, Math.round(num));
       }, z.number().int().nonnegative())
     ),
+    propuestas_habitos: z
+      .array(
+        z
+          .object({
+            nombre: z.string().min(1),
+            tipo: z.enum(['positive', 'negative']),
+          })
+          .strict()
+      )
+      .optional(),
   })
   .strict();
 

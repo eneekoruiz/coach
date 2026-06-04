@@ -70,6 +70,12 @@ export default function DashboardHeader({
           >
             Tracker
           </Link>
+          <Link
+            href="/nutrition"
+            className="inline-flex items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-800 shadow-sm transition hover:bg-slate-50"
+          >
+            Nutrición 🥗
+          </Link>
           <div className="relative group inline-block">
             <button
               type="button"
