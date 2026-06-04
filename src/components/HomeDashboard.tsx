@@ -137,6 +137,7 @@ export default function HomeDashboard() {
           >
             <ChatInput
               momentum={momentum}
+              onClose={() => setIsChatOpen(false)}
               onUpdate={async () => {
                 await reload();
               }}
