@@ -1,3 +1,4 @@
+/// <reference lib="webworker" />
 import { defaultCache } from '@serwist/next/worker';
 import type { PrecacheEntry, SerwistGlobalConfig } from 'serwist';
 import { Serwist } from 'serwist';
@@ -9,7 +10,7 @@ declare global {
   }
 }
 
-declare const self: ServiceWorkerGlobalScope;
+declare const self: ServiceWorkerGlobalScope | any;
 
 const serwist = new Serwist({
   precacheEntries: self.__SW_MANIFEST,
@@ -22,7 +23,7 @@ const serwist = new Serwist({
 serwist.addEventListeners();
 
 // Push Notification Event Listener
-self.addEventListener('push', (event) => {
+self.addEventListener('push', (event: any) => {
   if (event.data) {
     try {
       const data = event.data.json();
@@ -52,12 +53,12 @@ self.addEventListener('push', (event) => {
 });
 
 // Notification Click Event Listener
-self.addEventListener('notificationclick', (event) => {
+self.addEventListener('notificationclick', (event: any) => {
   event.notification.close();
   const urlToOpen = event.notification.data?.url || '/';
 
   event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients: any[]) => {
       // Check if there is already a window/tab open with the target URL
       for (let i = 0; i < windowClients.length; i++) {
         const client = windowClients[i];

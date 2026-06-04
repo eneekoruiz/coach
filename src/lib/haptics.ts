@@ -1,7 +1,8 @@
-export type HapticType = 'success' | 'error' | 'light';
+export type HapticType = 'success' | 'error' | 'light' | 'medium';
 
 const vibrationPatterns: Record<HapticType, number[]> = {
   light: [50],
+  medium: [100],
   success: [100, 50, 100],
   error: [120, 60, 120],
 };
