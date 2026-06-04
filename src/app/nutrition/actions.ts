@@ -6,17 +6,59 @@ import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { dailyLogSchema } from '@/lib/schema';
 import { z } from 'zod';
 
-const dietPlanSchema = z.object({
+export const dailyDietTargetSchema = z.object({
   target_kcal: z.number().int().min(500).max(10000),
   target_protein: z.number().int().min(0).max(500),
   target_carbs: z.number().int().min(0).max(1000),
   target_fats: z.number().int().min(0).max(300),
-  breakfast_plan: z.string().max(1000),
-  lunch_plan: z.string().max(1000),
-  dinner_plan: z.string().max(1000),
+  meals: z.object({
+    breakfast: z.string().max(1000).optional().default(''),
+    lunch: z.string().max(1000).optional().default(''),
+    dinner: z.string().max(1000).optional().default(''),
+    snacks: z.string().max(1000).optional().default(''),
+  }),
 });
 
-export type DietPlan = z.infer<typeof dietPlanSchema>;
+export const weeklyDietScheduleSchema = z.object({
+  lunes: dailyDietTargetSchema,
+  martes: dailyDietTargetSchema,
+  miercoles: dailyDietTargetSchema,
+  jueves: dailyDietTargetSchema,
+  viernes: dailyDietTargetSchema,
+  sabado: dailyDietTargetSchema,
+  domingo: dailyDietTargetSchema,
+});
+
+export type DailyDietTarget = z.infer<typeof dailyDietTargetSchema>;
+export type WeeklyDietSchedule = z.infer<typeof weeklyDietScheduleSchema>;
+
+export type DietPlan = {
+  active: boolean;
+  weekly_schedule: WeeklyDietSchedule;
+};
+
+export const defaultDailyPlan: DailyDietTarget = {
+  target_kcal: 2000,
+  target_protein: 150,
+  target_carbs: 200,
+  target_fats: 70,
+  meals: {
+    breakfast: '',
+    lunch: '',
+    dinner: '',
+    snacks: '',
+  },
+};
+
+export const defaultWeeklyPlan: WeeklyDietSchedule = {
+  lunes: defaultDailyPlan,
+  martes: defaultDailyPlan,
+  miercoles: defaultDailyPlan,
+  jueves: defaultDailyPlan,
+  viernes: defaultDailyPlan,
+  sabado: defaultDailyPlan,
+  domingo: defaultDailyPlan,
+};
 
 export async function getDietPlan(): Promise<DietPlan | null> {
   try {
@@ -30,21 +72,16 @@ export async function getDietPlan(): Promise<DietPlan | null> {
       .eq('user_id', user.id)
       .maybeSingle();
 
-    if (error) {
-      console.error('Error fetching diet plan:', error.message);
+    if (error || !data) {
       return null;
     }
 
-    if (!data) return null;
+    const weeklyData = data.weekly_schedule as unknown;
+    const parsed = weeklyDietScheduleSchema.safeParse(weeklyData);
 
     return {
-      target_kcal: Number(data.target_kcal ?? 2000),
-      target_protein: Number(data.target_protein ?? 150),
-      target_carbs: Number(data.target_carbs ?? 200),
-      target_fats: Number(data.target_fats ?? 70),
-      breakfast_plan: String(data.breakfast_plan ?? ''),
-      lunch_plan: String(data.lunch_plan ?? ''),
-      dinner_plan: String(data.dinner_plan ?? ''),
+      active: data.active ?? true,
+      weekly_schedule: parsed.success ? parsed.data : defaultWeeklyPlan,
     };
   } catch (err) {
     console.error('getDietPlan server action error:', err);
@@ -52,29 +89,23 @@ export async function getDietPlan(): Promise<DietPlan | null> {
   }
 }
 
-export async function saveDietPlan(plan: DietPlan): Promise<{ success: boolean; error?: string }> {
+export async function saveDietPlan(schedule: WeeklyDietSchedule): Promise<{ success: boolean; error?: string }> {
   try {
     const supabase = await createSupabaseServerClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { success: false, error: 'Usuario no autenticado.' };
 
-    const parsed = dietPlanSchema.safeParse(plan);
+    const parsed = weeklyDietScheduleSchema.safeParse(schedule);
     if (!parsed.success) {
-      return { success: false, error: 'Datos de plan inválidos.' };
+      return { success: false, error: 'Estructura semanal inválida.' };
     }
 
     const { error } = await supabase
       .from('user_diet_plans')
       .upsert({
         user_id: user.id,
-        target_kcal: parsed.data.target_kcal,
-        target_protein: parsed.data.target_protein,
-        target_carbs: parsed.data.target_carbs,
-        target_fats: parsed.data.target_fats,
-        breakfast_plan: parsed.data.breakfast_plan,
-        lunch_plan: parsed.data.lunch_plan,
-        dinner_plan: parsed.data.dinner_plan,
-        updated_at: new Date().toISOString(),
+        active: true,
+        weekly_schedule: parsed.data,
       }, { onConflict: 'user_id' });
 
     if (error) {
@@ -89,13 +120,12 @@ export async function saveDietPlan(plan: DietPlan): Promise<{ success: boolean; 
   }
 }
 
-export async function autocompleteDietWithAi(): Promise<{ success: boolean; data?: DietPlan; error?: string }> {
+export async function autocompleteDietWithAi(): Promise<{ success: boolean; data?: WeeklyDietSchedule; error?: string }> {
   try {
     const supabase = await createSupabaseServerClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { success: false, error: 'Usuario no autenticado.' };
 
-    // Fetch user habits & historical logs to contextualize recommendations
     const [habitsRes, logsRes] = await Promise.all([
       supabase.from('user_habits').select('name, type').eq('user_id', user.id),
       supabase.from('daily_logs').select('date, ai_data, health_momentum').order('date', { ascending: false }).limit(15),
@@ -112,37 +142,31 @@ export async function autocompleteDietWithAi(): Promise<{ success: boolean; data
         water_ml: data?.water_ml || 0,
         total_kcal: data?.total_kcal || 0,
         protein_g: data?.protein_g || 0,
-        carbs_g: data?.carbs_g || 0,
-        fats_g: data?.fats_g || 0,
-        toxinas: (data?.toxinas || []).join(', '),
       };
     });
 
     const contextPrompt = 
-      `El usuario actual de BioAvatar solicita recomendaciones para su plan de nutrición óptimo diario. Su perfil y comportamiento de los últimos 15 días son:\n` +
-      `- Hábitos activos actuales: ${activeHabits || 'Ninguno'}\n` +
-      `- Historial de logs diarios de ingestas y salud:\n${JSON.stringify(historicalLogs, null, 2)}\n\n` +
-      `Tu rol es el de un nutricionista deportivo y coach metabólico experto. Diseña un plan de nutrición que cubra:\n` +
-      `1. target_kcal: Calorías totales lógicas diarias estimadas en base a sus ingestas reales previas y objetivos de salud (debe estar entre 1200 y 4000 kcal).\n` +
-      `2. target_protein: Proteínas en gramos recomendadas (aprox. 1.6g a 2.2g por kg de peso, típicamente entre 80g y 220g).\n` +
-      `3. target_carbs: Carbohidratos en gramos recomendados.\n` +
-      `4. target_fats: Grasas saludables en gramos recomendados.\n` +
-      `5. breakfast_plan: Sugerencia concreta y saludable para el Desayuno.\n` +
-      `6. lunch_plan: Sugerencia concreta y saludable para la Comida.\n` +
-      `7. dinner_plan: Sugerencia concreta y saludable para la Cena.\n\n` +
-      `Asegúrate de que la suma de macronutrientes (Proteínas*4 + Carbohidratos*4 + Grasas*9) coincida aproximadamente con el total de calorías de forma matemáticamente consistente.\n` +
-      `Devuelve exclusivamente el objeto JSON que encaje con el esquema.`;
+      `El usuario actual de BioAvatar solicita un plan nutricional semanal completo. Perfil:\n` +
+      `- Hábitos activos: ${activeHabits || 'Ninguno'}\n` +
+      `- Logs previos:\n${JSON.stringify(historicalLogs, null, 2)}\n\n` +
+      `Tu rol: Nutricionista deportivo experto.\n` +
+      `Genera un objeto JSON con 7 claves (lunes, martes, miercoles, jueves, viernes, sabado, domingo).\n` +
+      `Cada día debe incluir:\n` +
+      `- target_kcal (1200-4000)\n` +
+      `- target_protein, target_carbs, target_fats (balanceados y matemáticamente consistentes P*4+C*4+F*9 ~= kcal)\n` +
+      `- meals: { breakfast, lunch, dinner, snacks }\n\n` +
+      `Importante: Varía las comidas cada día para no aburrir al usuario, manteniendo los macros constantes o adaptándolos ligeramente si hay días de más desgaste (ej. fin de semana).`;
 
     const result = await generateObject({
       model: google('gemini-2.5-flash'),
-      system: 'Eres un nutricionista de precisión experto y generas planes de macros y porciones balanceados en base al historial real del usuario.',
+      system: 'Eres un nutricionista de precisión experto y generas planes de macros y menús variados para toda la semana.',
       prompt: contextPrompt,
-      schema: dietPlanSchema,
+      schema: weeklyDietScheduleSchema,
     });
 
-    const parsed = dietPlanSchema.safeParse(result.object);
+    const parsed = weeklyDietScheduleSchema.safeParse(result.object);
     if (!parsed.success) {
-      return { success: false, error: 'La IA generó un plan inválido. Por favor, reintenta.' };
+      return { success: false, error: 'La IA generó un plan inválido.' };
     }
 
     return { success: true, data: parsed.data };

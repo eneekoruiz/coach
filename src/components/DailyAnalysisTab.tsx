@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { type DailyLog } from '@/lib/schema';
-import { type DietPlan } from '@/app/nutrition/actions';
+import { type DietPlan, defaultDailyPlan } from '@/app/nutrition/actions';
 
 interface DailyAnalysisTabProps {
   realLog: DailyLog | null;
@@ -64,11 +64,17 @@ function BatteryMetric({ label, actual, target, unit, colorClass, bgClass }: Bat
 
 export default function DailyAnalysisTab({ realLog, dietPlan, dailyWaterTarget }: DailyAnalysisTabProps) {
   // Fallbacks if no diet plan is active
+  const dayIndex = new Date().getDay();
+  const daysMap = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+  const todayKey = daysMap[dayIndex] as keyof NonNullable<DietPlan>['weekly_schedule'];
+  
+  const todayPlan = dietPlan?.weekly_schedule?.[todayKey] || defaultDailyPlan;
+
   const targets = {
-    kcal: dietPlan?.target_kcal ?? 2000,
-    protein: dietPlan?.target_protein ?? 150,
-    carbs: dietPlan?.target_carbs ?? 200,
-    fats: dietPlan?.target_fats ?? 70,
+    kcal: todayPlan.target_kcal,
+    protein: todayPlan.target_protein,
+    carbs: todayPlan.target_carbs,
+    fats: todayPlan.target_fats,
     water: dailyWaterTarget ?? 2000,
   };
 
@@ -178,29 +184,34 @@ export default function DailyAnalysisTab({ realLog, dietPlan, dailyWaterTarget }
         )}
       </div>
 
-      {/* Plan de Alimentación Planeado para hoy */}
       {dietPlan && (
         <div className="rounded-[1.75rem] border border-white/60 bg-white/60 p-6 shadow-sm backdrop-blur-xl">
-          <h3 className="text-lg font-semibold text-slate-900">Menús de Referencia del Plan</h3>
+          <h3 className="text-lg font-semibold text-slate-900">Menús de Referencia del Plan ({todayKey})</h3>
           <p className="text-xs text-slate-500 mb-4">Tus menús planificados para comparar con lo consumido.</p>
 
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-4">
             <div className="rounded-2xl bg-white/80 p-4 border border-slate-100">
               <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-1">Desayuno 🥞</span>
               <p className="text-sm text-slate-700 whitespace-pre-line">
-                {dietPlan.breakfast_plan || 'No configurado'}
+                {todayPlan.meals.breakfast || 'No configurado'}
               </p>
             </div>
             <div className="rounded-2xl bg-white/80 p-4 border border-slate-100">
               <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-1">Comida 🍗</span>
               <p className="text-sm text-slate-700 whitespace-pre-line">
-                {dietPlan.lunch_plan || 'No configurado'}
+                {todayPlan.meals.lunch || 'No configurado'}
               </p>
             </div>
             <div className="rounded-2xl bg-white/80 p-4 border border-slate-100">
               <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-1">Cena 🐟</span>
               <p className="text-sm text-slate-700 whitespace-pre-line">
-                {dietPlan.dinner_plan || 'No configurado'}
+                {todayPlan.meals.dinner || 'No configurado'}
+              </p>
+            </div>
+            <div className="rounded-2xl bg-white/80 p-4 border border-slate-100">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-1">Snacks 🍎</span>
+              <p className="text-sm text-slate-700 whitespace-pre-line">
+                {todayPlan.meals.snacks || 'No configurado'}
               </p>
             </div>
           </div>
