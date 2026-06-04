@@ -28,6 +28,12 @@ type DashboardMainProps = {
   insightText: string;
   dailyWaterTarget: number;
   defaultGlassSize: number;
+  dietTargets: {
+    kcal: number;
+    protein: number;
+    carbs: number;
+    fats: number;
+  };
   updateWaterSettings: (target: number, glass: number) => Promise<boolean>;
   addWaterIntake: () => Promise<void>;
 };
@@ -203,6 +209,7 @@ export default function DashboardMain({
   insightText,
   dailyWaterTarget,
   defaultGlassSize,
+  dietTargets,
   updateWaterSettings,
   addWaterIntake,
 }: DashboardMainProps) {
@@ -295,7 +302,7 @@ export default function DashboardMain({
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <CircularProgressRing
                   value={displayLog.total_kcal}
-                  max={2000}
+                  max={dietTargets?.kcal ?? 2000}
                   label="Calorías"
                   unit="kcal"
                   colorClass="stroke-rose-500"
@@ -308,7 +315,7 @@ export default function DashboardMain({
                 />
                 <CircularProgressRing
                   value={displayLog.protein_g}
-                  max={150}
+                  max={dietTargets?.protein ?? 150}
                   label="Proteína"
                   unit="g"
                   colorClass="stroke-emerald-500"
@@ -320,7 +327,7 @@ export default function DashboardMain({
                 />
                 <CircularProgressRing
                   value={displayLog.carbs_g}
-                  max={200}
+                  max={dietTargets?.carbs ?? 200}
                   label="Carbos"
                   unit="g"
                   colorClass="stroke-cyan-500"
@@ -332,7 +339,7 @@ export default function DashboardMain({
                 />
                 <CircularProgressRing
                   value={displayLog.fats_g}
-                  max={70}
+                  max={dietTargets?.fats ?? 70}
                   label="Grasa"
                   unit="g"
                   colorClass="stroke-amber-500"

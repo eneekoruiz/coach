@@ -44,6 +44,7 @@ export default function HomeDashboard() {
     reload,
     dailyWaterTarget,
     defaultGlassSize,
+    dietTargets,
     updateWaterSettings,
     addWaterIntake,
   } = useDashboard();
@@ -116,6 +117,7 @@ export default function HomeDashboard() {
           insightText={insightText}
           dailyWaterTarget={dailyWaterTarget}
           defaultGlassSize={defaultGlassSize}
+          dietTargets={dietTargets}
           updateWaterSettings={updateWaterSettings}
           addWaterIntake={addWaterIntake}
         />

@@ -35,6 +35,12 @@ export function useDashboard() {
   const [insightText, setInsightText] = useState('Registrando tu comportamiento...');
   const [dailyWaterTarget, setDailyWaterTarget] = useState(2000);
   const [defaultGlassSize, setDefaultGlassSize] = useState(250);
+  const [dietTargets, setDietTargets] = useState({
+    kcal: 2000,
+    protein: 150,
+    carbs: 200,
+    fats: 70,
+  });
 
   const loadDashboard = useCallback(async () => {
     try {
@@ -55,6 +61,22 @@ export function useDashboard() {
         const metadata = user.user_metadata || {};
         setDailyWaterTarget(Number(metadata.daily_water_target_ml ?? 2000));
         setDefaultGlassSize(Number(metadata.default_glass_size_ml ?? 250));
+
+        // Fetch active diet targets
+        const { data: dietData } = await supabase
+          .from('user_diet_plans')
+          .select('target_kcal, target_protein, target_carbs, target_fats')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (dietData) {
+          setDietTargets({
+            kcal: Number(dietData.target_kcal ?? 2000),
+            protein: Number(dietData.target_protein ?? 150),
+            carbs: Number(dietData.target_carbs ?? 200),
+            fats: Number(dietData.target_fats ?? 70),
+          });
+        }
       }
 
       const { data: records, error } = await supabase
@@ -238,6 +260,7 @@ export function useDashboard() {
     insightText,
     dailyWaterTarget,
     defaultGlassSize,
+    dietTargets,
     updateWaterSettings,
     addWaterIntake,
     reload: loadDashboard,
