@@ -13,7 +13,7 @@ export default function FloatingChatButton({ onClick, isOpen }: FloatingChatButt
       type="button"
       aria-label="Abrir chat"
       onClick={onClick}
-      className="fixed bottom-24 right-6 md:bottom-10 md:right-10 z-[100] flex w-16 h-16 md:w-20 md:h-20 items-center justify-center rounded-full bg-cyan-500 text-white shadow-2xl transition-transform hover:scale-110 active:scale-95 animate-bounce ring-4 ring-cyan-500/30 ring-offset-2 ring-offset-slate-900"
+      className="fixed bottom-6 right-6 md:bottom-10 md:right-10 z-[100] flex w-16 h-16 md:w-20 md:h-20 items-center justify-center rounded-full bg-cyan-500 text-white shadow-2xl transition-transform hover:scale-110 active:scale-95 animate-bounce ring-4 ring-cyan-500/30 ring-offset-2 ring-offset-slate-900"
       style={{ animationDuration: '3s' }}
     >
       <svg

@@ -6,7 +6,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { motion } from 'framer-motion';
 import toast from '@/lib/toast';
-import { type WeeklyDietSchedule, type DailyDietTarget, saveDietPlan, dailyDietTargetSchema, defaultDailyPlan } from '@/app/nutrition/actions';
+import { dailyDietTargetSchema, type DailyDietTarget, type WeeklyDietSchedule, defaultDailyPlan } from '@/lib/schema';
+import { saveDietPlan } from '@/app/nutrition/actions';
 
 type DietPlanModalProps = {
   day: string;

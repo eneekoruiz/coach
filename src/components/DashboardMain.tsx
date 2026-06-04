@@ -222,8 +222,8 @@ export default function DashboardMain({
   }, [normalizedMomentum]);
 
   return (
-    <section className="relative flex min-h-0 flex-1 flex-col overflow-hidden px-4 md:px-6 pb-24 md:pb-6 pt-4">
-      <div className="relative z-10 w-full h-full max-w-6xl mx-auto flex flex-col overflow-hidden">
+    <section className="relative flex flex-1 flex-col px-4 md:px-6 pb-24 md:pb-6 pt-4">
+      <div className="relative z-10 w-full max-w-6xl mx-auto flex flex-col">
         {isLoading && (
           <div className="absolute inset-0 z-50 flex items-center justify-center rounded-[2rem] bg-slate-50/50 backdrop-blur-sm">
             <div className="bg-white px-6 py-3 rounded-full shadow-lg border border-slate-100 flex items-center gap-3">
@@ -235,10 +235,10 @@ export default function DashboardMain({
 
         <PushNotificationManager />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 grid-rows-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.8fr)] md:grid-rows-[minmax(0,1fr)_minmax(0,1fr)] lg:grid-rows-[minmax(0,1fr)_minmax(0,1fr)] gap-2 md:gap-4 lg:gap-6 flex-1 min-h-0">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 auto-rows-auto gap-4 lg:gap-6 flex-1 mt-4">
           
           {/* Bento Box 1: Bio-Avatar (Main) */}
-          <BentoCard className="md:col-span-2 lg:col-span-1 lg:row-span-2 flex flex-col items-center justify-center text-center relative overflow-hidden bg-gradient-to-b from-white to-slate-50/50">
+          <BentoCard className="md:col-span-2 lg:col-span-1 xl:col-span-1 flex flex-col items-center justify-center text-center relative overflow-hidden bg-gradient-to-b from-white to-slate-50/50 min-h-[300px]">
             <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-sky-50 to-transparent pointer-events-none" />
             
             <div className="relative aspect-square w-[180px] sm:w-[220px] overflow-hidden rounded-[2rem] border-[8px] border-white shadow-2xl bg-white mb-6 mt-4 z-10">
@@ -268,7 +268,7 @@ export default function DashboardMain({
           </BentoCard>
 
           {/* Bento Box 2: Nutrition Rings */}
-          <BentoCard className="md:col-span-2 lg:col-span-2">
+          <BentoCard className="col-span-full md:col-span-2 lg:col-span-2 xl:col-span-2 min-h-[250px]">
             <div className="flex justify-between items-end mb-6">
               <div>
                 <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-extrabold mb-1">Nutrición</p>
@@ -319,7 +319,7 @@ export default function DashboardMain({
           </BentoCard>
 
           {/* Bento Box 3: Water */}
-          <BentoCard className="md:col-span-1 lg:col-span-1 items-center">
+          <BentoCard className="col-span-1 lg:col-span-1 xl:col-span-1 items-center min-h-[250px]">
             <div className="w-full text-left absolute top-5 left-6">
               <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-extrabold mb-1">Hidratación</p>
             </div>
@@ -335,8 +335,8 @@ export default function DashboardMain({
           </BentoCard>
 
           {/* Bento Box 4: Habits & Mini Stats */}
-          <BentoCard className="md:col-span-1 lg:col-span-1">
-            <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-extrabold mb-4">Hábitos Completados</p>
+          <BentoCard className="col-span-1 lg:col-span-1 xl:col-span-1 min-h-[250px] flex flex-col">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-extrabold mb-4 shrink-0">Hábitos Completados</p>
             <div className="flex-1 overflow-y-auto pr-2 space-y-2 mb-4 max-h-[140px]">
               {Object.entries(displayLog.habits_count || {}).length > 0 ? (
                 Object.entries(displayLog.habits_count).map(([key, val]) => (
@@ -364,7 +364,7 @@ export default function DashboardMain({
           </BentoCard>
 
           {/* Bento Box 5: Minor Stats Grid */}
-          <div className="md:col-span-2 lg:col-span-3 grid grid-cols-2 md:grid-cols-4 gap-4 lg:gap-6">
+          <div className="col-span-full grid grid-cols-2 md:grid-cols-4 gap-4 lg:gap-6 min-h-[120px]">
             <BentoCard className="p-4 sm:p-5 flex flex-col justify-center items-center text-center">
               <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-extrabold mb-1">Inercia Total</p>
               <p className="text-4xl font-black text-slate-800 tracking-tighter">{normalizedMomentum}<span className="text-sm text-slate-400 ml-1">%</span></p>

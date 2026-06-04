@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { type WeeklyDietSchedule, type DailyDietTarget } from '@/app/nutrition/actions';
+import { type WeeklyDietSchedule, type DailyDietTarget } from '@/lib/schema';
 import DietPlanModal from './DietPlanModal';
 
 const DAYS = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'];

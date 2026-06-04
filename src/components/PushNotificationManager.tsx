@@ -23,6 +23,10 @@ export default function PushNotificationManager() {
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
+    if (!VAPID_PUBLIC_KEY) {
+      console.warn("Push notifications disabled: missing VAPID keys");
+    }
+
     if (typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window) {
       setIsSupported(true);
       // Check current subscription
@@ -91,10 +95,10 @@ export default function PushNotificationManager() {
       </div>
       <button
         onClick={subscribeUser}
-        disabled={isLoading}
+        disabled={isLoading || !VAPID_PUBLIC_KEY}
         className="w-full sm:w-auto px-6 py-2 bg-cyan-500 hover:bg-cyan-400 disabled:opacity-50 text-white font-bold rounded-xl md:rounded-2xl transition-colors text-sm shadow-lg active:scale-95"
       >
-        {isLoading ? 'Activando...' : 'Activar Recordatorios'}
+        {isLoading ? 'Activando...' : (!VAPID_PUBLIC_KEY ? 'No Disponible' : 'Activar Recordatorios')}
       </button>
     </div>
   );

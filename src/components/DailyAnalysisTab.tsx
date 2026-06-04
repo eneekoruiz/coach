@@ -2,7 +2,8 @@
 
 import React from 'react';
 import { type DailyLog } from '@/lib/schema';
-import { type DietPlan, defaultDailyPlan } from '@/app/nutrition/actions';
+import { type DietPlan } from '@/app/nutrition/actions';
+import { defaultDailyPlan } from '@/lib/schema';
 
 interface DailyAnalysisTabProps {
   realLog: DailyLog | null;

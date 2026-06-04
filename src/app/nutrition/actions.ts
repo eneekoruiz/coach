@@ -6,58 +6,11 @@ import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { dailyLogSchema } from '@/lib/schema';
 import { z } from 'zod';
 
-export const dailyDietTargetSchema = z.object({
-  target_kcal: z.number().int().min(500).max(10000),
-  target_protein: z.number().int().min(0).max(500),
-  target_carbs: z.number().int().min(0).max(1000),
-  target_fats: z.number().int().min(0).max(300),
-  meals: z.object({
-    breakfast: z.string().max(1000).optional().default(''),
-    lunch: z.string().max(1000).optional().default(''),
-    dinner: z.string().max(1000).optional().default(''),
-    snacks: z.string().max(1000).optional().default(''),
-  }),
-});
-
-export const weeklyDietScheduleSchema = z.object({
-  lunes: dailyDietTargetSchema,
-  martes: dailyDietTargetSchema,
-  miercoles: dailyDietTargetSchema,
-  jueves: dailyDietTargetSchema,
-  viernes: dailyDietTargetSchema,
-  sabado: dailyDietTargetSchema,
-  domingo: dailyDietTargetSchema,
-});
-
-export type DailyDietTarget = z.infer<typeof dailyDietTargetSchema>;
-export type WeeklyDietSchedule = z.infer<typeof weeklyDietScheduleSchema>;
+import { dailyDietTargetSchema, weeklyDietScheduleSchema, type DailyDietTarget, type WeeklyDietSchedule, defaultDailyPlan, defaultWeeklyPlan } from '@/lib/schema';
 
 export type DietPlan = {
   active: boolean;
   weekly_schedule: WeeklyDietSchedule;
-};
-
-export const defaultDailyPlan: DailyDietTarget = {
-  target_kcal: 2000,
-  target_protein: 150,
-  target_carbs: 200,
-  target_fats: 70,
-  meals: {
-    breakfast: '',
-    lunch: '',
-    dinner: '',
-    snacks: '',
-  },
-};
-
-export const defaultWeeklyPlan: WeeklyDietSchedule = {
-  lunes: defaultDailyPlan,
-  martes: defaultDailyPlan,
-  miercoles: defaultDailyPlan,
-  jueves: defaultDailyPlan,
-  viernes: defaultDailyPlan,
-  sabado: defaultDailyPlan,
-  domingo: defaultDailyPlan,
 };
 
 export async function getDietPlan(): Promise<DietPlan | null> {
@@ -72,16 +25,24 @@ export async function getDietPlan(): Promise<DietPlan | null> {
       .eq('user_id', user.id)
       .maybeSingle();
 
-    if (error || !data) {
+    // 1. Interceptar el error de la DB ANTES de pasarlo a Zod
+    if (error) {
+      console.warn(`[Supabase Fetch Warning] Tabla user_diet_plans: ${error.message}`);
+      // 2. Retornar SIEMPRE un Fallback válido según la vista (null o { valores: 0 })
+      return null;
+    }
+    if (!data) return null;
+
+    // 3. Solo si hay datos limpios, usamos Zod con safeParse
+    const parsed = weeklyDietScheduleSchema.safeParse(data.weekly_schedule);
+    if (!parsed.success) {
+      console.error('[Zod Parse Error]', parsed.error);
       return null;
     }
 
-    const weeklyData = data.weekly_schedule as unknown;
-    const parsed = weeklyDietScheduleSchema.safeParse(weeklyData);
-
     return {
       active: data.active ?? true,
-      weekly_schedule: parsed.success ? parsed.data : defaultWeeklyPlan,
+      weekly_schedule: parsed.data,
     };
   } catch (err) {
     console.error('getDietPlan server action error:', err);

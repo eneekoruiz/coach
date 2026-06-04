@@ -57,10 +57,10 @@ export default function Sidebar() {
   ];
 
   return (
-    <aside className="hidden md:flex flex-col w-20 lg:w-64 bg-white border-r border-slate-200/50 shadow-[4px_0_24px_rgba(0,0,0,0.02)] h-full overflow-y-auto z-40">
-      <div className="flex-1 flex flex-col pt-8 pb-4 px-3 lg:px-4 gap-4">
+    <aside className="hidden md:flex flex-col w-20 lg:w-64 bg-white border-r border-slate-100 shadow-sm h-full overflow-y-auto z-40">
+      <div className="flex-1 flex flex-col pt-8 pb-6 px-4 lg:px-6 gap-4">
         <div className="flex items-center justify-center lg:justify-start px-2 mb-8">
-          <div className="w-10 h-10 rounded-xl bg-cyan-500 flex items-center justify-center text-white font-black text-xl shadow-lg shadow-cyan-500/20">
+          <div className="w-10 h-10 rounded-xl bg-slate-900 flex items-center justify-center text-white font-black text-xl shadow-md">
             B
           </div>
           <span className="hidden lg:block ml-3 font-black text-xl text-slate-800 tracking-tight">
@@ -75,19 +75,19 @@ export default function Sidebar() {
               <Link
                 key={tab.name}
                 href={tab.href}
-                className="relative flex items-center p-3 rounded-2xl group transition-all"
+                className={`relative flex items-center p-3 rounded-2xl group transition-colors duration-200 ${!isActive ? 'hover:bg-slate-50' : ''}`}
               >
                 {isActive && (
                   <motion.div
                     layoutId="active-sidebar-tab"
-                    className="absolute inset-0 bg-slate-100/80 rounded-2xl"
+                    className="absolute inset-0 bg-slate-900 rounded-2xl"
                     transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                   />
                 )}
-                <div className={`relative z-10 w-6 h-6 lg:mr-3 transition-colors duration-200 flex-shrink-0 ${isActive ? 'text-slate-900' : 'text-slate-400 group-hover:text-slate-600'}`}>
+                <div className={`relative z-10 w-6 h-6 lg:mr-3 transition-colors duration-200 flex-shrink-0 ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-900'}`}>
                   {tab.icon}
                 </div>
-                <span className={`hidden lg:block relative z-10 text-sm font-bold tracking-tight transition-colors duration-200 ${isActive ? 'text-slate-900' : 'text-slate-500 group-hover:text-slate-700'}`}>
+                <span className={`hidden lg:block relative z-10 text-sm font-bold tracking-tight transition-colors duration-200 ${isActive ? 'text-white' : 'text-slate-500 group-hover:text-slate-900'}`}>
                   {tab.name}
                 </span>
               </Link>
