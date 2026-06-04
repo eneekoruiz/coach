@@ -57,37 +57,7 @@ export default function DashboardHeader({
           <div className="rounded-full border border-white/70 bg-white/60 px-3 py-2 text-center text-sm text-slate-700 backdrop-blur-xl sm:px-4 sm:text-left">
             Inercia actual: <span className="font-semibold text-slate-900">{momentum}</span>
           </div>
-          <Link
-            href="/history"
-            className="inline-flex items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-800 shadow-sm transition hover:bg-slate-50"
-          >
-            <History className="h-4 w-4" />
-            Historia
-          </Link>
-          <Link
-            href="/habits/tracker"
-            className="inline-flex items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-800 shadow-sm transition hover:bg-slate-50"
-          >
-            Tracker
-          </Link>
-          <Link
-            href="/nutrition"
-            className="inline-flex items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-800 shadow-sm transition hover:bg-slate-50"
-          >
-            Nutrición 🥗
-          </Link>
-          <div className="relative group inline-block">
-            <button
-              type="button"
-              disabled
-              className="inline-flex cursor-not-allowed items-center justify-center gap-2 rounded-full border border-slate-200 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-400 shadow-sm opacity-60"
-            >
-              🌸 Fase Hormonal
-            </button>
-            <span className="pointer-events-none absolute -top-10 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-lg bg-slate-800 px-2.5 py-1 text-[10px] font-bold text-white opacity-0 shadow-md transition-opacity duration-150 group-hover:opacity-100 z-50">
-              Próximamente
-            </span>
-          </div>
+
           <form action={logout}>
             <button
               type="submit"

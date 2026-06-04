@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from 'next';
 
 import './globals.css';
 import ToasterClient from '@/components/ToasterClient';
+import BottomNav from '@/components/BottomNav';
 
 export const metadata: Metadata = {
   title: 'Gemelo Digital Fisiológico',
@@ -26,9 +27,10 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="es">
-      <body>
+      <body className="pb-24">
         {children}
         <ToasterClient />
+        <BottomNav />
       </body>
     </html>
   );

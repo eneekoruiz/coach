@@ -19,7 +19,7 @@ export default function CircularProgressRing({
   value,
   max,
   size = 90,
-  strokeWidth = 8,
+  strokeWidth = 10,
   colorClass = 'stroke-slate-200',
   gradientId,
   label,
@@ -38,7 +38,7 @@ export default function CircularProgressRing({
   const strokeDashoffset = circumference - visiblePercent * circumference;
 
   return (
-    <div className="flex flex-col items-center justify-center p-3 rounded-2xl border border-slate-200/60 bg-white/80 backdrop-blur-md shadow-sm hover:shadow-md transition duration-200 select-none">
+    <div className="flex flex-col items-center justify-center p-2 select-none group">
       <div className="relative" style={{ width: size, height: size }}>
         {/* SVG Progress Circle */}
         <svg className="w-full h-full -rotate-90" viewBox={`0 0 ${size} ${size}`}>
