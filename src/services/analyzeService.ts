@@ -61,22 +61,23 @@ function mergeDailyLogs(existing: DailyLog, incoming: DailyLog): DailyLog {
   const mergedHabits: Record<string, number> = { ...(existing.habits_count || {}) };
   if (incoming.habits_count) {
     for (const [key, val] of Object.entries(incoming.habits_count)) {
-      mergedHabits[key] = (mergedHabits[key] || 0) + (val || 0);
+      mergedHabits[key] = Math.max(mergedHabits[key] || 0, val || 0);
     }
   }
 
-  const finalWater =
-    (existing.water_ml || existing.hidratacion_ml || 0) +
-    (incoming.water_ml || incoming.hidratacion_ml || 0);
+  const finalWater = Math.max(
+    existing.water_ml || existing.hidratacion_ml || 0,
+    incoming.water_ml || incoming.hidratacion_ml || 0
+  );
 
   return {
     comidas: [...(existing.comidas || []), ...(incoming.comidas || [])],
     hidratacion_ml: finalWater,
     water_ml: finalWater,
-    total_kcal: (existing.total_kcal || 0) + (incoming.total_kcal || 0),
-    protein_g: (existing.protein_g || 0) + (incoming.protein_g || 0),
-    carbs_g: (existing.carbs_g || 0) + (incoming.carbs_g || 0),
-    fats_g: (existing.fats_g || 0) + (incoming.fats_g || 0),
+    total_kcal: Math.max(existing.total_kcal || 0, incoming.total_kcal || 0),
+    protein_g: Math.max(existing.protein_g || 0, incoming.protein_g || 0),
+    carbs_g: Math.max(existing.carbs_g || 0, incoming.carbs_g || 0),
+    fats_g: Math.max(existing.fats_g || 0, incoming.fats_g || 0),
     habits_count: mergedHabits,
     toxinas: Array.from(new Set([...(existing.toxinas || []), ...(incoming.toxinas || [])])),
     bio_avatar: {
@@ -169,6 +170,9 @@ export interface AnalyzeParams {
 
 export async function analyzeAndPersistDailyLog(params: AnalyzeParams) {
   const { text, rawImage, habitReports, localDate, authHeader, supabase, user } = params;
+
+  const metadata = user.user_metadata || {};
+  const defaultGlassSize = Number(metadata.default_glass_size_ml ?? 250);
 
   if (rawImage) {
     const normalizedImage = normalizeBase64Image(rawImage);
@@ -274,7 +278,9 @@ export async function analyzeAndPersistDailyLog(params: AnalyzeParams) {
     `El listado de hábitos activos que el usuario está siguiendo hoy es el siguiente:\n${habitsListStr}\n` +
     'Si el usuario menciona que ha realizado o incurrido en alguno de estos hábitos (ej: "he fumado", "me tomé un cigarro", "he bebido agua", "completé mi caminata"), debes registrarlo e incrementar su valor en "habits_count" usando exactamente la clave provista en la lista anterior.\n' +
     `El estado actual de hábitos acumulados de HOY es: ${stateStr}. Tu tarea es leer el nuevo mensaje del usuario y SUMAR las nuevas ocurrencias al estado actual de hábitos. Regla inquebrantable: Los hábitos acumulativos (como fumar o beber agua) NUNCA pueden disminuir en el mismo día. Si el estado actual es 3 y el usuario dice 'me fumé otro', el nuevo valor es 4. Nunca devuelvas un valor menor al estado de hábitos actual. \n` +
+    `Regla de conversión de líquidos: Si el usuario menciona beber un vaso/taza o porción de agua estándar, equivale a exactamente ${defaultGlassSize} ml. Si menciona una botella de agua, equivale a exactamente 500 ml (a menos que se diga otra cantidad específica). Debes retornar el total acumulado de agua del día en "water_ml" y "hidratacion_ml" sumando estas porciones al estado actual.\n` +
     `Tu salud actual (health_momentum) es ${currentMomentum}. ${toneInstruction} \n` +
+    `Regla de Cohesión Inquebrantable: En "metricas.accion_manana" y en cualquier texto explicativo que redactes, si te refieres al valor de la salud del usuario o inercia de salud de su Bio-Avatar, debes usar EXACTAMENTE el valor de salud actual provisto (${currentMomentum}) sin alterarlo ni inventarte otro número diferente. \n` +
     'IMPORTANTE: Los saludos simples (como "hola", "buenos días") o check-ins conversacionales comunes (como "te mando un audio", "comencemos") NO deben ser considerados fuera de tema. En estos casos, establece "metricas.error_clave" en un valor neutral (como "saludo") y pon en "metricas.accion_manana" un mensaje cordial en primera persona invitando al usuario a registrar sus hábitos (ej: "¡Hola! Estoy listo para registrar tus comidas, bebida y hábitos de hoy. ¿Qué te gustaría apuntar?"). ' +
     'Únicamente cuando el mensaje sea totalmente ajeno a hábitos, nutrición, salud o bienestar (como problemas de matemáticas avanzadas, programación de software, debates políticos, etc.), debes establecer el valor exacto de "fuera_de_tema" en el campo "metricas.error_clave", y colocar en "metricas.accion_manana" un mensaje explicativo cordial indicando que tu propósito es el seguimiento de hábitos.';
 
@@ -367,6 +373,14 @@ export async function analyzeAndPersistDailyLog(params: AnalyzeParams) {
 
   const delta = finalAiData.metricas.variacion_inercia;
   const nextMomentum = Math.min(100, Math.max(0, previousMomentum + delta));
+
+  // Health Score Alignment Parser (fail-safe to align AI text to true nextMomentum)
+  if (finalAiData.metricas && typeof finalAiData.metricas.accion_manana === 'string') {
+    finalAiData.metricas.accion_manana = finalAiData.metricas.accion_manana.replace(
+      /(salud(?:\s+actual)?(?:\s+(?:es|esta|en|de))?\s*)(\d+)/gi,
+      `$1${nextMomentum}`
+    );
+  }
 
   try {
     await evaluateAndUpdateStreaks(supabase, user.id, finalTracking);

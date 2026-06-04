@@ -4,6 +4,7 @@ import { type SupabaseClient, type User } from '@supabase/supabase-js';
 
 import { endOfDaySchema } from '@/lib/schema';
 import { buildHabitVisualDescriptors, isMissingHabitTableError } from '@/lib/habits';
+import { calculateGlobalMomentum } from '@/services/calculateScores';
 
 export class NoDailyLogsError extends Error {}
 export class DatabaseError extends Error {}
@@ -79,10 +80,24 @@ export async function closeUserDay(params: CloseDayParams) {
   const encodedPrompt = encodeURIComponent(summary.prompt_imagen);
   const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&nologo=true`;
 
+  // 1) Fetch last health_momentum before today to compute EMA
+  const { data: previousLog } = await supabase
+    .from('daily_logs')
+    .select('health_momentum')
+    .eq('user_id', user.id)
+    .lt('date', today)
+    .order('date', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const previousGlobal = previousLog?.health_momentum ?? 100;
+  const globalMomentum = calculateGlobalMomentum(previousGlobal, summary.puntuacion_global);
+
   const { error: updateError } = await supabase
     .from('daily_logs')
     .update({
       avatar_image_url: imageUrl,
+      health_momentum: globalMomentum,
       close_day_data: {
         ...summary,
         imageUrl,
@@ -100,5 +115,6 @@ export async function closeUserDay(params: CloseDayParams) {
   return {
     ...summary,
     imageUrl,
+    health_momentum: globalMomentum,
   };
 }

@@ -70,6 +70,18 @@ export default function DashboardHeader({
           >
             Tracker
           </Link>
+          <div className="relative group inline-block">
+            <button
+              type="button"
+              disabled
+              className="inline-flex cursor-not-allowed items-center justify-center gap-2 rounded-full border border-slate-200 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-400 shadow-sm opacity-60"
+            >
+              🌸 Fase Hormonal
+            </button>
+            <span className="pointer-events-none absolute -top-10 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-lg bg-slate-800 px-2.5 py-1 text-[10px] font-bold text-white opacity-0 shadow-md transition-opacity duration-150 group-hover:opacity-100 z-50">
+              Próximamente
+            </span>
+          </div>
           <form action={logout}>
             <button
               type="submit"

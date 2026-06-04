@@ -1,4 +1,5 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 type ChatFeedback = {
   previous_health_momentum: number;
@@ -30,6 +31,12 @@ export default function DiagnosisModal({
   evaluationText,
 }: DiagnosisModalProps) {
   const modalContentRef = useRef<HTMLDivElement>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
 
   useEffect(() => {
     function handleOutsideClick(event: MouseEvent) {
@@ -51,18 +58,19 @@ export default function DiagnosisModal({
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
+  if (!mounted) return null;
 
   const variacionInercia = feedback.ai_data?.metricas?.variacion_inercia ?? 0;
   const inerciaColor = variacionInercia >= 0 ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-rose-50 text-rose-700 border border-rose-100';
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-fade-in">
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-fade-in">
       <div
         ref={modalContentRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-title"
-        className="w-full max-w-2xl rounded-3xl bg-white p-6 shadow-2xl flex flex-col max-h-[85vh] overflow-hidden border border-slate-100 animate-scale-up"
+        className="w-full max-w-2xl rounded-3xl bg-white p-5 sm:p-6 shadow-2xl flex flex-col max-h-[90vh] sm:max-h-[85vh] overflow-hidden border border-slate-100 animate-scale-up"
       >
         {/* Cabecera del Modal */}
         <div className="flex items-center justify-between border-b border-slate-100 pb-3 flex-shrink-0">
@@ -183,5 +191,5 @@ export default function DiagnosisModal({
         </div>
       </div>
     </div>
-  );
+  , document.body);
 }

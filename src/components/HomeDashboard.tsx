@@ -35,7 +35,19 @@ const fallbackLog: DailyLog = {
 export default function HomeDashboard() {
   const [isXRayMode, setIsXRayMode] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
-  const { isLoading, lastLog, momentum, streak, insightText, reload } = useDashboard();
+  const {
+    isLoading,
+    lastLog,
+    momentum,
+    streak,
+    insightText,
+    reload,
+    dailyWaterTarget,
+    defaultGlassSize,
+    updateWaterSettings,
+    addWaterIntake,
+  } = useDashboard();
+
 
   const theme = useMemo(() => {
     if (momentum >= 75) {
@@ -102,6 +114,10 @@ export default function HomeDashboard() {
           energyLevel={energyLevel}
           mentalClarity={mentalClarity}
           insightText={insightText}
+          dailyWaterTarget={dailyWaterTarget}
+          defaultGlassSize={defaultGlassSize}
+          updateWaterSettings={updateWaterSettings}
+          addWaterIntake={addWaterIntake}
         />
       </div>
 

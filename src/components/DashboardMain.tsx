@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import XRayOverlay from './XRayOverlay';
 import CircularProgressRing from './CircularProgressRing';
 import { type DailyLog } from '@/lib/schema';
+import toast from '@/lib/toast';
 
 interface DashboardTheme {
   background: string;
@@ -25,39 +26,167 @@ type DashboardMainProps = {
   energyLevel: number;
   mentalClarity: number;
   insightText: string;
+  dailyWaterTarget: number;
+  defaultGlassSize: number;
+  updateWaterSettings: (target: number, glass: number) => Promise<boolean>;
+  addWaterIntake: () => Promise<void>;
 };
 
 function clampMomentum(value: number) {
   return Math.min(100, Math.max(0, value));
 }
 
-function WaterGlass({ amount, max = 2000 }: { amount: number; max?: number }) {
+function WaterGlass({ 
+  amount, 
+  max, 
+  defaultGlass, 
+  addWater, 
+  updateSettings 
+}: { 
+  amount: number; 
+  max: number; 
+  defaultGlass: number; 
+  addWater: () => Promise<void>; 
+  updateSettings: (target: number, glass: number) => Promise<boolean>; 
+}) {
+  const [isOpen, setIsOpen] = React.useState(false);
+  const [targetInput, setTargetInput] = React.useState(max);
+  const [glassInput, setGlassInput] = React.useState(defaultGlass);
+  const [isSaving, setIsSaving] = React.useState(false);
+  const [isLogging, setIsLogging] = React.useState(false);
+
+  React.useEffect(() => {
+    setTargetInput(max);
+    setGlassInput(defaultGlass);
+  }, [max, defaultGlass]);
+
   const percentage = Math.min(100, Math.max(0, (amount / max) * 100));
+  const isGoalReached = amount >= max;
 
   return (
-    <div className="flex flex-col items-center justify-center p-4 rounded-2xl border border-slate-200/60 bg-white/80 backdrop-blur-md shadow-sm hover:shadow-md transition duration-200 select-none min-w-[7.5rem]">
-      <div className="relative w-16 h-24 border-4 border-slate-300/80 rounded-b-2xl rounded-t-md overflow-hidden bg-slate-50 shadow-inner flex items-end">
+    <div className="relative flex flex-col items-center justify-center p-4 rounded-2xl border border-slate-200/60 bg-white/80 backdrop-blur-md shadow-sm hover:shadow-md transition duration-200 select-none min-w-[7.5rem]">
+      {isGoalReached && (
+        <span className="absolute -top-2.5 bg-gradient-to-r from-sky-500 to-indigo-500 text-white text-[8px] font-extrabold uppercase px-2 py-0.5 rounded-full shadow-sm animate-pulse z-10 tracking-widest border border-white/40">
+          ¡Meta lograda! 🌟
+        </span>
+      )}
+      
+      {/* Clickable glass area */}
+      <div 
+        onClick={() => setIsOpen((prev) => !prev)}
+        className="cursor-pointer relative w-16 h-24 border-4 border-slate-300/80 rounded-b-2xl rounded-t-md overflow-hidden bg-slate-50 shadow-inner flex items-end hover:border-sky-400 hover:scale-[1.03] transition duration-200"
+      >
         {/* Liquid wave representation */}
         <motion.div
           className="w-full bg-gradient-to-t from-sky-600 via-sky-400 to-cyan-300"
           initial={{ height: '0%' }}
           animate={{ height: `${percentage}%` }}
-          transition={{ type: 'spring', stiffness: 40, damping: 12 }}
+          transition={{ type: 'spring', stiffness: 45, damping: 13 }}
         />
         {/* Label Overlay */}
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-          <span className="text-[13px] font-extrabold text-slate-800 bg-white/50 px-1.5 py-0.5 rounded-full backdrop-blur-xs leading-none">
+          <span className="text-[12px] font-extrabold text-slate-800 bg-white/60 px-1.5 py-0.5 rounded-full backdrop-blur-xs leading-none">
             {amount}
-            <span className="text-[8px] font-medium ml-0.5">ml</span>
+            <span className="text-[8px] font-semibold ml-0.5">ml</span>
           </span>
           <span className="text-[9px] font-bold text-slate-500 mt-1">
             {Math.round(percentage)}%
           </span>
         </div>
       </div>
+      
       <span className="mt-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider text-center">
         Agua
       </span>
+
+      {/* Popover / Config panel */}
+      {isOpen && (
+        <div className="absolute top-full mt-2 right-1/2 translate-x-1/2 z-30 w-56 rounded-2xl border border-slate-200/80 bg-white p-3.5 shadow-xl animate-fade-in flex flex-col gap-3">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-1.5">
+            <span className="text-[10px] font-black text-slate-800 uppercase tracking-wider">Ajustes de Agua</span>
+            <button 
+              type="button" 
+              onClick={() => setIsOpen(false)}
+              className="text-slate-400 hover:text-slate-600 text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full hover:bg-slate-100"
+            >
+              ✕
+            </button>
+          </div>
+
+          <button
+            type="button"
+            disabled={isLogging}
+            onClick={async () => {
+              setIsLogging(true);
+              try {
+                await addWater();
+                setIsOpen(false);
+              } catch (e) {
+                // error handled in hook
+              } finally {
+                setIsLogging(false);
+              }
+            }}
+            className="w-full py-2 px-3 rounded-xl bg-sky-600 hover:bg-sky-500 disabled:bg-sky-400 text-white text-xs font-extrabold shadow-sm transition active:scale-95 flex items-center justify-center gap-1.5"
+          >
+            <span>💧 {isLogging ? 'Registrando...' : 'Registrar Vaso'}</span>
+            <span className="bg-sky-700/50 px-1.5 py-0.5 rounded-full text-[9px]">+{defaultGlass}ml</span>
+          </button>
+
+          <div className="space-y-2 border-t border-slate-100 pt-2.5">
+            <div>
+              <label className="block text-[8px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">
+                Meta Diaria (ml)
+              </label>
+              <input
+                type="number"
+                value={targetInput || ''}
+                onChange={(e) => setTargetInput(Number(e.target.value))}
+                className="w-full px-2.5 py-1 text-xs border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:border-sky-500 font-medium"
+              />
+            </div>
+            <div>
+              <label className="block text-[8px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">
+                Tamaño del Vaso (ml)
+              </label>
+              <input
+                type="number"
+                value={glassInput || ''}
+                onChange={(e) => setGlassInput(Number(e.target.value))}
+                className="w-full px-2.5 py-1 text-xs border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:border-sky-500 font-medium"
+              />
+            </div>
+
+            <button
+              type="button"
+              disabled={isSaving}
+              onClick={async () => {
+                // Safeguard validations
+                if (targetInput < 500 || targetInput > 10000) {
+                  toast.error('La meta diaria debe estar entre 500 y 10000 ml.');
+                  return;
+                }
+                if (glassInput < 50 || glassInput > 2000) {
+                  toast.error('El vaso debe estar entre 50 y 2000 ml.');
+                  return;
+                }
+                setIsSaving(true);
+                const success = await updateSettings(targetInput, glassInput);
+                setIsSaving(false);
+                if (success) {
+                  toast.success('¡Configuración guardada!');
+                  setIsOpen(false);
+                } else {
+                  toast.error('Error al guardar ajustes.');
+                }
+              }}
+              className="w-full py-1.5 px-3 rounded-lg border border-slate-200 hover:bg-slate-50 disabled:bg-slate-50 text-slate-700 text-[10px] font-bold transition active:scale-95"
+            >
+              {isSaving ? 'Guardando...' : 'Guardar Ajustes'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -72,6 +201,10 @@ export default function DashboardMain({
   energyLevel,
   mentalClarity,
   insightText,
+  dailyWaterTarget,
+  defaultGlassSize,
+  updateWaterSettings,
+  addWaterIntake,
 }: DashboardMainProps) {
   const normalizedMomentum = clampMomentum(momentum);
 
@@ -213,7 +346,13 @@ export default function DashboardMain({
 
               {/* Water glass & Habits display */}
               <div className="flex gap-4 items-stretch flex-col sm:flex-row">
-                <WaterGlass amount={displayLog.water_ml} />
+                <WaterGlass 
+                  amount={displayLog.water_ml ?? displayLog.hidratacion_ml ?? 0} 
+                  max={dailyWaterTarget}
+                  defaultGlass={defaultGlassSize}
+                  addWater={addWaterIntake}
+                  updateSettings={updateWaterSettings}
+                />
 
                 <div className="flex-1 rounded-2xl border border-slate-200/60 bg-white/80 backdrop-blur-md p-4 flex flex-col justify-between shadow-sm min-h-[8.5rem]">
                   <div>

@@ -9,6 +9,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import toast from '@/lib/toast';
 import { type DailyLog } from '@/lib/schema';
 import { triggerVibration } from '@/lib/haptics';
+import { supabase } from '@/lib/supabase';
 import { useSpeechRecognition } from './useSpeechRecognition';
 import { useImageSelection } from './useImageSelection';
 import { computeEvaluationText, computeSubmitLabel } from './useChatHelpers';
@@ -140,7 +141,100 @@ export function useChat(onUpdate?: () => void | Promise<void>, momentum?: number
         return false;
       });
 
-      // 2) Heurística para textos extremadamente cortos que no son respuestas válidas
+      // 2) Interceptor local de configuración de agua diaria y tamaño de vaso
+      const waterTargetMatch = trimmed.match(/(?:cambi|pon|ajust|configur)(?:a|ar)?\s*(?:mi\s*)?(?:meta|objetivo)(?:\s+de)?\s+agua(?:\s+diaria)?\s*(?:a|en|de)?\s*(\d+(?:[\.,]\d+)?)\s*(l|ml|litros|litro)?/i);
+      const glassSizeMatch = trimmed.match(/(?:cambi|pon|ajust|configur)(?:a|ar)?\s*(?:mi\s*)?(?:vaso|taza)(?:\s+de\s+agua)?(?:\s+(?:a|en|de|es|sea|de\s*de))?\s*(\d+(?:[\.,]\d+)?)\s*(l|ml|litros|litro)?/i);
+
+      if (waterTargetMatch || glassSizeMatch) {
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) throw new Error('No user session found.');
+
+          const currentMeta = user.user_metadata || {};
+          let newTarget = Number(currentMeta.daily_water_target_ml ?? 2000);
+          let newGlass = Number(currentMeta.default_glass_size_ml ?? 250);
+          let responseMsg = '';
+
+          if (waterTargetMatch) {
+            let val = parseFloat(waterTargetMatch[1].replace(',', '.'));
+            const unit = (waterTargetMatch[2] || '').toLowerCase();
+            if (unit.startsWith('l')) {
+              val = val * 1000;
+            }
+            if (val >= 500 && val <= 10000) {
+              newTarget = Math.round(val);
+              responseMsg += `¡Entendido! He cambiado tu meta diaria de agua a **${newTarget} ml** (o ${(newTarget/1000).toFixed(1)} litros). `;
+            } else {
+              responseMsg += 'La meta de agua debe estar entre 500 ml y 10000 ml. ';
+            }
+          }
+
+          if (glassSizeMatch) {
+            let val = parseFloat(glassSizeMatch[1].replace(',', '.'));
+            const unit = (glassSizeMatch[2] || '').toLowerCase();
+            if (unit.startsWith('l')) {
+              val = val * 1000;
+            }
+            if (val >= 50 && val <= 2000) {
+              newGlass = Math.round(val);
+              responseMsg += `He configurado tu tamaño de vaso predeterminado a **${newGlass} ml**. `;
+            } else {
+              responseMsg += 'El tamaño del vaso debe estar entre 50 ml y 2000 ml. ';
+            }
+          }
+
+          if (responseMsg && !responseMsg.includes('debe estar')) {
+            const { error: updateErr } = await supabase.auth.updateUser({
+              data: {
+                daily_water_target_ml: newTarget,
+                default_glass_size_ml: newGlass,
+              }
+            });
+            if (updateErr) throw updateErr;
+
+            const currentMomentum = momentum ?? 100;
+            setFeedback({
+              previous_health_momentum: currentMomentum,
+              health_momentum: currentMomentum,
+              ai_data: {
+                comidas: [],
+                hidratacion_ml: 0,
+                water_ml: 0,
+                total_kcal: 0,
+                protein_g: 0,
+                carbs_g: 0,
+                fats_g: 0,
+                habits_count: {},
+                toxinas: [],
+                bio_avatar: {
+                  estado_fisiologico: 'estable',
+                  energia_fisica: 3,
+                  claridad_mental: 3,
+                },
+                metricas: {
+                  variacion_inercia: 0,
+                  aciertos: [],
+                  error_clave: 'fuera_de_tema',
+                  accion_manana: responseMsg + '\n\nConfiguración aplicada con éxito y sincronizada con el dashboard. 💧',
+                },
+              },
+            });
+
+            triggerVibration('success');
+            setCloseDayFeedback(null);
+            resetUiAfterSuccess();
+            if (onUpdate) await onUpdate();
+            return;
+          } else {
+            localResponse = responseMsg || 'No he podido procesar ese cambio. Inténtalo indicando un valor numérico claro (ej. "meta de agua 3000ml").';
+          }
+        } catch (err) {
+          console.error(err);
+          localResponse = 'Hubo un error de conexión al actualizar tus ajustes. Inténtalo de nuevo.';
+        }
+      }
+
+      // 3) Heurística para textos extremadamente cortos que no son respuestas válidas
       const isTooShort = normalizedText.length > 0 && normalizedText.length <= 2 &&
         !['ok', 'si', 'no', 'ya', 'he', 'go', 'up'].includes(normalizedText);
 
@@ -149,7 +243,7 @@ export function useChat(onUpdate?: () => void | Promise<void>, momentum?: number
       } else if (isTooShort) {
         localResponse = 'Ese mensaje es demasiado corto. Intenta escribir una frase sobre tus hábitos de hoy, por ejemplo: \'he tomado 2 vasos de agua\'.';
       } else {
-        // 3) Diccionario local de saludos y comandos conversacionales comunes
+        // 4) Diccionario local de saludos y comandos conversacionales comunes
         const greetings = [
           'hola', 'buenas', 'buenos dias', 'buenas noches', 'buen dia', 'buenas tardes',
           'hey', 'hello', 'hi', 'alo', 'saludos', 'que hay', 'que tal'
