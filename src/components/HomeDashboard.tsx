@@ -7,6 +7,7 @@ import ChatInput from '@/components/ChatInput';
 import { useDashboard } from '@/hooks/useDashboard';
 import DashboardHeader from '@/components/DashboardHeader';
 import DashboardMain from '@/components/DashboardMain';
+import FloatingChatButton from '@/components/FloatingChatButton';
 import type { DailyLog } from '@/lib/schema';
 
 const fallbackLog: DailyLog = {
@@ -49,7 +50,6 @@ export default function HomeDashboard() {
     addWaterIntake,
   } = useDashboard();
 
-
   const theme = useMemo(() => {
     if (momentum >= 75) {
       return {
@@ -91,12 +91,12 @@ export default function HomeDashboard() {
 
   return (
     <main
-      className={`relative min-h-dvh overflow-x-hidden overflow-y-auto ${theme.background} ${theme.text}`}
+      className={`relative min-h-[100dvh] h-[100dvh] overflow-hidden flex flex-col ${theme.background} ${theme.text}`}
     >
       <div className={`absolute inset-0 bg-gradient-to-br ${theme.accent}`} />
       <div className="absolute inset-0 opacity-25 [background-image:radial-gradient(rgba(255,255,255,0.65)_1px,transparent_1px)] [background-size:22px_22px]" />
 
-      <div className="relative z-10 flex min-h-dvh flex-col px-4 py-4 sm:px-6 lg:px-8">
+      <div className="relative z-10 flex flex-col flex-1 px-2 py-2 sm:px-6 lg:px-8 h-full overflow-hidden">
         <DashboardHeader
           theme={theme}
           momentum={momentum}
@@ -123,26 +123,7 @@ export default function HomeDashboard() {
         />
       </div>
 
-      <button
-        type="button"
-        aria-label="Abrir chat"
-        onClick={() => setIsChatOpen(true)}
-        className="fixed bottom-4 right-4 z-30 flex h-12 w-12 items-center justify-center rounded-full border border-white/70 bg-slate-950 text-white shadow-[0_18px_50px_rgba(15,23,42,0.28)] transition hover:scale-105 active:scale-95 sm:bottom-5 sm:right-5 sm:h-14 sm:w-14"
-      >
-        <svg
-          viewBox="0 0 24 24"
-          className="h-6 w-6"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.8"
-        >
-          <path d="M7 8h10M7 12h6m-6 4h4" strokeLinecap="round" strokeLinejoin="round" />
-          <path
-            d="M20 12c0 4.418-3.582 8-8 8-1.05 0-2.052-.2-2.97-.564L5 20l1.039-3.03A7.958 7.958 0 0 1 4 12c0-4.418 3.582-8 8-8s8 3.582 8 8Z"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </button>
+      <FloatingChatButton onClick={() => setIsChatOpen(true)} isOpen={isChatOpen} />
 
       <AnimatePresence>
         {isChatOpen ? (

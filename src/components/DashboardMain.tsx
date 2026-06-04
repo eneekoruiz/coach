@@ -6,6 +6,7 @@ import XRayOverlay from './XRayOverlay';
 import CircularProgressRing from './CircularProgressRing';
 import { type DailyLog } from '@/lib/schema';
 import toast from '@/lib/toast';
+import PushNotificationManager from './PushNotificationManager';
 import { triggerVibration } from '@/lib/haptics';
 
 interface DashboardTheme {
@@ -231,6 +232,8 @@ export default function DashboardMain({
             </div>
           </div>
         )}
+
+        <PushNotificationManager />
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
           
