@@ -8,8 +8,8 @@ export const metadata = {
 
 export default function NutritionPage() {
   return (
-    <main className="mx-auto max-w-4xl px-4 py-8">
+    <div className="mx-auto max-w-4xl w-full px-4 py-8 flex-1 overflow-y-auto pb-24 md:pb-8 custom-scrollbar">
       <NutritionContainer />
-    </main>
+    </div>
   );
 }

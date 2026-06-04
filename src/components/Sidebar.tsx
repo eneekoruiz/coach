@@ -4,9 +4,8 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { triggerVibration } from '@/lib/haptics';
 
-export default function BottomNav() {
+export default function Sidebar() {
   const pathname = usePathname();
 
   // Hide on login page
@@ -58,29 +57,37 @@ export default function BottomNav() {
   ];
 
   return (
-    <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 px-4 pb-safe pt-2 pointer-events-none">
-      <div className="mx-auto max-w-md pointer-events-auto pb-4 sm:pb-6">
-        <nav className="flex items-center justify-between bg-white/90 backdrop-blur-xl border border-slate-200/50 rounded-full px-2 py-2 shadow-[0_8px_30px_rgb(0,0,0,0.08)]">
+    <aside className="hidden md:flex flex-col w-20 lg:w-64 bg-white border-r border-slate-200/50 shadow-[4px_0_24px_rgba(0,0,0,0.02)] h-full overflow-y-auto z-40">
+      <div className="flex-1 flex flex-col pt-8 pb-4 px-3 lg:px-4 gap-4">
+        <div className="flex items-center justify-center lg:justify-start px-2 mb-8">
+          <div className="w-10 h-10 rounded-xl bg-cyan-500 flex items-center justify-center text-white font-black text-xl shadow-lg shadow-cyan-500/20">
+            B
+          </div>
+          <span className="hidden lg:block ml-3 font-black text-xl text-slate-800 tracking-tight">
+            BioAvatar
+          </span>
+        </div>
+
+        <nav className="flex flex-col gap-2">
           {tabs.map((tab) => {
             const isActive = pathname === tab.href;
             return (
               <Link
                 key={tab.name}
                 href={tab.href}
-                onClick={() => triggerVibration('light')}
-                className="relative flex flex-1 flex-col items-center justify-center py-2"
+                className="relative flex items-center p-3 rounded-2xl group transition-all"
               >
                 {isActive && (
                   <motion.div
-                    layoutId="active-tab"
-                    className="absolute inset-0 bg-slate-100/80 rounded-full"
+                    layoutId="active-sidebar-tab"
+                    className="absolute inset-0 bg-slate-100/80 rounded-2xl"
                     transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                   />
                 )}
-                <div className={`relative z-10 w-6 h-6 mb-1 transition-colors duration-200 ${isActive ? 'text-slate-900' : 'text-slate-400'}`}>
+                <div className={`relative z-10 w-6 h-6 lg:mr-3 transition-colors duration-200 flex-shrink-0 ${isActive ? 'text-slate-900' : 'text-slate-400 group-hover:text-slate-600'}`}>
                   {tab.icon}
                 </div>
-                <span className={`relative z-10 text-[10px] font-bold tracking-tight transition-colors duration-200 ${isActive ? 'text-slate-900' : 'text-slate-400'}`}>
+                <span className={`hidden lg:block relative z-10 text-sm font-bold tracking-tight transition-colors duration-200 ${isActive ? 'text-slate-900' : 'text-slate-500 group-hover:text-slate-700'}`}>
                   {tab.name}
                 </span>
               </Link>
@@ -88,6 +95,6 @@ export default function BottomNav() {
           })}
         </nav>
       </div>
-    </div>
+    </aside>
   );
 }

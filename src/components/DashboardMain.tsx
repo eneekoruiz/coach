@@ -222,8 +222,8 @@ export default function DashboardMain({
   }, [normalizedMomentum]);
 
   return (
-    <section className="relative mt-4 flex min-h-0 flex-1 flex-col pb-6">
-      <div className="relative z-10 w-full max-w-6xl mx-auto">
+    <section className="relative flex min-h-0 flex-1 flex-col overflow-hidden px-4 md:px-6 pb-24 md:pb-6 pt-4">
+      <div className="relative z-10 w-full h-full max-w-6xl mx-auto flex flex-col overflow-hidden">
         {isLoading && (
           <div className="absolute inset-0 z-50 flex items-center justify-center rounded-[2rem] bg-slate-50/50 backdrop-blur-sm">
             <div className="bg-white px-6 py-3 rounded-full shadow-lg border border-slate-100 flex items-center gap-3">
@@ -235,7 +235,7 @@ export default function DashboardMain({
 
         <PushNotificationManager />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 grid-rows-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.8fr)] md:grid-rows-[minmax(0,1fr)_minmax(0,1fr)] lg:grid-rows-[minmax(0,1fr)_minmax(0,1fr)] gap-2 md:gap-4 lg:gap-6 flex-1 min-h-0">
           
           {/* Bento Box 1: Bio-Avatar (Main) */}
           <BentoCard className="md:col-span-2 lg:col-span-1 lg:row-span-2 flex flex-col items-center justify-center text-center relative overflow-hidden bg-gradient-to-b from-white to-slate-50/50">

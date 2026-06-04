@@ -9,7 +9,7 @@ export const metadata = {
 
 export default function HabitTrackerPage() {
   return (
-    <main className="mx-auto max-w-3xl py-8">
+    <div className="mx-auto max-w-3xl w-full py-8 flex-1 overflow-y-auto pb-24 md:pb-8 px-4 custom-scrollbar">
       <div className="mb-4 flex items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">Seguimiento de hábitos</h1>
@@ -20,13 +20,13 @@ export default function HabitTrackerPage() {
 
         <Link
           href="/"
-          className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:ring-offset-2"
+          className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:ring-offset-2 shrink-0"
           aria-label="Volver al inicio"
         >
-          Volver al inicio
+          Inicio
         </Link>
       </div>
       <HabitTracker />
-    </main>
+    </div>
   );
 }
