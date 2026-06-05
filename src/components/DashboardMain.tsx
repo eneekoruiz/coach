@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, type HTMLMotionProps } from 'framer-motion';
 import XRayOverlay from './XRayOverlay';
 import CircularProgressRing from './CircularProgressRing';
 import { type DailyLog } from '@/lib/schema';
@@ -47,9 +47,7 @@ function clampMomentum(value: number) {
 }
 
 // Reusable Bento Card wrapper with zero-border glassmorphism and layoutId support
-interface BentoCardProps extends React.HTMLAttributes<HTMLDivElement> {
-  layoutId?: string;
-}
+interface BentoCardProps extends HTMLMotionProps<"div"> {}
 
 function BentoCard({ children, className = '', layoutId, ...props }: BentoCardProps) {
   return (
