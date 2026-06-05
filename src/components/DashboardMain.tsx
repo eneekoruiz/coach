@@ -10,6 +10,7 @@ import PushNotificationManager from './PushNotificationManager';
 import { triggerVibration } from '@/lib/haptics';
 import NutritionContainer from './NutritionContainer';
 import HabitTracker from './HabitTracker';
+import DailyChecklist from './DailyChecklist';
 
 interface DashboardTheme {
   background: string;
@@ -323,6 +324,9 @@ export default function DashboardMain({
             <span>Hablar con mi Coach</span>
           </motion.button>
         </div>
+
+        {/* ══ DAILY CHECKLIST ══════════════════════════════════════════════ */}
+        <DailyChecklist />
 
         {/* ══ DATA PILLS ═══════════════════════════════════════════════════ */}
         <div className="grid grid-cols-3 gap-3">

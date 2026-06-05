@@ -14,14 +14,6 @@ if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
   );
 }
 
-const duolingoMessages = [
-  "¿Vas a perder tu racha por no beber agua? Tu Bio-Avatar se está marchitando. Haz algo.",
-  "Oh, genial. Otro día ignorándome. Supongo que tendré que sobrevivir con 0 calorías hoy... 🙄",
-  "Tu Bio-Avatar confió en ti. Entra 1 minuto y salva tu inercia.",
-  "Parece que a alguien ya no le importa su salud metabólica. Qué pena.",
-  "He visto a piedras con más inercia que tú hoy. ¿Registramos algo o nos rendimos?"
-];
-
 export async function GET(request: Request) {
   try {
     // 1. Verificación de Seguridad CRON
@@ -42,16 +34,7 @@ export async function GET(request: Request) {
     const supabase = createClient(supabaseUrl, supabaseKey);
     const today = new Date().toISOString().split('T')[0];
 
-    // 2. Lógica de "Motor de Culpa"
-    // a) Buscar logs de hoy para saber quién SÍ ha interactuado
-    const { data: logsToday } = await supabase
-      .from('daily_logs')
-      .select('user_id')
-      .eq('date', today);
-
-    const activeUsersToday = new Set((logsToday || []).map(l => String(l.user_id)));
-
-    // b) Obtener todas las suscripciones Push
+    // a) Obtener todas las suscripciones Push
     const { data: subscriptions } = await supabase
       .from('user_push_subscriptions')
       .select('user_id, subscription');
@@ -64,30 +47,50 @@ export async function GET(request: Request) {
 
     for (const subRecord of subscriptions) {
       const uid = String(subRecord.user_id);
-      
-      // Si el usuario ya hizo algo hoy, lo saltamos
-      if (activeUsersToday.has(uid)) continue;
 
-      // Comprobar su último inercia
-      const { data: lastLog } = await supabase
-        .from('daily_logs')
-        .select('health_momentum')
+      // Comprobar si tiene routine_templates creados
+      const { data: templates, error: templatesErr } = await supabase
+        .from('routine_templates')
+        .select('id')
+        .eq('user_id', uid);
+
+      if (templatesErr || !templates || templates.length === 0) {
+        // No tiene rutinas creadas, no envía notificación a este usuario
+        continue;
+      }
+
+      // Comprobar cuántas completó hoy
+      const { data: logs, error: logsErr } = await supabase
+        .from('routine_logs')
+        .select('routine_id')
         .eq('user_id', uid)
-        .order('date', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .eq('completed_date', today);
 
-      const lastMomentum = lastLog?.health_momentum ?? 100;
-      
-      // Si la inercia es 0, no lo molestamos más (ya abandonó del todo)
-      if (lastMomentum <= 0) continue;
+      if (logsErr) {
+        console.error(`Error fetching logs for user ${uid}:`, logsErr);
+        continue;
+      }
 
-      // 3. Enviar Push Pasivo-Agresivo
-      const randomMessage = duolingoMessages[Math.floor(Math.random() * duolingoMessages.length)];
-      
+      const totalTemplates = templates.length;
+      const completedCount = logs ? logs.length : 0;
+      const pendingCount = totalTemplates - completedCount;
+
+      // Si ya completó todo o no tiene rutinas creadas, no envía notificación
+      if (pendingCount <= 0) {
+        continue;
+      }
+
+      // Enviar una única notificación con el mensaje agrupado
+      let notificationMessage = '';
+      if (pendingCount === 1) {
+        notificationMessage = '¡Casi lo tienes! Te falta 1 tarea para cerrar tu día perfecto.';
+      } else {
+        notificationMessage = `Recuerda terminar tus tareas diarias. Tienes ${pendingCount} pendientes.`;
+      }
+
       const payload = JSON.stringify({
-        title: 'Tu Bio-Avatar está esperando',
-        body: randomMessage,
+        title: 'Tareas pendientes de hoy',
+        body: notificationMessage,
         url: '/'
       });
 
@@ -96,7 +99,7 @@ export async function GET(request: Request) {
         sentCount++;
       } catch (pushError: any) {
         console.error(`Error sending push to ${uid}:`, pushError);
-        // Si el error es 410 (Gone), la suscripción expiró o el usuario bloqueó notificaciones
+        // Si la suscripción expiró o el usuario bloqueó notificaciones (Gone = 410)
         if (pushError.statusCode === 410) {
           await supabase.from('user_push_subscriptions').delete().eq('user_id', uid);
         }
