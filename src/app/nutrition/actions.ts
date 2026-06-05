@@ -449,9 +449,376 @@ export async function importDailyLogsBulk(
     }
 
     return { success: true, count: rowsToUpsert.length };
+    return { success: true, count: rowsToUpsert.length };
   } catch (err) {
     console.error('importDailyLogsBulk server action error:', err);
     return { success: false, error: err instanceof Error ? err.message : 'Error inesperado al importar.' };
+  }
+}
+
+// ── Recipe Actions ──────────────────────────────────────────────────────────
+import { recipeSchema, type Recipe, type DietProgram, type DailyDietOverride, dietProgramSchema, dailyDietOverrideSchema } from '@/lib/schema';
+
+export async function getRecipes(): Promise<Recipe[]> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return [];
+
+    const { data, error } = await supabase
+      .from('recipes')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('name', { ascending: true });
+
+    if (error) {
+      console.warn(`[Supabase Fetch Warning] Tabla recipes: ${error.message}`);
+      return [];
+    }
+
+    return (data || []).map(row => {
+      // Parse ingredients_json if it comes as a string or keep if it is already parsed object
+      const ingredients = typeof row.ingredients_json === 'string' 
+        ? JSON.parse(row.ingredients_json) 
+        : row.ingredients_json;
+      return {
+        id: row.id,
+        name: row.name,
+        ingredients_json: ingredients,
+        total_kcal: row.total_kcal,
+        total_protein: row.total_protein,
+        total_carbs: row.total_carbs,
+        total_fats: row.total_fats,
+      };
+    });
+  } catch (err) {
+    console.error('getRecipes server action error:', err);
+    return [];
+  }
+}
+
+export async function saveRecipe(recipe: Recipe): Promise<{ success: boolean; data?: Recipe; error?: string }> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { success: false, error: 'Usuario no autenticado.' };
+
+    const parsed = recipeSchema.safeParse(recipe);
+    if (!parsed.success) {
+      return { success: false, error: 'Estructura de receta inválida.' };
+    }
+
+    const recipeData = {
+      user_id: user.id,
+      name: parsed.data.name,
+      ingredients_json: parsed.data.ingredients_json,
+      total_kcal: parsed.data.total_kcal,
+      total_protein: parsed.data.total_protein,
+      total_carbs: parsed.data.total_carbs,
+      total_fats: parsed.data.total_fats,
+    };
+
+    let result;
+    if (parsed.data.id) {
+      result = await supabase
+        .from('recipes')
+        .update(recipeData)
+        .eq('id', parsed.data.id)
+        .eq('user_id', user.id)
+        .select('*')
+        .single();
+    } else {
+      result = await supabase
+        .from('recipes')
+        .insert(recipeData)
+        .select('*')
+        .single();
+    }
+
+    if (result.error) throw result.error;
+
+    return {
+      success: true,
+      data: {
+        id: result.data.id,
+        name: result.data.name,
+        ingredients_json: typeof result.data.ingredients_json === 'string' 
+          ? JSON.parse(result.data.ingredients_json) 
+          : result.data.ingredients_json,
+        total_kcal: result.data.total_kcal,
+        total_protein: result.data.total_protein,
+        total_carbs: result.data.total_carbs,
+        total_fats: result.data.total_fats,
+      }
+    };
+  } catch (err) {
+    console.error('saveRecipe server action error:', err);
+    return { success: false, error: err instanceof Error ? err.message : 'Error inesperado.' };
+  }
+}
+
+export async function deleteRecipe(recipeId: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { success: false, error: 'Usuario no autenticado.' };
+
+    const { error } = await supabase
+      .from('recipes')
+      .delete()
+      .eq('id', recipeId)
+      .eq('user_id', user.id);
+
+    if (error) {
+      console.error('Error deleting recipe:', error.message);
+      return { success: false, error: 'Error al eliminar en base de datos.' };
+    }
+
+    return { success: true };
+  } catch (err) {
+    console.error('deleteRecipe server action error:', err);
+    return { success: false, error: err instanceof Error ? err.message : 'Error inesperado.' };
+  }
+}
+
+// ── Diet Program Actions (Microcycles) ───────────────────────────────────────
+export async function getActiveDietProgram(): Promise<{ program: DietProgram | null; days: Array<{ day_number: number; template_id: string }> }> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { program: null, days: [] };
+
+    // Fetch active program
+    const { data: programData, error: programError } = await supabase
+      .from('diet_programs')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('is_active', true)
+      .maybeSingle();
+
+    if (programError) {
+      console.warn(`[Supabase Fetch Warning] getActiveDietProgram: ${programError.message}`);
+      return { program: null, days: [] };
+    }
+
+    if (!programData) return { program: null, days: [] };
+
+    // Fetch program days
+    const { data: daysData, error: daysError } = await supabase
+      .from('diet_program_days')
+      .select('day_number, template_id')
+      .eq('program_id', programData.id)
+      .order('day_number', { ascending: true });
+
+    if (daysError) {
+      console.warn(`[Supabase Fetch Warning] diet_program_days: ${daysError.message}`);
+      return { program: programData, days: [] };
+    }
+
+    return {
+      program: {
+        id: programData.id,
+        name: programData.name,
+        start_date: programData.start_date,
+        microcycle_length: programData.microcycle_length,
+        is_active: programData.is_active,
+      },
+      days: daysData || []
+    };
+  } catch (err) {
+    console.error('getActiveDietProgram server action error:', err);
+    return { program: null, days: [] };
+  }
+}
+
+export async function saveDietProgram(
+  program: DietProgram,
+  days: Array<{ day_number: number; template_id: string }>
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { success: false, error: 'Usuario no autenticado.' };
+
+    const parsedProgram = dietProgramSchema.safeParse(program);
+    if (!parsedProgram.success) {
+      return { success: false, error: 'Estructura de programa inválida.' };
+    }
+
+    // Deactivate existing programs for this user if this program is active
+    if (parsedProgram.data.is_active) {
+      await supabase
+        .from('diet_programs')
+        .update({ is_active: false })
+        .eq('user_id', user.id);
+    }
+
+    const programData = {
+      user_id: user.id,
+      name: parsedProgram.data.name,
+      start_date: parsedProgram.data.start_date,
+      microcycle_length: parsedProgram.data.microcycle_length,
+      is_active: parsedProgram.data.is_active,
+    };
+
+    let pId: string;
+    if (parsedProgram.data.id) {
+      const { data, error } = await supabase
+        .from('diet_programs')
+        .update(programData)
+        .eq('id', parsedProgram.data.id)
+        .eq('user_id', user.id)
+        .select('id')
+        .single();
+      if (error) throw error;
+      pId = data.id;
+    } else {
+      const { data, error } = await supabase
+        .from('diet_programs')
+        .insert(programData)
+        .select('id')
+        .single();
+      if (error) throw error;
+      pId = data.id;
+    }
+
+    // Clear old days for this program and insert new ones
+    await supabase.from('diet_program_days').delete().eq('program_id', pId);
+
+    if (days && days.length > 0) {
+      const daysToInsert = days.map(d => ({
+        program_id: pId,
+        day_number: d.day_number,
+        template_id: d.template_id,
+      }));
+
+      const { error: daysError } = await supabase
+        .from('diet_program_days')
+        .insert(daysToInsert);
+
+      if (daysError) throw daysError;
+    }
+
+    return { success: true };
+  } catch (err) {
+    console.error('saveDietProgram server action error:', err);
+    return { success: false, error: err instanceof Error ? err.message : 'Error inesperado.' };
+  }
+}
+
+export async function deleteDietProgram(programId: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { success: false, error: 'Usuario no autenticado.' };
+
+    const { error } = await supabase
+      .from('diet_programs')
+      .delete()
+      .eq('id', programId)
+      .eq('user_id', user.id);
+
+    if (error) {
+      console.error('Error deleting program:', error.message);
+      return { success: false, error: 'Error al eliminar en base de datos.' };
+    }
+
+    return { success: true };
+  } catch (err) {
+    console.error('deleteDietProgram server action error:', err);
+    return { success: false, error: err instanceof Error ? err.message : 'Error inesperado.' };
+  }
+}
+
+// ── Daily Diet Overrides Actions (Micro-management) ─────────────────────────
+export async function getDailyDietOverrides(startDate: string, endDate: string): Promise<DailyDietOverride[]> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return [];
+
+    const { data, error } = await supabase
+      .from('daily_diet_overrides')
+      .select('*')
+      .eq('user_id', user.id)
+      .gte('date', startDate)
+      .lte('date', endDate);
+
+    if (error) {
+      console.warn(`[Supabase Fetch Warning] Tabla daily_diet_overrides: ${error.message}`);
+      return [];
+    }
+
+    return (data || []).map(row => ({
+      id: row.id,
+      date: row.date,
+      custom_diet: typeof row.custom_diet === 'string' ? JSON.parse(row.custom_diet) : row.custom_diet,
+      total_kcal: row.total_kcal,
+      total_protein: row.total_protein,
+      total_carbs: row.total_carbs,
+      total_fats: row.total_fats,
+    }));
+  } catch (err) {
+    console.error('getDailyDietOverrides server action error:', err);
+    return [];
+  }
+}
+
+export async function saveDailyDietOverride(override: DailyDietOverride): Promise<{ success: boolean; error?: string }> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { success: false, error: 'Usuario no autenticado.' };
+
+    const parsed = dailyDietOverrideSchema.safeParse(override);
+    if (!parsed.success) {
+      return { success: false, error: 'Estructura de excepción inválida.' };
+    }
+
+    const overrideData = {
+      user_id: user.id,
+      date: parsed.data.date,
+      custom_diet: parsed.data.custom_diet,
+      total_kcal: parsed.data.total_kcal,
+      total_protein: parsed.data.total_protein,
+      total_carbs: parsed.data.total_carbs,
+      total_fats: parsed.data.total_fats,
+    };
+
+    const { error } = await supabase
+      .from('daily_diet_overrides')
+      .upsert(overrideData, { onConflict: 'user_id,date' });
+
+    if (error) throw error;
+
+    return { success: true };
+  } catch (err) {
+    console.error('saveDailyDietOverride server action error:', err);
+    return { success: false, error: err instanceof Error ? err.message : 'Error inesperado.' };
+  }
+}
+
+export async function deleteDailyDietOverride(date: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { success: false, error: 'Usuario no autenticado.' };
+
+    const { error } = await supabase
+      .from('daily_diet_overrides')
+      .delete()
+      .eq('date', date)
+      .eq('user_id', user.id);
+
+    if (error) {
+      console.error('Error deleting daily override:', error.message);
+      return { success: false, error: 'Error al eliminar override en base de datos.' };
+    }
+
+    return { success: true };
+  } catch (err) {
+    console.error('deleteDailyDietOverride server action error:', err);
+    return { success: false, error: err instanceof Error ? err.message : 'Error inesperado.' };
   }
 }
 

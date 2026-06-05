@@ -1,26 +1,68 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
-import { dailyLogSchema, type DailyLog, type DietTemplate } from '@/lib/schema';
+import { dailyLogSchema, type DailyLog, type DietTemplate, type Recipe, type DietProgram, type DietProgramDay, type DailyDietOverride } from '@/lib/schema';
 import { getNormalizedDate } from '@/lib/date-utils';
-import { getDietTemplates, getDietCalendar, autocompleteDietWithAi } from '@/app/nutrition/actions';
+import { 
+  getDietTemplates, 
+  getDietCalendar, 
+  autocompleteDietWithAi, 
+  getRecipes, 
+  getActiveDietProgram, 
+  getDailyDietOverrides 
+} from '@/app/nutrition/actions';
 import toast from '@/lib/toast';
 
 export function useNutritionPlan() {
-  const [activeTab, setActiveTab] = useState<'plan' | 'analysis'>('plan');
+  const [activeTab, setActiveTab] = useState<'plan' | 'analysis' | 'recipes'>('plan');
   const [loading, setLoading] = useState(true);
   const [authRequired, setAuthRequired] = useState(false);
   const [templates, setTemplates] = useState<DietTemplate[]>([]);
   const [calendar, setCalendar] = useState<Array<{ date: string; template_id: string }>>([]);
+  const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [overrides, setOverrides] = useState<DailyDietOverride[]>([]);
+  const [activeProgram, setActiveProgram] = useState<DietProgram | null>(null);
+  const [activeProgramDays, setActiveProgramDays] = useState<DietProgramDay[]>([]);
+  
   const [realLog, setRealLog] = useState<DailyLog | null>(null);
   const [dailyWaterTarget, setDailyWaterTarget] = useState(2000);
   const [isGeneratingAi, setIsGeneratingAi] = useState(false);
   const isMounted = useRef(true);
 
   const todayStr = getNormalizedDate(new Date());
-  const todayTemplateId = calendar.find((c) => c.date === todayStr)?.template_id;
-  const todayTemplate = templates.find((t) => t.id === todayTemplateId) || null;
+
+  // Reconcile today's active diet template
+  const todayTemplate = useMemo(() => {
+    // 1. Check override
+    const override = overrides.find((o) => o.date === todayStr);
+    if (override) return override.custom_diet;
+
+    // 2. Check active program cycle
+    if (activeProgram && activeProgramDays.length > 0) {
+      const start = new Date(activeProgram.start_date + 'T00:00:00');
+      const current = new Date(todayStr + 'T00:00:00');
+      const diffTime = current.getTime() - start.getTime();
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+      let dayNum = 1;
+      const len = activeProgram.microcycle_length;
+      if (diffDays >= 0) {
+        dayNum = (diffDays % len) + 1;
+      } else {
+        dayNum = (((diffDays % len) + len) % len) + 1;
+      }
+
+      const dayMap = activeProgramDays.find((d) => d.day_number === dayNum);
+      if (dayMap) {
+        return templates.find((t) => t.id === dayMap.template_id) || null;
+      }
+    }
+
+    // 3. Check calendar manual assignment
+    const todayTemplateId = calendar.find((c) => c.date === todayStr)?.template_id;
+    return templates.find((t) => t.id === todayTemplateId) || null;
+  }, [todayStr, calendar, templates, overrides, activeProgram, activeProgramDays]);
 
   useEffect(() => {
     isMounted.current = true;
@@ -46,14 +88,28 @@ export function useNutritionPlan() {
         setDailyWaterTarget(Number(metadata.daily_water_target_ml ?? 2000));
       }
 
+      // Fetch diet templates
       const fetchedTemplates = await getDietTemplates();
       setTemplates(fetchedTemplates);
 
+      // Define date range for calendar/overrides query (1 month past, 2 months future)
       const today = new Date();
       const start = new Date(today.getFullYear(), today.getMonth() - 1, 1).toISOString().slice(0, 10);
       const end = new Date(today.getFullYear(), today.getMonth() + 2, 0).toISOString().slice(0, 10);
-      const fetchedCalendar = await getDietCalendar(start, end);
+
+      // Parallel data fetching for clinical nutrition engine
+      const [fetchedCalendar, fetchedRecipes, fetchedOverrides, fetchedProgram] = await Promise.all([
+        getDietCalendar(start, end),
+        getRecipes(),
+        getDailyDietOverrides(start, end),
+        getActiveDietProgram()
+      ]);
+
       setCalendar(fetchedCalendar);
+      setRecipes(fetchedRecipes);
+      setOverrides(fetchedOverrides);
+      setActiveProgram(fetchedProgram.program);
+      setActiveProgramDays(fetchedProgram.days as DietProgramDay[]);
 
       if (user) {
         const { data: logRecord, error: logError } = await supabase
@@ -121,6 +177,10 @@ export function useNutritionPlan() {
     authRequired,
     templates,
     calendar,
+    recipes,
+    overrides,
+    activeProgram,
+    activeProgramDays,
     realLog,
     dailyWaterTarget,
     isGeneratingAi,

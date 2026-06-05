@@ -25,28 +25,28 @@ interface ToastConfig {
 const TYPE_CONFIG: Record<ToastType, ToastConfig> = {
   success: {
     icon: Check,
-    iconColor: 'text-emerald-500 bg-emerald-500/10 dark:bg-emerald-500/20',
-    borderColor: 'border-emerald-500/10 dark:border-emerald-500/20',
+    iconColor: 'text-emerald-500 bg-emerald-500/10',
+    borderColor: 'border-emerald-500/10',
   },
   error: {
     icon: AlertCircle,
-    iconColor: 'text-rose-500 bg-rose-500/10 dark:bg-rose-500/20',
-    borderColor: 'border-rose-500/10 dark:border-rose-500/20',
+    iconColor: 'text-rose-500 bg-rose-500/10',
+    borderColor: 'border-rose-500/10',
   },
   info: {
     icon: Info,
-    iconColor: 'text-sky-500 bg-sky-500/10 dark:bg-sky-500/20',
-    borderColor: 'border-sky-500/10 dark:border-sky-500/20',
+    iconColor: 'text-sky-500 bg-sky-500/10',
+    borderColor: 'border-sky-500/10',
   },
   warning: {
     icon: AlertTriangle,
-    iconColor: 'text-amber-500 bg-amber-500/10 dark:bg-amber-500/20',
-    borderColor: 'border-amber-500/10 dark:border-amber-500/20',
+    iconColor: 'text-amber-500 bg-amber-500/10',
+    borderColor: 'border-amber-500/10',
   },
   ai: {
     icon: Sparkles,
-    iconColor: 'text-indigo-500 bg-indigo-500/10 dark:bg-indigo-500/20',
-    borderColor: 'border-indigo-500/10 dark:border-indigo-500/20',
+    iconColor: 'text-indigo-500 bg-indigo-500/10',
+    borderColor: 'border-indigo-500/10',
     pulse: true,
   },
 };
@@ -67,18 +67,18 @@ export default function DynamicToast({
       animate={visible ? { scale: 1, y: 0, opacity: 1 } : { scale: 0.85, y: -24, opacity: 0 }}
       exit={{ scale: 0.85, y: -24, opacity: 0 }}
       transition={{ type: 'spring', damping: 20, stiffness: 300 }}
-      className={`flex items-center gap-3.5 px-6 py-3.5 rounded-[32px] bg-white/90 dark:bg-slate-900/90 backdrop-blur-2xl border ${config.borderColor} shadow-[0_20px_50px_rgba(0,0,0,0.15)] max-w-sm w-auto select-none pointer-events-auto`}
+      className={`flex items-center gap-3.5 px-6 py-3.5 rounded-[32px] bg-white/95 backdrop-blur-2xl border ${config.borderColor} shadow-[0_20px_50px_rgba(0,0,0,0.06)] max-w-sm w-auto select-none pointer-events-auto`}
     >
       <div className={`flex items-center justify-center w-8 h-8 rounded-full ${config.iconColor}`}>
         <Icon className={`w-4 h-4 ${config.pulse ? 'animate-pulse' : ''}`} />
       </div>
       <div className="flex flex-col text-left pr-2">
         {title && (
-          <span className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400 dark:text-slate-500 leading-none mb-0.5">
+          <span className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400 leading-none mb-0.5">
             {title}
           </span>
         )}
-        <span className="text-sm font-black tracking-tight text-slate-800 dark:text-slate-100 leading-tight">
+        <span className="text-sm font-black tracking-tight text-slate-800 leading-tight">
           {message}
         </span>
       </div>

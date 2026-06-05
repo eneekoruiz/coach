@@ -5,7 +5,9 @@ import Link from 'next/link';
 import DietEmptyState from './DietEmptyState';
 import DietCalendarView from './DietCalendarView';
 import DailyAnalysisTab from './DailyAnalysisTab';
+import RecipeLibrary from './RecipeLibrary';
 import { useNutritionPlan } from '@/hooks/useNutritionPlan';
+import { BookOpen, Calendar, PieChart } from 'lucide-react';
 
 export default function NutritionContainer() {
   const {
@@ -15,6 +17,10 @@ export default function NutritionContainer() {
     authRequired,
     templates,
     calendar,
+    recipes,
+    overrides,
+    activeProgram,
+    activeProgramDays,
     realLog,
     dailyWaterTarget,
     isGeneratingAi,
@@ -56,48 +62,63 @@ export default function NutritionContainer() {
   return (
     <div className="space-y-6">
       {/* Cabecera general */}
-      <div className="rounded-[1.75rem] border border-white/60 bg-white/60 p-6 shadow-sm backdrop-blur-xl">
+      <div className="rounded-[1.75rem] border border-slate-200/80 bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
+            <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-500">
               Nutrición de Precisión
             </div>
-            <h2 className="mt-1 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">
-              Gestor Nutricional Avanzado
+            <h2 className="mt-1 text-2xl font-black tracking-tight text-slate-800 sm:text-3xl">
+              Gestor Nutricional Clínico
             </h2>
           </div>
           <Link
             href="/"
-            className="inline-flex h-11 items-center justify-center rounded-full border border-slate-200 bg-white px-5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
+            className="inline-flex h-11 items-center justify-center rounded-full border border-slate-200 bg-white px-5 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 active:scale-95"
           >
             Volver al Inicio
           </Link>
         </div>
 
         {hasAnyData && (
-          <div className="mt-6 flex border-b border-slate-200/80">
+          <div className="mt-6 flex border-b border-slate-100 overflow-x-auto whitespace-nowrap scrollbar-none">
             <button
               type="button"
               onClick={() => setActiveTab('plan')}
-              className={`pb-3 text-sm font-bold transition-all relative px-2 mr-6 ${
-                activeTab === 'plan' ? 'text-slate-950' : 'text-slate-400 hover:text-slate-600'
+              className={`pb-3 text-xs sm:text-sm font-black transition-all relative px-2 mr-6 flex items-center gap-1.5 ${
+                activeTab === 'plan' ? 'text-slate-850' : 'text-slate-400 hover:text-slate-650'
               }`}
             >
+              <Calendar className="w-4 h-4" />
               Calendario de Dietas
               {activeTab === 'plan' && (
-                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-slate-950 rounded-full" />
+                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-slate-850 rounded-full" />
               )}
             </button>
             <button
               type="button"
               onClick={() => setActiveTab('analysis')}
-              className={`pb-3 text-sm font-bold transition-all relative px-2 ${
-                activeTab === 'analysis' ? 'text-slate-950' : 'text-slate-400 hover:text-slate-600'
+              className={`pb-3 text-xs sm:text-sm font-black transition-all relative px-2 mr-6 flex items-center gap-1.5 ${
+                activeTab === 'analysis' ? 'text-slate-850' : 'text-slate-400 hover:text-slate-650'
               }`}
             >
+              <PieChart className="w-4 h-4" />
               Análisis de Hoy
               {activeTab === 'analysis' && (
-                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-slate-950 rounded-full" />
+                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-slate-850 rounded-full" />
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('recipes')}
+              className={`pb-3 text-xs sm:text-sm font-black transition-all relative px-2 flex items-center gap-1.5 ${
+                activeTab === 'recipes' ? 'text-slate-850' : 'text-slate-400 hover:text-slate-650'
+              }`}
+            >
+              <BookOpen className="w-4 h-4" />
+              Mis Recetas
+              {activeTab === 'recipes' && (
+                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-slate-850 rounded-full" />
               )}
             </button>
           </div>
@@ -113,15 +134,27 @@ export default function NutritionContainer() {
         />
       ) : (
         <div>
-          {activeTab === 'plan' ? (
-            <DietCalendarView templates={templates} calendar={calendar} onUpdate={loadData} />
-          ) : (
+          {activeTab === 'plan' && (
+            <DietCalendarView
+              templates={templates}
+              calendar={calendar}
+              recipes={recipes}
+              overrides={overrides}
+              activeProgram={activeProgram}
+              activeProgramDays={activeProgramDays}
+              onUpdate={loadData}
+            />
+          )}
+          {activeTab === 'analysis' && (
             <DailyAnalysisTab
               realLog={realLog}
               dietPlan={todayTemplate}
               dailyWaterTarget={dailyWaterTarget}
               onUpdate={loadData}
             />
+          )}
+          {activeTab === 'recipes' && (
+            <RecipeLibrary />
           )}
         </div>
       )}

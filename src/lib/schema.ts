@@ -8,6 +8,7 @@ export const mealItemSchema = z.object({
   target_protein: z.number().min(0).max(300),
   target_carbs: z.number().min(0).max(500),
   target_fats: z.number().min(0).max(200),
+  recipe_id: z.string().uuid().optional(),
 });
 
 export const dietTemplateSchema = z.object({
@@ -35,6 +36,57 @@ export const defaultTemplate: DietTemplate = {
     { id: 'm3', name: 'Cena', text: '', target_kcal: 0, target_protein: 0, target_carbs: 0, target_fats: 0 },
   ],
 };
+
+export const ingredientItemSchema = z.object({
+  name: z.string().min(1),
+  amount: z.number().min(0),
+  unit: z.string().default('g'),
+  kcal: z.number().min(0),
+  protein: z.number().min(0),
+  carbs: z.number().min(0),
+  fats: z.number().min(0),
+});
+
+export const recipeSchema = z.object({
+  id: z.string().uuid().optional(),
+  name: z.string().min(1).max(100),
+  ingredients_json: z.array(ingredientItemSchema).default([]),
+  total_kcal: z.number().min(0),
+  total_protein: z.number().min(0),
+  total_carbs: z.number().min(0),
+  total_fats: z.number().min(0),
+});
+
+export const dietProgramSchema = z.object({
+  id: z.string().uuid().optional(),
+  name: z.string().min(1).max(100),
+  start_date: z.string(), // YYYY-MM-DD
+  microcycle_length: z.number().int().min(1).max(365),
+  is_active: z.boolean().default(true),
+});
+
+export const dietProgramDaySchema = z.object({
+  id: z.string().uuid().optional(),
+  program_id: z.string().uuid(),
+  day_number: z.number().int().min(1),
+  template_id: z.string().uuid(),
+});
+
+export const dailyDietOverrideSchema = z.object({
+  id: z.string().uuid().optional(),
+  date: z.string(), // YYYY-MM-DD
+  custom_diet: dietTemplateSchema,
+  total_kcal: z.number().min(0),
+  total_protein: z.number().min(0),
+  total_carbs: z.number().min(0),
+  total_fats: z.number().min(0),
+});
+
+export type IngredientItem = z.infer<typeof ingredientItemSchema>;
+export type Recipe = z.infer<typeof recipeSchema>;
+export type DietProgram = z.infer<typeof dietProgramSchema>;
+export type DietProgramDay = z.infer<typeof dietProgramDaySchema>;
+export type DailyDietOverride = z.infer<typeof dailyDietOverrideSchema>;
 
 export const dailyLogSchema = z
   .object({

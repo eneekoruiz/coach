@@ -1,22 +1,35 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { type DietTemplate } from '@/lib/schema';
-import { Calendar, Plus, Edit2, Trash2, CheckCircle2, X } from 'lucide-react';
+import { type DietTemplate, type Recipe, type DietProgram, type DietProgramDay, type DailyDietOverride } from '@/lib/schema';
+import { Calendar, Plus, Edit2, Trash2, CheckCircle2, X, RefreshCw, Layers, Sparkles, Sliders, CalendarDays, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createPortal } from 'react-dom';
 import TemplateEditorModal from './TemplateEditorModal';
 import TemplateAssignModal from './TemplateAssignModal';
-import { deleteDietTemplate, assignTemplateToDates, saveDietTemplate } from '@/app/nutrition/actions';
+import DayDetailDrawer from './DayDetailDrawer';
+import { deleteDietTemplate, assignTemplateToDates, saveDietTemplate, saveDietProgram, deleteDietProgram } from '@/app/nutrition/actions';
 import toast from '@/lib/toast';
 
 interface DietCalendarViewProps {
   templates: DietTemplate[];
   calendar: Array<{ date: string; template_id: string }>;
+  recipes: Recipe[];
+  overrides: DailyDietOverride[];
+  activeProgram: DietProgram | null;
+  activeProgramDays: DietProgramDay[];
   onUpdate: () => void;
 }
 
-export default function DietCalendarView({ templates, calendar, onUpdate }: DietCalendarViewProps) {
+export default function DietCalendarView({
+  templates,
+  calendar,
+  recipes,
+  overrides,
+  activeProgram,
+  activeProgramDays,
+  onUpdate,
+}: DietCalendarViewProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   
@@ -24,8 +37,13 @@ export default function DietCalendarView({ templates, calendar, onUpdate }: Diet
   const [isCreatingTemplate, setIsCreatingTemplate] = useState(false);
   const [assigningTemplate, setAssigningTemplate] = useState<DietTemplate | null>(null);
 
-  // Track the day cell currently dragged over
-  const [draggedOverDate, setDraggedOverDate] = useState<string | null>(null);
+  // Microcycle configuration states
+  const [isCycleModalOpen, setIsCycleModalOpen] = useState(false);
+  const [cycleName, setCycleName] = useState('Mi Ciclo Nutricional');
+  const [cycleLength, setCycleLength] = useState<number>(7);
+  const [cycleStartDate, setCycleStartDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [cycleDaysMapping, setCycleDaysMapping] = useState<Record<number, string>>({});
+  const [savingCycle, setSavingCycle] = useState(false);
 
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
@@ -33,25 +51,25 @@ export default function DietCalendarView({ templates, calendar, onUpdate }: Diet
     return () => setMounted(false);
   }, []);
 
-  // On-the-fly diet form state
-  const [newDietName, setNewDietName] = useState('');
-  const [newDietKcal, setNewDietKcal] = useState(2000);
-  const [newDietProtein, setNewDietProtein] = useState(150);
-  const [newDietCarbs, setNewDietCarbs] = useState(200);
-  const [newDietFats, setNewDietFats] = useState(70);
-  const [isSubmittingQuickDiet, setIsSubmittingQuickDiet] = useState(false);
-
-  // Disable body scroll when date is selected (Drawer/Bottom Sheet open)
+  // Initialize cycle mapping when program is loaded
   useEffect(() => {
-    if (selectedDate) {
-      document.body.classList.add('overflow-hidden');
+    if (activeProgram) {
+      setCycleName(activeProgram.name);
+      setCycleLength(activeProgram.microcycle_length);
+      setCycleStartDate(activeProgram.start_date);
+      
+      const mapping: Record<number, string> = {};
+      activeProgramDays.forEach(d => {
+        mapping[d.day_number] = d.template_id;
+      });
+      setCycleDaysMapping(mapping);
     } else {
-      document.body.classList.remove('overflow-hidden');
+      setCycleName('Mi Ciclo Nutricional');
+      setCycleLength(7);
+      setCycleStartDate(new Date().toISOString().split('T')[0]);
+      setCycleDaysMapping({});
     }
-    return () => {
-      document.body.classList.remove('overflow-hidden');
-    };
-  }, [selectedDate]);
+  }, [activeProgram, activeProgramDays]);
 
   // Generar grid del mes actual
   const monthGrid = useMemo(() => {
@@ -85,13 +103,45 @@ export default function DietCalendarView({ templates, calendar, onUpdate }: Diet
     setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
   };
 
+  // Resolve diet template or custom override for a given date
   const getTemplateForDate = (dateStr: string) => {
-    const entry = calendar.find(c => c.date === dateStr);
-    if (!entry) return null;
-    return templates.find(t => t.id === entry.template_id) || null;
-  };
+    // 1. Check daily override
+    const override = overrides.find(o => o.date === dateStr);
+    if (override) {
+      return { template: override.custom_diet, isOverride: true };
+    }
 
-  const selectedTemplate = selectedDate ? getTemplateForDate(selectedDate) : null;
+    // 2. Check active microcycle program projection
+    if (activeProgram && activeProgramDays.length > 0) {
+      const start = new Date(activeProgram.start_date + 'T00:00:00');
+      const current = new Date(dateStr + 'T00:00:00');
+      const diffTime = current.getTime() - start.getTime();
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+      
+      let dayNum = 1;
+      const len = activeProgram.microcycle_length;
+      if (diffDays >= 0) {
+        dayNum = (diffDays % len) + 1;
+      } else {
+        dayNum = (((diffDays % len) + len) % len) + 1;
+      }
+      
+      const dayMap = activeProgramDays.find(d => d.day_number === dayNum);
+      if (dayMap) {
+        const template = templates.find(t => t.id === dayMap.template_id);
+        if (template) return { template, isOverride: false, isCycle: true, cycleDayNum: dayNum };
+      }
+    }
+
+    // 3. Check manual calendar assignment
+    const entry = calendar.find(c => c.date === dateStr);
+    if (entry) {
+      const template = templates.find(t => t.id === entry.template_id);
+      if (template) return { template, isOverride: false, isManual: true };
+    }
+
+    return null;
+  };
 
   const handleDeleteTemplate = async (id: string) => {
     if (!confirm('¿Seguro que quieres eliminar esta plantilla? Esto quitará la asignación de todos los días que la usen.')) return;
@@ -104,6 +154,9 @@ export default function DietCalendarView({ templates, calendar, onUpdate }: Diet
       toast.error(res.error || 'Error al eliminar');
     }
   };
+
+  // Drag and drop templates on calendar
+  const [draggedOverDate, setDraggedOverDate] = useState<string | null>(null);
 
   const handleDragStart = (e: React.DragEvent, templateId: string) => {
     e.dataTransfer.setData('text/plain', templateId);
@@ -138,71 +191,98 @@ export default function DietCalendarView({ templates, calendar, onUpdate }: Diet
     }
   };
 
-  const handleCreateQuickDiet = async (e: React.FormEvent) => {
+  // Save/Create microcycle program
+  const handleSaveCycle = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newDietName.trim()) {
-      toast.error('Introduce un nombre para la dieta.');
+    if (!cycleName.trim()) {
+      toast.error('Introduce un nombre para el ciclo.');
       return;
     }
-    setIsSubmittingQuickDiet(true);
-    try {
-      const templateData: DietTemplate = {
-        name: newDietName,
-        target_kcal: newDietKcal,
-        target_protein: newDietProtein,
-        target_carbs: newDietCarbs,
-        target_fats: newDietFats,
-        meals: [
-          { id: `m1-${Date.now()}`, name: 'Desayuno', text: 'Desayuno rápido balanceado', target_kcal: Math.round(newDietKcal * 0.25), target_protein: Math.round(newDietProtein * 0.25), target_carbs: Math.round(newDietCarbs * 0.25), target_fats: Math.round(newDietFats * 0.25) },
-          { id: `m2-${Date.now()}`, name: 'Almuerzo', text: 'Almuerzo completo de fuerza', target_kcal: Math.round(newDietKcal * 0.35), target_protein: Math.round(newDietProtein * 0.35), target_carbs: Math.round(newDietCarbs * 0.35), target_fats: Math.round(newDietFats * 0.35) },
-          { id: `m3-${Date.now()}`, name: 'Cena', text: 'Cena ligera y recuperadora', target_kcal: Math.round(newDietKcal * 0.30), target_protein: Math.round(newDietProtein * 0.30), target_carbs: Math.round(newDietCarbs * 0.30), target_fats: Math.round(newDietFats * 0.30) },
-          { id: `m4-${Date.now()}`, name: 'Merienda/Snack', text: 'Snack de carga rápida', target_kcal: Math.round(newDietKcal * 0.10), target_protein: Math.round(newDietProtein * 0.10), target_carbs: Math.round(newDietCarbs * 0.10), target_fats: Math.round(newDietFats * 0.10) }
-        ]
-      };
-      
-      const saveRes = await saveDietTemplate(templateData);
-      if (saveRes.success && saveRes.data?.id) {
-        const assignRes = await assignTemplateToDates(saveRes.data.id, [selectedDate!]);
-        if (assignRes.success) {
-          toast.success('Dieta creada y asignada para este día');
-          setNewDietName('');
-          onUpdate();
-        } else {
-          toast.error(assignRes.error || 'Error al asignar la dieta');
-        }
+
+    const mappedDays = Object.entries(cycleDaysMapping).map(([dayNumStr, templateId]) => ({
+      day_number: parseInt(dayNumStr, 10),
+      template_id: templateId,
+    }));
+
+    if (mappedDays.length === 0) {
+      toast.error('Debes asignar al menos una plantilla a un día del ciclo.');
+      return;
+    }
+
+    setSavingCycle(true);
+    const programData: DietProgram = {
+      id: activeProgram?.id,
+      name: cycleName,
+      start_date: cycleStartDate,
+      microcycle_length: cycleLength,
+      is_active: true,
+    };
+
+    const res = await saveDietProgram(programData, mappedDays);
+    setSavingCycle(false);
+    if (res.success) {
+      toast.success('Ciclo nutricional configurado y activado');
+      setIsCycleModalOpen(false);
+      onUpdate();
+    } else {
+      toast.error(res.error || 'Error al guardar el ciclo');
+    }
+  };
+
+  const handleDeactivateCycle = async () => {
+    if (!confirm('¿Seguro que quieres desactivar este ciclo? Volverá al calendario tradicional.')) return;
+    setSavingCycle(true);
+    if (activeProgram?.id) {
+      const res = await deleteDietProgram(activeProgram.id);
+      setSavingCycle(false);
+      if (res.success) {
+        toast.success('Ciclo desactivado');
+        setIsCycleModalOpen(false);
+        onUpdate();
       } else {
-        toast.error(saveRes.error || 'Error al guardar la plantilla');
+        toast.error(res.error || 'Error al desactivar');
       }
-    } catch (err) {
-      toast.error('Error inesperado al crear dieta');
-    } finally {
-      setIsSubmittingQuickDiet(false);
     }
   };
 
   return (
-    <div className="flex flex-col xl:flex-row gap-6 items-start w-full relative xl:max-h-[calc(100vh-240px)] xl:overflow-hidden pb-4">
+    <div className="flex flex-col xl:flex-row gap-6 items-start w-full relative xl:max-h-[calc(100vh-280px)] xl:overflow-hidden pb-4">
       {/* Columna Izquierda: Calendario */}
-      <div className="w-full xl:w-2/3 space-y-4 xl:max-h-[calc(100vh-240px)] xl:overflow-y-auto pr-2 custom-scrollbar">
-        <div className="bg-white/80 dark:bg-black/60 backdrop-blur-xl border border-slate-200/60 dark:border-white/10 rounded-[2.5rem] p-5 shadow-[0_15px_45px_rgba(15,23,42,0.04)]">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xl font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
-              <Calendar className="w-6 h-6 text-emerald-500" />
+      <div className="w-full xl:w-2/3 space-y-4 xl:max-h-[calc(100vh-280px)] xl:overflow-y-auto pr-2 custom-scrollbar">
+        <div className="bg-white border border-slate-200/80 rounded-[2.5rem] p-5 shadow-[0_12px_35px_rgba(15,23,42,0.03)]">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-5">
+            <h3 className="text-lg font-black tracking-tight text-slate-800 flex items-center gap-2">
+              <Calendar className="w-5.5 h-5.5 text-emerald-500" />
               {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
+              {activeProgram && (
+                <span className="ml-2 text-[10px] bg-emerald-50 border border-emerald-100 text-emerald-600 font-extrabold uppercase px-2 py-0.5 rounded-lg flex items-center gap-1">
+                  <RefreshCw className="w-3 h-3 animate-spin" style={{ animationDuration: '6s' }} />
+                  Ciclo Activo
+                </span>
+              )}
             </h3>
-            <div className="flex gap-2">
-              <button onClick={prevMonth} className="w-10 h-10 rounded-full flex items-center justify-center bg-slate-50 hover:bg-slate-100 text-slate-600 dark:bg-white/10 dark:hover:bg-white/20 dark:text-white active:scale-90 transition">
-                ←
+            <div className="flex gap-2 w-full sm:w-auto">
+              <button 
+                onClick={() => setIsCycleModalOpen(true)}
+                className="flex-1 sm:flex-initial text-xs font-bold text-slate-600 bg-slate-50 border border-slate-200/80 px-3 py-2 rounded-xl flex items-center justify-center gap-1.5 hover:bg-slate-100 active:scale-95 transition-all min-h-[38px]"
+              >
+                <Sliders className="w-3.5 h-3.5" />
+                Configurar Ciclo
               </button>
-              <button onClick={nextMonth} className="w-10 h-10 rounded-full flex items-center justify-center bg-slate-50 hover:bg-slate-100 text-slate-600 dark:bg-white/10 dark:hover:bg-white/20 dark:text-white active:scale-90 transition">
-                →
-              </button>
+              <div className="flex gap-1">
+                <button onClick={prevMonth} className="w-9 h-9 rounded-full flex items-center justify-center bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200/60 active:scale-90 transition">
+                  ←
+                </button>
+                <button onClick={nextMonth} className="w-9 h-9 rounded-full flex items-center justify-center bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200/60 active:scale-90 transition">
+                  →
+                </button>
+              </div>
             </div>
           </div>
 
           <div className="grid grid-cols-7 gap-2 mb-2">
             {['L', 'M', 'X', 'J', 'V', 'S', 'D'].map(day => (
-              <div key={day} className="text-center text-xs font-bold text-slate-400 py-1 uppercase tracking-widest">
+              <div key={day} className="text-center text-[10px] font-bold text-slate-400 py-1 uppercase tracking-widest">
                 {day}
               </div>
             ))}
@@ -210,13 +290,17 @@ export default function DietCalendarView({ templates, calendar, onUpdate }: Diet
 
           <div className="grid grid-cols-7 gap-2">
             {monthGrid.map((dateStr, idx) => {
-              if (!dateStr) return <div key={`empty-${idx}`} className="h-14" />;
+              if (!dateStr) return <div key={`empty-${idx}`} className="h-16" />;
               
               const dayNum = parseInt(dateStr.split('-')[2], 10);
-              const template = getTemplateForDate(dateStr);
+              const data = getTemplateForDate(dateStr);
               const isSelected = selectedDate === dateStr;
               const isToday = dateStr === new Date().toISOString().slice(0, 10);
               const isOver = draggedOverDate === dateStr;
+
+              const templateName = data?.template.name;
+              const isOverride = data?.isOverride;
+              const isCycle = data?.isCycle;
 
               return (
                 <button
@@ -225,27 +309,34 @@ export default function DietCalendarView({ templates, calendar, onUpdate }: Diet
                   onDragOver={(e) => handleDragOver(e, dateStr)}
                   onDragLeave={handleDragLeave}
                   onDrop={(e) => handleDrop(e, dateStr)}
-                  className={`relative flex flex-col items-center justify-center h-14 p-1.5 rounded-xl transition-all border-2 select-none min-h-[44px]
-                    ${isSelected ? 'border-emerald-500 bg-emerald-50/50 shadow-sm dark:bg-emerald-950/20' : 'border-slate-100 dark:border-white/5 bg-slate-50/30 hover:bg-slate-50 dark:hover:bg-white/5'}
-                    ${isToday && !isSelected ? 'ring-2 ring-slate-900/10 dark:ring-white/10' : ''}
-                    ${isOver ? 'ring-4 ring-emerald-400 bg-emerald-100/50 scale-[1.03] border-emerald-400 z-10' : ''}
+                  className={`relative flex flex-col items-center justify-center h-16 p-1 rounded-xl transition-all border-2 select-none min-h-[64px]
+                    ${isSelected ? 'border-emerald-500 bg-emerald-50/40 shadow-sm' : 'border-slate-100 bg-slate-50/20 hover:bg-slate-50'}
+                    ${isToday && !isSelected ? 'ring-2 ring-slate-800/10' : ''}
+                    ${isOver ? 'ring-4 ring-emerald-300 bg-emerald-50 scale-[1.03] border-emerald-300 z-10' : ''}
+                    ${isOverride ? 'bg-amber-50/30 border-amber-200' : ''}
                   `}
                 >
-                  <span className={`text-xs sm:text-sm font-black ${isSelected ? 'text-emerald-700 dark:text-emerald-400' : isToday ? 'text-slate-900 dark:text-white font-extrabold' : 'text-slate-500'}`}>
+                  <span className={`text-xs font-black ${isSelected ? 'text-emerald-700' : isToday ? 'text-slate-900 font-extrabold' : 'text-slate-500'}`}>
                     {dayNum}
                   </span>
                   
-                  {template && (
-                    <div className="w-full mt-0.5 flex flex-col items-center gap-1">
-                      <div className="mx-auto px-1 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 text-[8px] font-bold truncate max-w-full text-center">
-                        {template.name}
+                  {templateName && (
+                    <div className="w-full mt-1 flex flex-col items-center gap-0.5">
+                      <div className={`mx-auto px-1 py-0.5 rounded text-[8px] font-bold truncate max-w-full text-center
+                        ${isOverride 
+                          ? 'bg-amber-500/10 text-amber-700 border border-amber-250/20' 
+                          : isCycle 
+                            ? 'bg-emerald-500/10 text-emerald-700 border border-emerald-100'
+                            : 'bg-slate-100 text-slate-600 border border-slate-200/50'
+                        }
+                      `}>
+                        {isOverride ? `★ ${templateName}` : templateName}
                       </div>
                       
-                      {/* Micro-metrics visual dots representing macros */}
-                      <div className="flex items-center justify-center gap-1">
-                        <span className="w-1 h-1 rounded-full bg-rose-500" title="Proteína" />
-                        <span className="w-1 h-1 rounded-full bg-sky-500" title="Carbs" />
-                        <span className="w-1 h-1 rounded-full bg-emerald-500" title="Grasas" />
+                      <div className="flex items-center justify-center gap-0.5">
+                        <span className="w-1 h-1 rounded-full bg-rose-400" />
+                        <span className="w-1 h-1 rounded-full bg-sky-400" />
+                        <span className="w-1 h-1 rounded-full bg-emerald-400" />
                       </div>
                     </div>
                   )}
@@ -257,26 +348,29 @@ export default function DietCalendarView({ templates, calendar, onUpdate }: Diet
       </div>
 
       {/* Columna Derecha: Plantillas */}
-      <div className="w-full xl:w-1/3 space-y-4 xl:max-h-[calc(100vh-240px)] xl:overflow-y-auto pr-2 custom-scrollbar">
-        <div className="flex items-center justify-between bg-slate-900 dark:bg-white/10 text-white rounded-2xl p-4 shadow-sm">
-          <h3 className="font-bold text-sm sm:text-base">Tus Plantillas</h3>
+      <div className="w-full xl:w-1/3 space-y-4 xl:max-h-[calc(100vh-280px)] xl:overflow-y-auto pr-2 custom-scrollbar">
+        <div className="flex items-center justify-between bg-slate-800 text-white rounded-2xl p-4 shadow-sm">
+          <h3 className="font-bold text-xs sm:text-sm flex items-center gap-1.5">
+            <Layers className="w-4 h-4 text-emerald-400" />
+            Plantillas Dietéticas
+          </h3>
           <button 
             onClick={() => setIsCreatingTemplate(true)}
-            className="bg-emerald-500 hover:bg-emerald-400 text-white p-2 rounded-xl active:scale-95 transition-all min-h-[44px] min-w-[44px] flex items-center justify-center"
+            className="bg-emerald-500 hover:bg-emerald-400 text-white p-2 rounded-xl active:scale-95 transition-all min-h-[36px] min-w-[36px] flex items-center justify-center"
             title="Crear Nueva Plantilla"
           >
-            <Plus className="w-5 h-5" />
+            <Plus className="w-4 h-4" />
           </button>
         </div>
 
         {templates.length === 0 ? (
-          <div className="bg-slate-50 dark:bg-white/5 rounded-3xl p-8 text-center border border-slate-200 dark:border-white/10 border-dashed">
-            <div className="text-slate-400 mb-2 font-bold text-sm">Aún no tienes plantillas</div>
+          <div className="bg-slate-50 rounded-3xl p-8 text-center border border-slate-200 border-dashed">
+            <div className="text-slate-400 mb-2 font-bold text-xs">Aún no tienes plantillas</div>
             <button 
               onClick={() => setIsCreatingTemplate(true)}
-              className="text-emerald-600 dark:text-emerald-400 font-bold text-sm hover:underline min-h-[44px]"
+              className="text-emerald-650 font-bold text-xs hover:underline min-h-[36px]"
             >
-              Crear mi primera dieta
+              Crear mi primera plantilla
             </button>
           </div>
         ) : (
@@ -286,48 +380,47 @@ export default function DietCalendarView({ templates, calendar, onUpdate }: Diet
                 key={template.id} 
                 draggable
                 onDragStart={(e) => handleDragStart(e, template.id!)}
-                className="bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-[1.5rem] p-4 shadow-xs hover:shadow-md hover:border-emerald-300 transition-all group relative overflow-hidden cursor-grab active:cursor-grabbing select-none"
+                className="bg-white border border-slate-200/80 rounded-[1.5rem] p-4 shadow-xs hover:shadow-md hover:border-emerald-300 transition-all group relative overflow-hidden cursor-grab active:cursor-grabbing select-none"
               >
-                {/* Drag Handle Indicator */}
-                <div className="absolute left-2 top-1/2 -translate-y-1/2 flex flex-col gap-0.5 opacity-40 group-hover:opacity-80 transition-opacity">
-                  <div className="w-1.5 h-1.5 bg-slate-400 rounded-full" />
-                  <div className="w-1.5 h-1.5 bg-slate-400 rounded-full" />
-                  <div className="w-1.5 h-1.5 bg-slate-400 rounded-full" />
+                <div className="absolute left-2 top-1/2 -translate-y-1/2 flex flex-col gap-0.5 opacity-40 group-hover:opacity-85 transition-opacity">
+                  <div className="w-1 h-1 bg-slate-400 rounded-full" />
+                  <div className="w-1 h-1 bg-slate-400 rounded-full" />
+                  <div className="w-1 h-1 bg-slate-400 rounded-full" />
                 </div>
  
-                <div className="absolute top-4 right-4 flex opacity-0 group-hover:opacity-100 transition-opacity gap-1 z-10 bg-white dark:bg-slate-800 rounded-lg p-0.5 shadow-sm border border-slate-100 dark:border-white/10">
+                <div className="absolute top-3 right-3 flex opacity-0 group-hover:opacity-100 transition-opacity gap-1 z-10 bg-white rounded-lg p-0.5 shadow-sm border border-slate-100">
                   <button 
                     onClick={() => setEditingTemplate(template)}
-                    className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors min-h-[44px] min-w-[44px]"
+                    className="p-1 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors"
                   >
-                    <Edit2 className="w-4 h-4" />
+                    <Edit2 className="w-3.5 h-3.5" />
                   </button>
                   <button 
                     onClick={() => template.id && handleDeleteTemplate(template.id)}
-                    className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors min-h-[44px] min-w-[44px]"
+                    className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
 
-                <div className="pl-4 pr-16">
-                  <h4 className="font-black text-slate-900 dark:text-white text-base mb-0.5 truncate">{template.name}</h4>
-                  <p className="text-[11px] text-slate-500 font-bold mb-3">
+                <div className="pl-4 pr-12">
+                  <h4 className="font-black text-slate-800 text-sm mb-0.5 truncate">{template.name}</h4>
+                  <p className="text-[10px] text-slate-400 font-bold mb-2">
                     {template.target_kcal} kcal • {template.meals.length} comidas
                   </p>
 
-                  <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-semibold mb-3">
-                    <span className="bg-rose-50 dark:bg-rose-950/20 text-rose-600 px-1.5 py-0.5 rounded border border-rose-100 dark:border-rose-900/30">P: {template.target_protein}g</span>
-                    <span className="bg-sky-50 dark:bg-sky-950/20 text-sky-600 px-1.5 py-0.5 rounded border border-sky-100 dark:border-sky-900/30">C: {template.target_carbs}g</span>
-                    <span className="bg-amber-50 dark:bg-amber-950/20 text-amber-600 px-1.5 py-0.5 rounded border border-amber-100 dark:border-amber-900/30">G: {template.target_fats}g</span>
+                  <div className="flex items-center gap-1 text-[9px] font-bold text-slate-500 mb-2">
+                    <span className="bg-rose-50 text-rose-600 px-1 py-0.5 rounded border border-rose-100">P: {template.target_protein}g</span>
+                    <span className="bg-sky-50 text-sky-600 px-1 py-0.5 rounded border border-sky-100">C: {template.target_carbs}g</span>
+                    <span className="bg-amber-50 text-amber-600 px-1 py-0.5 rounded border border-amber-100">G: {template.target_fats}g</span>
                   </div>
 
                   <button 
                     onClick={() => setAssigningTemplate(template)}
-                    className="w-full py-2.5 rounded-xl bg-slate-50 hover:bg-emerald-50 dark:bg-white/5 dark:hover:bg-emerald-950/20 text-slate-700 hover:text-emerald-700 dark:text-slate-300 dark:hover:text-emerald-400 font-bold text-xs transition-colors flex items-center justify-center gap-1.5 border border-slate-100 hover:border-emerald-200 dark:border-white/10 min-h-[44px]"
+                    className="w-full py-2 bg-slate-50 hover:bg-emerald-50 text-slate-650 hover:text-emerald-700 font-bold text-[10px] transition-colors flex items-center justify-center gap-1 border border-slate-100 hover:border-emerald-100 min-h-[32px] rounded-xl"
                   >
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    Asignar al Calendario
+                    <CheckCircle2 className="w-3 h-3" />
+                    Asignar
                   </button>
                 </div>
               </div>
@@ -336,152 +429,19 @@ export default function DietCalendarView({ templates, calendar, onUpdate }: Diet
         )}
       </div>
 
-      {/* Drawer Panel Superpuesto de Dieta (Pilar 2 HIG) - RENDERED IN PORTAL TO AVOID STACKING CONTEXT BUGS */}
-      {mounted && typeof document !== 'undefined' && createPortal(
-        <AnimatePresence>
-          {selectedDate && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-end">
-              {/* Backdrop */}
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 0.5 }}
-                exit={{ opacity: 0 }}
-                onClick={() => setSelectedDate(null)}
-                className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm"
-              />
-              
-              {/* Drawer container (sliding from right) */}
-              <motion.div
-                initial={{ x: '100%' }}
-                animate={{ x: 0 }}
-                exit={{ x: '100%' }}
-                transition={{ type: 'spring', damping: 25, stiffness: 220 }}
-                className="relative w-full max-w-lg bg-white dark:bg-slate-900 h-full border-l border-slate-200 dark:border-slate-800 shadow-2xl z-10 flex flex-col pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]"
-              >
-                {/* Close button top right */}
-                <button
-                  type="button"
-                  onClick={() => setSelectedDate(null)}
-                  className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 bg-slate-100 dark:bg-white/10 rounded-full transition min-h-[44px] min-w-[44px] flex items-center justify-center z-20"
-                >
-                  <X size={18} />
-                </button>
-
-                <div className="p-6 overflow-y-auto flex-1 custom-scrollbar">
-                  <h4 className="text-xl font-black text-slate-950 dark:text-white tracking-tight mb-6 mt-6">
-                    Día: {new Date(selectedDate + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
-                  </h4>
-                  
-                  {selectedTemplate ? (
-                    <div className="space-y-6">
-                      <div className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/35 p-5 rounded-3xl">
-                        <h5 className="font-black text-xl text-emerald-700 dark:text-emerald-400">{selectedTemplate.name}</h5>
-                        <p className="text-xs text-emerald-600 dark:text-emerald-300 font-semibold mt-1 leading-relaxed">
-                          Objetivo: {selectedTemplate.target_kcal} kcal • P: {selectedTemplate.target_protein}g • C: {selectedTemplate.target_carbs}g • G: {selectedTemplate.target_fats}g
-                        </p>
-                      </div>
-
-                      <div className="space-y-4">
-                        {selectedTemplate.meals.map(meal => (
-                          <div key={meal.id} className="bg-slate-50 dark:bg-white/5 rounded-3xl p-5 border border-slate-100 dark:border-white/5 shadow-xs">
-                            <div className="font-black text-slate-800 dark:text-slate-200 text-xs sm:text-sm uppercase tracking-wide mb-2 flex items-center justify-between">
-                              <span>{meal.name}</span>
-                              {meal.target_kcal > 0 && (
-                                <span className="text-[10px] text-slate-400 font-bold bg-white dark:bg-black/20 border border-slate-200/80 dark:border-white/5 px-2 py-0.5 rounded-full">{meal.target_kcal} kcal</span>
-                              )}
-                            </div>
-                            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 whitespace-pre-wrap leading-relaxed">{meal.text || 'Sin descripción registrada.'}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-6">
-                      <div className="text-center py-10 bg-slate-50 dark:bg-white/5 rounded-3xl border border-dashed border-slate-200 dark:border-white/10">
-                        <div className="text-slate-400 mb-2 text-3xl">🥣</div>
-                        <p className="text-sm font-bold text-slate-700 dark:text-slate-300">No hay dieta asignada</p>
-                        <p className="text-xs text-slate-400 mt-2 max-w-xs mx-auto leading-relaxed">Arrastra una plantilla desde el panel lateral al calendario, o pulsa "Asignar al Calendario".</p>
-                      </div>
-
-                      {/* On-the-fly Diet Creation Form */}
-                      <form onSubmit={handleCreateQuickDiet} className="p-5 bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/10 rounded-3xl space-y-4">
-                        <h5 className="font-black text-slate-900 dark:text-white text-sm">Crear dieta al vuelo para hoy</h5>
-                        <div className="space-y-3">
-                          <div>
-                            <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Nombre del Plan</label>
-                            <input
-                              type="text"
-                              required
-                              placeholder="Ej: Dieta Especial Fuerza"
-                              value={newDietName}
-                              onChange={(e) => setNewDietName(e.target.value)}
-                              className="w-full px-3 py-2 text-xs border border-slate-200 dark:border-slate-800 dark:bg-slate-950 rounded-xl text-slate-700 dark:text-slate-300 font-bold focus:ring-2 focus:ring-emerald-500 outline-none"
-                            />
-                          </div>
-                          <div className="grid grid-cols-2 gap-3">
-                            <div>
-                              <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Calorías (kcal)</label>
-                              <input
-                                type="number"
-                                required
-                                min={500}
-                                max={10000}
-                                value={newDietKcal}
-                                onChange={(e) => setNewDietKcal(Number(e.target.value))}
-                                className="w-full px-3 py-2 text-xs border border-slate-200 dark:border-slate-800 dark:bg-slate-950 rounded-xl text-slate-700 dark:text-slate-300 font-bold focus:ring-2 focus:ring-emerald-500 outline-none"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Proteínas (g)</label>
-                              <input
-                                type="number"
-                                required
-                                value={newDietProtein}
-                                onChange={(e) => setNewDietProtein(Number(e.target.value))}
-                                className="w-full px-3 py-2 text-xs border border-slate-200 dark:border-slate-800 dark:bg-slate-950 rounded-xl text-slate-700 dark:text-slate-300 font-bold focus:ring-2 focus:ring-emerald-500 outline-none"
-                              />
-                            </div>
-                          </div>
-                          <div className="grid grid-cols-2 gap-3">
-                            <div>
-                              <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Carbohidratos (g)</label>
-                              <input
-                                type="number"
-                                required
-                                value={newDietCarbs}
-                                onChange={(e) => setNewDietCarbs(Number(e.target.value))}
-                                className="w-full px-3 py-2 text-xs border border-slate-200 dark:border-slate-800 dark:bg-slate-950 rounded-xl text-slate-700 dark:text-slate-300 font-bold focus:ring-2 focus:ring-emerald-500 outline-none"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Grasas (g)</label>
-                              <input
-                                type="number"
-                                required
-                                value={newDietFats}
-                                onChange={(e) => setNewDietFats(Number(e.target.value))}
-                                className="w-full px-3 py-2 text-xs border border-slate-200 dark:border-slate-800 dark:bg-slate-950 rounded-xl text-slate-700 dark:text-slate-300 font-bold focus:ring-2 focus:ring-emerald-500 outline-none"
-                              />
-                            </div>
-                          </div>
-                        </div>
-                        <button
-                          type="submit"
-                          disabled={isSubmittingQuickDiet}
-                          className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-black shadow-sm transition active:scale-95 flex items-center justify-center gap-1.5 disabled:opacity-50 min-h-[44px]"
-                        >
-                          {isSubmittingQuickDiet ? 'Creando...' : 'Crear y Asignar'}
-                        </button>
-                      </form>
-                    </div>
-                  )}
-                </div>
-              </motion.div>
-            </div>
-          )}
-        </AnimatePresence>,
-        document.body
-      )}
+      {/* DayDetailDrawer (Pilar 1 HIG Zero-Scroll Vaul) */}
+      <DayDetailDrawer
+        isOpen={!!selectedDate}
+        onClose={() => setSelectedDate(null)}
+        date={selectedDate || ''}
+        templates={templates}
+        calendar={calendar}
+        recipes={recipes}
+        overrides={overrides}
+        activeProgram={activeProgram}
+        activeProgramDays={activeProgramDays}
+        onUpdate={onUpdate}
+      />
 
       {/* Modales - RENDERED IN PORTALS TO PREVENT STACKING CONTEXT BUGS */}
       {mounted && typeof document !== 'undefined' && createPortal(
@@ -520,10 +480,152 @@ export default function DietCalendarView({ templates, calendar, onUpdate }: Diet
         </AnimatePresence>,
         document.body
       )}
+
+      {/* Cycle Builder Modal */}
+      <AnimatePresence>
+        {isCycleModalOpen && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.5 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsCycleModalOpen(false)}
+              className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+            />
+
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="relative bg-white border border-slate-200 rounded-[2.5rem] p-6 shadow-2xl w-full max-w-lg max-h-[85vh] flex flex-col z-10"
+            >
+              <div className="flex justify-between items-center border-b border-slate-100 pb-3 mb-4">
+                <h3 className="text-base font-black text-slate-800 flex items-center gap-2">
+                  <CalendarDays className="w-4 h-4 text-emerald-500" />
+                  Configurar Ciclo Nutricional (Microciclo)
+                </h3>
+                <button
+                  onClick={() => setIsCycleModalOpen(false)}
+                  className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center font-bold text-slate-500 transition-colors"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveCycle} className="flex-1 overflow-y-auto pr-1 space-y-4 custom-scrollbar">
+                <div>
+                  <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">
+                    Nombre del Ciclo / Programa
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={cycleName}
+                    onChange={(e) => setCycleName(e.target.value)}
+                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl text-slate-700 font-bold focus:ring-2 focus:ring-emerald-500 outline-none"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">
+                      Duración del Ciclo (días)
+                    </label>
+                    <input
+                      type="number"
+                      required
+                      min={1}
+                      max={60}
+                      value={cycleLength}
+                      onChange={(e) => {
+                        const newLen = Math.max(1, parseInt(e.target.value, 10) || 7);
+                        setCycleLength(newLen);
+                      }}
+                      className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl text-slate-700 font-bold focus:ring-2 focus:ring-emerald-500 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">
+                      Fecha de Inicio
+                    </label>
+                    <input
+                      type="date"
+                      required
+                      value={cycleStartDate}
+                      onChange={(e) => setCycleStartDate(e.target.value)}
+                      className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl text-slate-700 font-bold focus:ring-2 focus:ring-emerald-500 outline-none"
+                    />
+                  </div>
+                </div>
+
+                {/* Day template selector grid */}
+                <div className="space-y-3 pt-2">
+                  <h4 className="text-xs font-black text-slate-800 uppercase tracking-wide">
+                    Distribución Diaria del Ciclo
+                  </h4>
+                  <div className="space-y-2.5 max-h-56 overflow-y-auto custom-scrollbar border border-slate-100 rounded-2xl p-3 bg-slate-50/40">
+                    {Array.from({ length: cycleLength }).map((_, idx) => {
+                      const dayNum = idx + 1;
+                      return (
+                        <div key={dayNum} className="flex justify-between items-center gap-4 text-xs font-bold text-slate-600 bg-white border border-slate-200/60 p-2.5 rounded-xl">
+                          <span>Día {dayNum} del Ciclo</span>
+                          <select
+                            required
+                            value={cycleDaysMapping[dayNum] || ''}
+                            onChange={(e) => {
+                              setCycleDaysMapping({
+                                ...cycleDaysMapping,
+                                [dayNum]: e.target.value,
+                              });
+                            }}
+                            className="text-xs bg-white border border-slate-200 rounded-lg py-1 px-2 text-slate-700 font-semibold focus:ring-2 focus:ring-emerald-500 outline-none w-48"
+                          >
+                            <option value="" disabled>Seleccionar Plantilla</option>
+                            {templates.map(t => (
+                              <option key={t.id} value={t.id}>{t.name} ({t.target_kcal} kcal)</option>
+                            ))}
+                          </select>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {activeProgram && (
+                  <div className="bg-amber-50 border border-amber-100 rounded-2xl p-3 text-[11px] text-amber-700 font-semibold leading-relaxed flex items-start gap-2">
+                    <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-amber-600" />
+                    <span>
+                      Ya tienes un ciclo activo. Guardar este nuevo ciclo reemplazará el anterior. Puedes desactivarlo para volver al calendario manual.
+                    </span>
+                  </div>
+                )}
+
+                <div className="flex gap-3 pt-4 border-t border-slate-100 shrink-0">
+                  {activeProgram && (
+                    <button
+                      type="button"
+                      disabled={savingCycle}
+                      onClick={handleDeactivateCycle}
+                      className="w-1/3 py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-600 text-xs font-bold transition active:scale-95"
+                    >
+                      Desactivar
+                    </button>
+                  )}
+                  <button
+                    type="submit"
+                    disabled={savingCycle}
+                    className={`py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-black shadow-md transition active:scale-95 flex items-center justify-center gap-1.5
+                      ${activeProgram ? 'w-2/3' : 'w-full'}
+                    `}
+                  >
+                    {savingCycle ? 'Guardando...' : 'Guardar y Activar Ciclo'}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
-
-// A simple local wrapper to type-check motion div children correctly inside standard layout
-const Drawer = ({ children }: { children: React.ReactNode }) => <>{children}</>;
-
