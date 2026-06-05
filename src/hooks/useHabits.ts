@@ -208,6 +208,23 @@ export function useHabits() {
         const message = 'Guardado';
         setStatusMessage(message);
         toast.success(message);
+
+        // Dopamina visual: Check streak rewards
+        try {
+          const { data: updatedHabit } = await supabase
+            .from('user_habits')
+            .select('current_streak')
+            .eq('id', habitId)
+            .single();
+
+          if (updatedHabit && updatedHabit.current_streak > 0 && updatedHabit.current_streak % 7 === 0) {
+            const { triggerStreakConfetti } = await import('@/utils/rewards');
+            triggerStreakConfetti();
+          }
+        } catch (e) {
+          console.warn('[useHabits] Could not fetch habit streak for reward:', e);
+        }
+
         router.refresh();
       } catch (error) {
         setValues((current) => ({ ...current, [habitId]: previousValue }));

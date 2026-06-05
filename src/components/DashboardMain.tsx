@@ -1,13 +1,15 @@
 'use client';
 
-import React, { useMemo } from 'react';
-import { motion } from 'framer-motion';
+import React, { useMemo, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import XRayOverlay from './XRayOverlay';
 import CircularProgressRing from './CircularProgressRing';
 import { type DailyLog } from '@/lib/schema';
 import toast from '@/lib/toast';
 import PushNotificationManager from './PushNotificationManager';
 import { triggerVibration } from '@/lib/haptics';
+import NutritionContainer from './NutritionContainer';
+import HabitTracker from './HabitTracker';
 
 interface DashboardTheme {
   background: string;
@@ -44,15 +46,20 @@ function clampMomentum(value: number) {
   return Math.min(100, Math.max(0, value));
 }
 
-// Reusable Bento Card wrapper
-function BentoCard({ children, className = '', ...props }: React.HTMLAttributes<HTMLDivElement>) {
+// Reusable Bento Card wrapper with zero-border glassmorphism and layoutId support
+interface BentoCardProps extends React.HTMLAttributes<HTMLDivElement> {
+  layoutId?: string;
+}
+
+function BentoCard({ children, className = '', layoutId, ...props }: BentoCardProps) {
   return (
-    <div 
-      className={`bg-white rounded-3xl shadow-[0_4px_24px_rgba(0,0,0,0.02)] border border-slate-100/50 p-5 sm:p-6 overflow-hidden flex flex-col relative transition-all duration-300 hover:shadow-[0_8px_32px_rgba(0,0,0,0.04)] ${className}`}
+    <motion.div 
+      layoutId={layoutId}
+      className={`bg-white/60 dark:bg-black/60 backdrop-blur-2xl rounded-3xl shadow-[0_12px_40px_rgba(0,0,0,0.03),0_1px_2px_rgba(0,0,0,0.01)] p-6 sm:p-8 overflow-hidden flex flex-col relative transition-all duration-300 hover:shadow-[0_20px_50px_rgba(0,0,0,0.06)] cursor-pointer select-none ${className}`}
       {...props}
     >
       {children}
-    </div>
+    </motion.div>
   );
 }
 
@@ -214,6 +221,14 @@ export default function DashboardMain({
   addWaterIntake,
 }: DashboardMainProps) {
   const normalizedMomentum = clampMomentum(momentum);
+  const [expandedCard, setExpandedCard] = useState<'avatar' | 'nutrition' | 'water' | 'habits' | null>(null);
+
+  const completedHabitsCount = useMemo(() => {
+    return Object.values(displayLog.habits_count || {}).reduce(
+      (acc, val) => acc + (Number(val) > 0 ? 1 : 0),
+      0
+    );
+  }, [displayLog.habits_count]);
 
   const avatarUrl = useMemo(() => {
     if (normalizedMomentum > 80) return 'https://image.pollinations.ai/prompt/a%20beautiful%20photorealistic%20german%20shepherd%20dog,%20strong,%20healthy,%20glowing%20coat,%20happy%20face,%20sitting%20proudly%20in%20a%20sunny%20meadow,%20high%20detail,%20warm%20lighting,%20no%20text?width=512&height=512&nologo=true';
@@ -235,154 +250,116 @@ export default function DashboardMain({
 
         <PushNotificationManager />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 auto-rows-auto gap-4 lg:gap-6 flex-1 mt-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 auto-rows-auto gap-8 flex-1 mt-8">
           
           {/* Bento Box 1: Bio-Avatar (Main) */}
-          <BentoCard className="md:col-span-2 lg:col-span-1 xl:col-span-1 flex flex-col items-center justify-center text-center relative overflow-hidden bg-gradient-to-b from-white to-slate-50/50 min-h-[300px]">
-            <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-sky-50 to-transparent pointer-events-none" />
+          <BentoCard 
+            layoutId="avatar-card"
+            onClick={() => {
+              triggerVibration('light');
+              setExpandedCard('avatar');
+            }}
+            className="md:col-span-2 lg:col-span-1 xl:col-span-1 flex flex-col items-center justify-center text-center relative overflow-hidden min-h-[320px]"
+          >
+            <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-sky-500/10 to-transparent pointer-events-none" />
             
-            <div className="relative aspect-square w-[180px] sm:w-[220px] overflow-hidden rounded-[2rem] border-[8px] border-white shadow-2xl bg-white mb-6 mt-4 z-10">
+            <div className="relative aspect-square w-[150px] sm:w-[170px] overflow-hidden rounded-[2.2rem] shadow-2xl bg-white/40 mb-6 mt-4 z-10">
               <img
                 src={avatarUrl}
                 alt="Bio-Avatar"
                 className="w-full h-full object-cover transition-all duration-1000"
                 loading="eager"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = '/default-avatar.png';
+                }}
               />
             </div>
             
-            <h3 className="text-2xl font-black text-slate-800 tracking-tight z-10">
+            <h3 className="text-4xl font-extrabold text-slate-800 dark:text-white tracking-tighter z-10 uppercase">
               {normalizedMomentum > 80 ? 'Óptimo' : normalizedMomentum > 30 ? 'Estable' : 'Crítico'}
             </h3>
-            
-            {/* AI Insight Badge */}
-            <div className="mt-4 mb-2 bg-white rounded-2xl border border-sky-100 p-4 shadow-sm z-10 text-left w-full">
-              <div className="flex items-center gap-2 mb-1.5">
-                <span className="bg-sky-100 text-sky-600 text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg">
-                  Coach IA
-                </span>
-              </div>
-              <p className="text-xs text-slate-600 font-medium leading-relaxed">
-                {insightText}
-              </p>
-            </div>
           </BentoCard>
 
-          {/* Bento Box 2: Nutrition Rings */}
-          <BentoCard className="col-span-full md:col-span-2 lg:col-span-2 xl:col-span-2 min-h-[250px]">
-            <div className="flex justify-between items-end mb-6">
-              <div>
-                <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-extrabold mb-1">Nutrición</p>
-                <h2 className="text-3xl font-black text-slate-800 tracking-tighter leading-none">Macros</h2>
-              </div>
-              <div className="text-right">
-                <p className="text-2xl font-black text-rose-500 tracking-tighter leading-none">
-                  {displayLog.total_kcal}
-                  <span className="text-sm text-slate-400 font-bold ml-1 uppercase">/ {dietTargets?.kcal ?? 2000} kcal</span>
-                </p>
-              </div>
+          {/* Bento Box 2: Nutrition */}
+          <BentoCard 
+            layoutId="nutrition-card"
+            onClick={() => {
+              triggerVibration('light');
+              setExpandedCard('nutrition');
+            }}
+            className="col-span-full md:col-span-2 lg:col-span-2 xl:col-span-2 min-h-[250px] flex flex-col justify-between"
+          >
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-extrabold mb-1">Nutrición</p>
             </div>
-
-            <div className="grid grid-cols-4 gap-2 sm:gap-4 mt-auto">
-              <CircularProgressRing
-                value={displayLog.total_kcal}
-                max={dietTargets?.kcal ?? 2000}
-                label="Calorías"
-                unit="kcal"
-                colorClass="stroke-rose-500"
-                icon={<svg className="w-5 h-5 text-rose-500" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.362 5.214A8.252 8.252 0 0 1 12 21 8.25 8.25 0 0 1 6.038 7.047 8.287 8.287 0 0 0 9 9.601a8.983 8.983 0 0 1 3.361-6.867 8.21 8.21 0 0 0 3 2.48Z" /></svg>}
-              />
-              <CircularProgressRing
-                value={displayLog.protein_g}
-                max={dietTargets?.protein ?? 150}
-                label="Proteína"
-                unit="g"
-                colorClass="stroke-emerald-500"
-                icon={<svg className="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" /></svg>}
-              />
-              <CircularProgressRing
-                value={displayLog.carbs_g}
-                max={dietTargets?.carbs ?? 200}
-                label="Carbos"
-                unit="g"
-                colorClass="stroke-cyan-500"
-                icon={<svg className="w-5 h-5 text-cyan-500" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 8.25v-1.5m0 1.5c-1.355 0-2.697.056-4.024.166C6.845 8.342 6 9.3 6 10.428v4.293c0 1.128.845 2.086 1.976 2.112 2.654.062 5.394.062 8.048 0 1.131-.026 1.976-1.084 1.976-2.212v-4.293c0-1.128-.845-2.086-1.976-2.112A48.243 48.243 0 0 0 12 8.25Z" /></svg>}
-              />
-              <CircularProgressRing
-                value={displayLog.fats_g}
-                max={dietTargets?.fats ?? 70}
-                label="Grasa"
-                unit="g"
-                colorClass="stroke-amber-500"
-                icon={<svg className="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
-              />
+            <div className="flex-1 flex flex-col justify-center items-start">
+              <h2 className="text-7xl font-extrabold text-rose-500 tracking-tighter leading-none">
+                {displayLog.total_kcal}
+              </h2>
+              <span className="text-xs text-slate-400 font-bold uppercase tracking-wider mt-2">Kcal Consumidas Hoy</span>
             </div>
           </BentoCard>
 
           {/* Bento Box 3: Water */}
-          <BentoCard className="col-span-1 lg:col-span-1 xl:col-span-1 items-center min-h-[250px]">
-            <div className="w-full text-left absolute top-5 left-6">
+          <BentoCard 
+            layoutId="water-card"
+            onClick={() => {
+              triggerVibration('light');
+              setExpandedCard('water');
+            }}
+            className="col-span-1 lg:col-span-1 xl:col-span-1 min-h-[250px] flex flex-col justify-between"
+          >
+            <div>
               <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-extrabold mb-1">Hidratación</p>
             </div>
-            <div className="pt-6 w-full h-full flex items-center justify-center">
-              <WaterGlass 
-                amount={displayLog.water_ml ?? displayLog.hidratacion_ml ?? 0} 
-                max={dailyWaterTarget}
-                defaultGlass={defaultGlassSize}
-                addWater={addWaterIntake}
-                updateSettings={updateWaterSettings}
-              />
+            <div className="flex-1 flex flex-col justify-center items-start">
+              <h2 className="text-7xl font-extrabold text-cyan-500 tracking-tighter leading-none">
+                {displayLog.water_ml ?? displayLog.hidratacion_ml ?? 0}
+              </h2>
+              <span className="text-xs text-slate-400 font-bold uppercase tracking-wider mt-2">ml de Agua</span>
             </div>
           </BentoCard>
 
-          {/* Bento Box 4: Habits & Mini Stats */}
-          <BentoCard className="col-span-1 lg:col-span-1 xl:col-span-1 min-h-[250px] flex flex-col">
-            <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-extrabold mb-4 shrink-0">Hábitos Completados</p>
-            <div className="flex-1 overflow-y-auto pr-2 space-y-2 mb-4 max-h-[140px]">
-              {Object.entries(displayLog.habits_count || {}).length > 0 ? (
-                Object.entries(displayLog.habits_count).map(([key, val]) => (
-                  <div key={key} className="flex justify-between items-center bg-slate-50 rounded-2xl px-4 py-3">
-                    <span className="font-bold capitalize text-slate-700 text-sm">{key.replace(/_/g, ' ')}</span>
-                    <div className="bg-lime-400 text-lime-950 px-2.5 py-0.5 rounded-full font-black text-xs">
-                      {val}x
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="h-full flex items-center justify-center text-slate-400 text-sm font-medium italic border-2 border-dashed border-slate-100 rounded-2xl p-4">
-                  Sin hábitos hoy
-                </div>
-              )}
+          {/* Bento Box 4: Habits */}
+          <BentoCard 
+            layoutId="habits-card"
+            onClick={() => {
+              triggerVibration('light');
+              setExpandedCard('habits');
+            }}
+            className="col-span-1 lg:col-span-1 xl:col-span-1 min-h-[250px] flex flex-col justify-between"
+          >
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-extrabold mb-1">Hábitos</p>
             </div>
-            <div className="border-t border-slate-100 pt-4 flex justify-between items-end mt-auto">
-              <div>
-                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Inercia Ganada</p>
-                <p className="text-xl font-black text-lime-500">
-                  {displayLog.metricas.variacion_inercia >= 0 ? '+' : ''}{displayLog.metricas.variacion_inercia}
-                </p>
-              </div>
+            <div className="flex-1 flex flex-col justify-center items-start">
+              <h2 className="text-7xl font-extrabold text-lime-500 tracking-tighter leading-none">
+                {completedHabitsCount}
+              </h2>
+              <span className="text-xs text-slate-400 font-bold uppercase tracking-wider mt-2">Hábitos Completados</span>
             </div>
           </BentoCard>
 
           {/* Bento Box 5: Minor Stats Grid */}
-          <div className="col-span-full grid grid-cols-2 md:grid-cols-4 gap-4 lg:gap-6 min-h-[120px]">
-            <BentoCard className="p-4 sm:p-5 flex flex-col justify-center items-center text-center">
+          <div className="col-span-full grid grid-cols-2 md:grid-cols-4 gap-8 min-h-[120px]">
+            <BentoCard className="p-6 flex flex-col justify-center items-center text-center">
               <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-extrabold mb-1">Inercia Total</p>
-              <p className="text-4xl font-black text-slate-800 tracking-tighter">{normalizedMomentum}<span className="text-sm text-slate-400 ml-1">%</span></p>
+              <p className="text-6xl font-extrabold text-slate-800 dark:text-white tracking-tighter">{normalizedMomentum}<span className="text-lg text-slate-400 ml-1">%</span></p>
             </BentoCard>
             
-            <BentoCard className="p-4 sm:p-5 flex flex-col justify-center items-center text-center">
+            <BentoCard className="p-6 flex flex-col justify-center items-center text-center">
               <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-extrabold mb-1">🔥 Racha</p>
-              <p className="text-4xl font-black text-slate-800 tracking-tighter">{streak}<span className="text-sm text-slate-400 ml-1">días</span></p>
+              <p className="text-6xl font-extrabold text-slate-800 dark:text-white tracking-tighter">{streak}<span className="text-lg text-slate-400 ml-1">días</span></p>
             </BentoCard>
 
-            <BentoCard className="p-4 sm:p-5 flex flex-col justify-center items-center text-center">
+            <BentoCard className="p-6 flex flex-col justify-center items-center text-center">
               <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-extrabold mb-1">Energía</p>
-              <p className="text-4xl font-black text-slate-800 tracking-tighter">{energyLevel}<span className="text-sm text-slate-400 ml-1">/5</span></p>
+              <p className="text-6xl font-extrabold text-slate-800 dark:text-white tracking-tighter">{energyLevel}<span className="text-lg text-slate-400 ml-1">/5</span></p>
             </BentoCard>
 
-            <BentoCard className="p-4 sm:p-5 flex flex-col justify-center items-center text-center">
+            <BentoCard className="p-6 flex flex-col justify-center items-center text-center">
               <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-extrabold mb-1">Claridad</p>
-              <p className="text-4xl font-black text-slate-800 tracking-tighter">{mentalClarity}<span className="text-sm text-slate-400 ml-1">/5</span></p>
+              <p className="text-6xl font-extrabold text-slate-800 dark:text-white tracking-tighter">{mentalClarity}<span className="text-lg text-slate-400 ml-1">/5</span></p>
             </BentoCard>
           </div>
 
@@ -395,6 +372,176 @@ export default function DashboardMain({
           momentum={momentum}
         />
       </div>
+
+      {/* Morphing Detail View Panels */}
+      <AnimatePresence>
+        {expandedCard === 'avatar' && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-2xl">
+            <motion.div
+              layoutId="avatar-card"
+              className="bg-white/90 dark:bg-black/90 backdrop-blur-3xl rounded-[2.5rem] shadow-[0_24px_60px_rgba(0,0,0,0.15)] p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto relative flex flex-col items-center text-center"
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            >
+              <button
+                onClick={() => setExpandedCard(null)}
+                className="absolute top-6 right-6 w-10 h-10 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 flex items-center justify-center font-bold text-slate-600 dark:text-slate-300 transition-colors z-30 shadow-sm"
+                title="Cerrar"
+              >
+                ✕
+              </button>
+              
+              <div className="relative aspect-square w-[180px] sm:w-[220px] overflow-hidden rounded-[2.5rem] border-[12px] border-white dark:border-slate-800 shadow-2xl bg-white mb-6 mt-4">
+                <img
+                  src={avatarUrl}
+                  alt="Bio-Avatar"
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = '/default-avatar.png';
+                  }}
+                />
+              </div>
+              
+              <h3 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight uppercase">
+                {normalizedMomentum > 80 ? 'Óptimo' : normalizedMomentum > 30 ? 'Estable' : 'Crítico'}
+              </h3>
+              
+              <div className="mt-6 mb-2 bg-white/50 dark:bg-slate-900/50 rounded-2xl border border-sky-100/50 dark:border-sky-900/20 p-6 text-left w-full shadow-sm">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="bg-sky-100 dark:bg-sky-950 text-sky-600 dark:text-sky-400 text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg">
+                    Coach IA
+                  </span>
+                </div>
+                <p className="text-sm text-slate-700 dark:text-slate-300 font-medium leading-relaxed">
+                  {insightText}
+                </p>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {expandedCard === 'nutrition' && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-2xl">
+            <motion.div
+              layoutId="nutrition-card"
+              className="bg-white/90 dark:bg-black/90 backdrop-blur-3xl rounded-[2.5rem] shadow-[0_24px_60px_rgba(0,0,0,0.15)] p-6 sm:p-10 max-w-4xl w-full max-h-[90vh] overflow-y-auto relative flex flex-col"
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            >
+              <button
+                onClick={() => setExpandedCard(null)}
+                className="absolute top-6 right-6 w-10 h-10 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 flex items-center justify-center font-bold text-slate-600 dark:text-slate-300 transition-colors z-30 shadow-sm"
+                title="Cerrar"
+              >
+                ✕
+              </button>
+              
+              <div className="flex justify-between items-end mb-6">
+                <div>
+                  <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-extrabold mb-1">Nutrición</p>
+                  <h2 className="text-3xl font-black text-slate-800 dark:text-white tracking-tighter leading-none">Macros</h2>
+                </div>
+                <div className="text-right">
+                  <p className="text-2xl font-black text-rose-500 tracking-tighter leading-none">
+                    {displayLog.total_kcal}
+                    <span className="text-sm text-slate-400 font-bold ml-1 uppercase">/ {dietTargets?.kcal ?? 2000} kcal</span>
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-4 gap-2 sm:gap-4 mb-8 bg-white/40 dark:bg-slate-900/40 p-6 rounded-3xl">
+                <CircularProgressRing
+                  value={displayLog.total_kcal}
+                  max={dietTargets?.kcal ?? 2000}
+                  label="Calorías"
+                  unit="kcal"
+                  colorClass="stroke-rose-500"
+                  icon={<svg className="w-5 h-5 text-rose-500" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.362 5.214A8.252 8.252 0 0 1 12 21 8.25 8.25 0 0 1 6.038 7.047 8.287 8.287 0 0 0 9 9.601a8.983 8.983 0 0 1 3.361-6.867 8.21 8.21 0 0 0 3 2.48Z" /></svg>}
+                />
+                <CircularProgressRing
+                  value={displayLog.protein_g}
+                  max={dietTargets?.protein ?? 150}
+                  label="Proteína"
+                  unit="g"
+                  colorClass="stroke-emerald-500"
+                  icon={<svg className="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" /></svg>}
+                />
+                <CircularProgressRing
+                  value={displayLog.carbs_g}
+                  max={dietTargets?.carbs ?? 200}
+                  label="Carbos"
+                  unit="g"
+                  colorClass="stroke-cyan-500"
+                  icon={<svg className="w-5 h-5 text-cyan-500" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 8.25v-1.5m0 1.5c-1.355 0-2.697.056-4.024.166C6.845 8.342 6 9.3 6 10.428v4.293c0 1.128.845 2.086 1.976 2.112 2.654.062 5.394.062 8.048 0 1.131-.026 1.976-1.084 1.976-2.212v-4.293c0-1.128-.845-2.086-1.976-2.112A48.243 48.243 0 0 0 12 8.25Z" /></svg>}
+                />
+                <CircularProgressRing
+                  value={displayLog.fats_g}
+                  max={dietTargets?.fats ?? 70}
+                  label="Grasa"
+                  unit="g"
+                  colorClass="stroke-amber-500"
+                  icon={<svg className="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
+                />
+              </div>
+
+              <div className="mt-2 border-t border-slate-100/50 dark:border-slate-800/50 pt-6">
+                <NutritionContainer />
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {expandedCard === 'water' && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-2xl">
+            <motion.div
+              layoutId="water-card"
+              className="bg-white/90 dark:bg-black/90 backdrop-blur-3xl rounded-[2.5rem] shadow-[0_24px_60px_rgba(0,0,0,0.15)] p-8 max-w-xl w-full max-h-[90vh] overflow-y-auto relative flex flex-col items-center"
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            >
+              <button
+                onClick={() => setExpandedCard(null)}
+                className="absolute top-6 right-6 w-10 h-10 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 flex items-center justify-center font-bold text-slate-600 dark:text-slate-300 transition-colors z-30 shadow-sm"
+                title="Cerrar"
+              >
+                ✕
+              </button>
+              
+              <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-extrabold mb-1">Hidratación</p>
+              <h2 className="text-3xl font-black text-slate-800 dark:text-white tracking-tighter mb-8">Seguimiento de Agua</h2>
+              
+              <div className="w-full max-w-xs aspect-square flex items-center justify-center py-4">
+                <WaterGlass 
+                  amount={displayLog.water_ml ?? displayLog.hidratacion_ml ?? 0} 
+                  max={dailyWaterTarget}
+                  defaultGlass={defaultGlassSize}
+                  addWater={addWaterIntake}
+                  updateSettings={updateWaterSettings}
+                />
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {expandedCard === 'habits' && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-2xl">
+            <motion.div
+              layoutId="habits-card"
+              className="bg-white/90 dark:bg-black/90 backdrop-blur-3xl rounded-[2.5rem] shadow-[0_24px_60px_rgba(0,0,0,0.15)] p-6 sm:p-10 max-w-4xl w-full max-h-[90vh] overflow-y-auto relative flex flex-col"
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            >
+              <button
+                onClick={() => setExpandedCard(null)}
+                className="absolute top-6 right-6 w-10 h-10 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 flex items-center justify-center font-bold text-slate-600 dark:text-slate-300 transition-colors z-30 shadow-sm"
+                title="Cerrar"
+              >
+                ✕
+              </button>
+              
+              <div className="mt-2">
+                <HabitTracker />
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </section>
   );
 }

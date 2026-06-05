@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { triggerVibration } from '@/lib/haptics';
+import { useHaptic } from '@/hooks/useHaptic';
 
 type HabitDisplayCardProps = {
   name: string;
@@ -11,9 +11,11 @@ type HabitDisplayCardProps = {
 };
 
 export default function HabitDisplayCard({ name, count, isEditing, onIncrement, onDelete }: HabitDisplayCardProps) {
+  const haptic = useHaptic();
+
   const handleTap = () => {
     if (!isEditing) {
-      triggerVibration('light');
+      haptic.success();
       onIncrement();
     }
   };
@@ -28,7 +30,7 @@ export default function HabitDisplayCard({ name, count, isEditing, onIncrement, 
         <button 
           onClick={(e) => { 
             e.stopPropagation(); 
-            triggerVibration('medium');
+            haptic.light();
             onDelete(); 
           }}
           className="absolute -top-2 -left-2 bg-red-500 text-white w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center font-bold text-lg shadow-md z-10 hover:bg-red-600 transition-colors"

@@ -6,126 +6,251 @@ import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { dailyLogSchema } from '@/lib/schema';
 import { z } from 'zod';
 
-import { dailyDietTargetSchema, weeklyDietScheduleSchema, type DailyDietTarget, type WeeklyDietSchedule, defaultDailyPlan, defaultWeeklyPlan } from '@/lib/schema';
+import { dietTemplateSchema, type DietTemplate, defaultTemplate } from '@/lib/schema';
 
-export type DietPlan = {
-  active: boolean;
-  weekly_schedule: WeeklyDietSchedule;
-};
-
-export async function getDietPlan(): Promise<DietPlan | null> {
+export async function getDietTemplates(): Promise<DietTemplate[]> {
   try {
     const supabase = await createSupabaseServerClient();
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return null;
+    if (!user) return [];
 
     const { data, error } = await supabase
-      .from('user_diet_plans')
+      .from('diet_templates')
       .select('*')
       .eq('user_id', user.id)
-      .maybeSingle();
+      .order('created_at', { ascending: true });
 
-    // 1. Interceptar el error de la DB ANTES de pasarlo a Zod
     if (error) {
-      console.warn(`[Supabase Fetch Warning] Tabla user_diet_plans: ${error.message}`);
-      // 2. Retornar SIEMPRE un Fallback válido según la vista (null o { valores: 0 })
-      return null;
-    }
-    if (!data) return null;
-
-    // 3. Solo si hay datos limpios, usamos Zod con safeParse
-    const parsed = weeklyDietScheduleSchema.safeParse(data.weekly_schedule);
-    if (!parsed.success) {
-      console.error('[Zod Parse Error]', parsed.error);
-      return null;
+      console.warn(`[Supabase Fetch Warning] Tabla diet_templates: ${error.message}`);
+      return [];
     }
 
-    return {
-      active: data.active ?? true,
-      weekly_schedule: parsed.data,
-    };
+    if (!data || data.length === 0) {
+      // Seed Data: 3 plantillas base
+      const seedTemplates = [
+        {
+          user_id: user.id,
+          name: 'Día Base',
+          target_kcal: 2000,
+          target_protein: 150,
+          target_carbs: 200,
+          target_fats: 66,
+          meals: [
+            { id: `m1-${Date.now()}`, name: 'Desayuno', text: 'Huevos, avena', target_kcal: 500, target_protein: 40, target_carbs: 50, target_fats: 15 },
+            { id: `m2-${Date.now()}`, name: 'Almuerzo', text: 'Pollo, arroz, verduras', target_kcal: 700, target_protein: 50, target_carbs: 80, target_fats: 20 },
+            { id: `m3-${Date.now()}`, name: 'Cena', text: 'Pescado, patata asada', target_kcal: 600, target_protein: 40, target_carbs: 50, target_fats: 20 },
+            { id: `m4-${Date.now()}`, name: 'Snack', text: 'Yogur griego, nueces', target_kcal: 200, target_protein: 20, target_carbs: 20, target_fats: 11 }
+          ]
+        },
+        {
+          user_id: user.id,
+          name: 'Día de Entrenamiento',
+          target_kcal: 2400,
+          target_protein: 170,
+          target_carbs: 280,
+          target_fats: 66,
+          meals: [
+            { id: `m1-${Date.now()}`, name: 'Desayuno', text: 'Huevos, avena doble', target_kcal: 600, target_protein: 40, target_carbs: 70, target_fats: 15 },
+            { id: `m2-${Date.now()}`, name: 'Almuerzo', text: 'Pollo, arroz, verduras', target_kcal: 700, target_protein: 50, target_carbs: 80, target_fats: 20 },
+            { id: `m3-${Date.now()}`, name: 'Post-Entreno', text: 'Batido de proteína, plátano', target_kcal: 300, target_protein: 30, target_carbs: 40, target_fats: 2 },
+            { id: `m4-${Date.now()}`, name: 'Cena', text: 'Ternera, patata asada grande', target_kcal: 800, target_protein: 50, target_carbs: 90, target_fats: 29 }
+          ]
+        },
+        {
+          user_id: user.id,
+          name: 'Día Libre',
+          target_kcal: 2600,
+          target_protein: 120,
+          target_carbs: 300,
+          target_fats: 100,
+          meals: [
+            { id: `m1-${Date.now()}`, name: 'Brunch', text: 'Tostadas francesas, bacon', target_kcal: 1000, target_protein: 40, target_carbs: 100, target_fats: 50 },
+            { id: `m2-${Date.now()}`, name: 'Cena Libre', text: 'Pizza o Hamburguesa', target_kcal: 1600, target_protein: 80, target_carbs: 200, target_fats: 50 }
+          ]
+        }
+      ];
+
+      const { data: inserted, error: insertError } = await supabase
+        .from('diet_templates')
+        .insert(seedTemplates)
+        .select('*');
+
+      if (!insertError && inserted) {
+        return inserted.map(row => dietTemplateSchema.parse(row));
+      }
+    }
+
+    const validTemplates: DietTemplate[] = [];
+    for (const row of data) {
+      const parsed = dietTemplateSchema.safeParse(row);
+      if (parsed.success) {
+        validTemplates.push(parsed.data);
+      } else {
+        console.error('[Zod Parse Error]', parsed.error);
+      }
+    }
+
+    return validTemplates;
   } catch (err) {
-    console.error('getDietPlan server action error:', err);
-    return null;
+    console.error('getDietTemplates server action error:', err);
+    return [];
   }
 }
 
-export async function saveDietPlan(schedule: WeeklyDietSchedule): Promise<{ success: boolean; error?: string }> {
+export async function saveDietTemplate(template: DietTemplate): Promise<{ success: boolean; data?: DietTemplate; error?: string }> {
   try {
     const supabase = await createSupabaseServerClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { success: false, error: 'Usuario no autenticado.' };
 
-    const parsed = weeklyDietScheduleSchema.safeParse(schedule);
+    const parsed = dietTemplateSchema.safeParse(template);
     if (!parsed.success) {
-      return { success: false, error: 'Estructura semanal inválida.' };
+      return { success: false, error: 'Estructura de plantilla inválida.' };
     }
 
-    const { error } = await supabase
-      .from('user_diet_plans')
-      .upsert({
-        user_id: user.id,
-        active: true,
-        weekly_schedule: parsed.data,
-      }, { onConflict: 'user_id' });
+    const templateData = {
+      user_id: user.id,
+      name: parsed.data.name,
+      target_kcal: parsed.data.target_kcal,
+      target_protein: parsed.data.target_protein,
+      target_carbs: parsed.data.target_carbs,
+      target_fats: parsed.data.target_fats,
+      meals: parsed.data.meals,
+    };
 
-    if (error) {
-      console.error('Error saving diet plan:', error.message);
-      return { success: false, error: 'Error al guardar en base de datos. Asegúrate de ejecutar la migración SQL en Supabase.' };
+    let result;
+    if (parsed.data.id) {
+      result = await supabase
+        .from('diet_templates')
+        .update(templateData)
+        .eq('id', parsed.data.id)
+        .eq('user_id', user.id)
+        .select('*')
+        .single();
+    } else {
+      result = await supabase
+        .from('diet_templates')
+        .insert(templateData)
+        .select('*')
+        .single();
     }
 
-    return { success: true };
+    if (result.error) {
+      console.error('Error saving diet template:', result.error.message);
+      return { success: false, error: 'Error al guardar en base de datos.' };
+    }
+
+    const responseParsed = dietTemplateSchema.safeParse(result.data);
+    if (!responseParsed.success) {
+       return { success: false, error: 'Error al parsear la respuesta del servidor.' };
+    }
+
+    return { success: true, data: responseParsed.data };
   } catch (err) {
-    console.error('saveDietPlan server action error:', err);
+    console.error('saveDietTemplate server action error:', err);
     return { success: false, error: err instanceof Error ? err.message : 'Error inesperado.' };
   }
 }
 
-export async function autocompleteDietWithAi(): Promise<{ success: boolean; data?: WeeklyDietSchedule; error?: string }> {
+export async function deleteDietTemplate(templateId: string): Promise<{ success: boolean; error?: string }> {
   try {
     const supabase = await createSupabaseServerClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { success: false, error: 'Usuario no autenticado.' };
 
-    const [habitsRes, logsRes] = await Promise.all([
-      supabase.from('user_habits').select('name, type').eq('user_id', user.id),
-      supabase.from('daily_logs').select('date, ai_data, health_momentum').order('date', { ascending: false }).limit(15),
-    ]);
+    const { error } = await supabase
+      .from('diet_templates')
+      .delete()
+      .eq('id', templateId)
+      .eq('user_id', user.id);
 
-    const activeHabits = (habitsRes.data || []).map(h => `${h.name} (${h.type === 'positive' ? 'positivo' : 'negativo'})`).join(', ');
+    if (error) {
+      console.error('Error deleting diet template:', error.message);
+      return { success: false, error: 'Error al eliminar en base de datos.' };
+    }
 
-    const historicalLogs = (logsRes.data || []).map(log => {
-      const validated = dailyLogSchema.safeParse(log.ai_data);
-      const data = validated.success ? validated.data : null;
-      return {
-        date: log.date,
-        health_momentum: log.health_momentum,
-        water_ml: data?.water_ml || 0,
-        total_kcal: data?.total_kcal || 0,
-        protein_g: data?.protein_g || 0,
-      };
-    });
+    return { success: true };
+  } catch (err) {
+    console.error('deleteDietTemplate server action error:', err);
+    return { success: false, error: err instanceof Error ? err.message : 'Error inesperado.' };
+  }
+}
 
-    const contextPrompt = 
-      `El usuario actual de BioAvatar solicita un plan nutricional semanal completo. Perfil:\n` +
-      `- Hábitos activos: ${activeHabits || 'Ninguno'}\n` +
-      `- Logs previos:\n${JSON.stringify(historicalLogs, null, 2)}\n\n` +
+export async function getDietCalendar(startDate: string, endDate: string): Promise<Array<{ date: string; template_id: string }>> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return [];
+
+    const { data, error } = await supabase
+      .from('user_diet_calendar')
+      .select('date, template_id')
+      .eq('user_id', user.id)
+      .gte('date', startDate)
+      .lte('date', endDate);
+
+    if (error) {
+      console.warn(`[Supabase Fetch Warning] Tabla user_diet_calendar: ${error.message}`);
+      return [];
+    }
+
+    return data || [];
+  } catch (err) {
+    console.error('getDietCalendar server action error:', err);
+    return [];
+  }
+}
+
+export async function assignTemplateToDates(templateId: string, dates: string[]): Promise<{ success: boolean; error?: string }> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { success: false, error: 'Usuario no autenticado.' };
+
+    const rowsToInsert = dates.map(dateStr => ({
+      user_id: user.id,
+      date: dateStr,
+      template_id: templateId,
+    }));
+
+    const { error } = await supabase
+      .from('user_diet_calendar')
+      .upsert(rowsToInsert, { onConflict: 'user_id,date' });
+
+    if (error) {
+      console.error('Error assigning template:', error.message);
+      return { success: false, error: 'Error al asignar la plantilla en la base de datos.' };
+    }
+
+    return { success: true };
+  } catch (err) {
+    console.error('assignTemplateToDates server action error:', err);
+    return { success: false, error: err instanceof Error ? err.message : 'Error inesperado.' };
+  }
+}
+
+export async function autocompleteDietWithAi(context: string): Promise<{ success: boolean; data?: DietTemplate; error?: string }> {
+  try {
+    const prompt = 
+      `El usuario actual solicita una plantilla nutricional dinámica basándose en este contexto:\n` +
+      `"${context}"\n\n` +
       `Tu rol: Nutricionista deportivo experto.\n` +
-      `Genera un objeto JSON con 7 claves (lunes, martes, miercoles, jueves, viernes, sabado, domingo).\n` +
-      `Cada día debe incluir:\n` +
+      `Genera un objeto JSON que cumpla el esquema dietTemplateSchema.\n` +
+      `Debe incluir:\n` +
+      `- name (ej. Día de Pierna, Volumen, Descanso)\n` +
       `- target_kcal (1200-4000)\n` +
-      `- target_protein, target_carbs, target_fats (balanceados y matemáticamente consistentes P*4+C*4+F*9 ~= kcal)\n` +
-      `- meals: { breakfast, lunch, dinner, snacks }\n\n` +
-      `Importante: Varía las comidas cada día para no aburrir al usuario, manteniendo los macros constantes o adaptándolos ligeramente si hay días de más desgaste (ej. fin de semana).`;
+      `- target_protein, target_carbs, target_fats (balanceados P*4+C*4+F*9 ~= kcal)\n` +
+      `- meals: Array de objetos con { id: "m1", name: "Desayuno", text: "descripción o alimentos" }\n\n` +
+      `Haz las comidas variadas y creativas.`;
 
     const result = await generateObject({
       model: google('gemini-2.5-flash'),
-      system: 'Eres un nutricionista de precisión experto y generas planes de macros y menús variados para toda la semana.',
-      prompt: contextPrompt,
-      schema: weeklyDietScheduleSchema,
+      system: 'Eres un nutricionista experto y devuelves planes precisos en JSON.',
+      prompt,
+      schema: dietTemplateSchema,
     });
 
-    const parsed = weeklyDietScheduleSchema.safeParse(result.object);
+    const parsed = dietTemplateSchema.safeParse(result.object);
     if (!parsed.success) {
       return { success: false, error: 'La IA generó un plan inválido.' };
     }

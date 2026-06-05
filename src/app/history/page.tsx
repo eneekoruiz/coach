@@ -18,8 +18,7 @@ const ChevronLeft = (props: React.SVGProps<SVGSVGElement>) => (
 import { cookies } from 'next/headers';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-
-import HistoryCard from '@/components/HistoryCard';
+import HistoryClientContainer from '@/components/HistoryClientContainer';
 import { dailyLogSchema, type DailyLog } from '@/lib/schema';
 
 type HistoryRow = {
@@ -59,8 +58,7 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
               Modo local sin Supabase
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-              La vista histórica necesita las credenciales reales para leer los registros. La
-              interfaz principal sí está disponible en local.
+              La vista histórica necesita las credenciales reales para leer los registros.
             </p>
             <div className="mt-4">
               <Link
@@ -76,21 +74,65 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
     );
   }
 
-  const resolvedSearchParams = (await searchParams) ?? {};
-  const requestedPage = Math.max(1, Number(resolvedSearchParams.page ?? '1') || 1);
-
+  // Fetch complete history logs (all pages) for the Trends component
+  // We can fetch up to 180 days for the 6M view
   const { fetchHistoryPage } = await import('@/lib/history-server');
-  const fetched = await fetchHistoryPage(requestedPage);
+  
+  // Here we might just fetch the first page with a high limit or multiple pages
+  // For the sake of the redesign, let's fetch a large batch 
+  // In a real app we would have a dedicated endpoint for chart data, but for now we fetch page 1 with 180 limit if supported,
+  // or we just rely on fetchHistoryPage but we need to modify it or just use the data we have.
+  // Assuming fetchHistoryPage uses PAGE_SIZE = 6, we might not get enough data.
+  // I will just fetch from Supabase directly here for the charts to bypass the pagination limit.
+  
+  const { createServerClient } = await import('@supabase/ssr');
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { cookies: { get: (name) => undefined } } // Readonly is fine here but we need the actual user cookie
+  );
+  
+  const cookieStore = await cookies();
+  const supabaseReal = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value;
+        },
+      },
+    }
+  );
 
-  if (!fetched.user) {
+  const { data: { user } } = await supabaseReal.auth.getUser();
+
+  if (!user) {
     redirect('/login');
   }
 
-  const logs: HistoryLog[] = fetched.logs ?? [];
+  const { data, error } = await supabaseReal
+    .from('daily_logs')
+    .select('date, health_momentum, avatar_image_url, ai_data')
+    .eq('user_id', user.id)
+    .order('date', { ascending: false })
+    .limit(180);
+
+  const logs: HistoryLog[] = (data || []).map((row: any) => {
+    let parsedAiData: DailyLog | null = null;
+    if (row.ai_data) {
+      const result = dailyLogSchema.safeParse(row.ai_data);
+      if (result.success) parsedAiData = result.data;
+    }
+    return {
+      date: row.date,
+      health_momentum: row.health_momentum,
+      avatar_image_url: row.avatar_image_url,
+      ai_data: parsedAiData,
+    };
+  });
+
   const hasLogs = logs.length > 0;
-  const totalPages = fetched.totalPages ?? 1;
-  const hasPreviousPage = fetched.hasPreviousPage ?? false;
-  const hasNextPage = fetched.hasNextPage ?? false;
 
   return (
     <div className="flex-1 overflow-y-auto pb-24 md:pb-8 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.98),_rgba(233,238,244,0.95)_38%,_rgba(212,220,230,0.96)_100%)] px-4 py-6 text-slate-900 sm:px-6 lg:px-8 custom-scrollbar">
@@ -99,14 +141,13 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-[10px] uppercase tracking-[0.38em] text-slate-500">
-                Timeline histórico
+                Memoria Fisiológica
               </p>
               <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
-                Memoria Fisiológica
+                Tendencias
               </h1>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-                Recorre la evolución de tu Bio-Avatar día a día y conserva el impacto visual de cada
-                cierre.
+                Explora el impacto visual de tus hábitos en el tiempo a través del análisis inteligente.
               </p>
             </div>
 
@@ -116,51 +157,14 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
                 className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-800 transition hover:bg-slate-50"
               >
                 <ChevronLeft className="h-4 w-4" />
-                Volver al Dashboard
+                Volver
               </Link>
             </div>
           </div>
         </header>
 
         {hasLogs ? (
-          <>
-            <section className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-              {logs.map((log) => (
-                <HistoryCard key={`${log.date}-${log.health_momentum}`} log={log} />
-              ))}
-            </section>
-
-            <div className="flex flex-col gap-3 rounded-[1.5rem] border border-white/80 bg-white/75 px-4 py-4 shadow-[0_18px_55px_rgba(15,23,42,0.12)] backdrop-blur-xl sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-              <p className="text-sm text-slate-600">
-                Página {requestedPage} de {totalPages}
-              </p>
-
-              <div className="flex flex-wrap items-center gap-2">
-                <Link
-                  href={`/history?page=${requestedPage - 1}`}
-                  aria-disabled={!hasPreviousPage}
-                  className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition ${
-                    hasPreviousPage
-                      ? 'border-slate-200 bg-white text-slate-800 hover:bg-slate-50'
-                      : 'pointer-events-none border-slate-100 bg-slate-100 text-slate-400'
-                  }`}
-                >
-                  Anterior
-                </Link>
-                <Link
-                  href={`/history?page=${requestedPage + 1}`}
-                  aria-disabled={!hasNextPage}
-                  className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition ${
-                    hasNextPage
-                      ? 'bg-slate-950 text-white hover:scale-[1.01]'
-                      : 'pointer-events-none bg-slate-200 text-slate-400'
-                  }`}
-                >
-                  Siguiente
-                </Link>
-              </div>
-            </div>
-          </>
+          <HistoryClientContainer logs={logs} />
         ) : (
           <section className="flex min-h-[50vh] items-center justify-center px-2">
             <div className="max-w-xl rounded-[2rem] border border-white/80 bg-white/80 p-8 text-center shadow-[0_20px_70px_rgba(15,23,42,0.12)] backdrop-blur-2xl">

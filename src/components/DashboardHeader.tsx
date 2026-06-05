@@ -16,8 +16,7 @@ const LogOut = (props: React.SVGProps<SVGSVGElement>) => (
 );
 import { logout } from '@/app/login/actions';
 import { triggerVibration } from '@/lib/haptics';
-import { supabase } from '@/lib/supabase';
-import toast from '@/lib/toast';
+import ExportDataButton from '@/components/ExportDataButton';
 
 interface DashboardTheme {
   background: string;
@@ -57,7 +56,7 @@ export default function DashboardHeader({
           <div className="rounded-full border border-white/70 bg-white/60 px-3 py-2 text-center text-sm text-slate-700 backdrop-blur-xl sm:px-4 sm:text-left">
             Inercia actual: <span className="font-semibold text-slate-900">{momentum}</span>
           </div>
-
+ 
           <form action={logout}>
             <button
               type="submit"
@@ -67,38 +66,7 @@ export default function DashboardHeader({
               Salir
             </button>
           </form>
-          <button
-            type="button"
-            onClick={async () => {
-              try {
-                const { data: sessionData } = await supabase.auth.getSession();
-                const token = sessionData.session?.access_token;
-                const headers: Record<string, string> = {};
-                if (token) {
-                  headers['Authorization'] = `Bearer ${token}`;
-                }
-                const res = await fetch('/api/user/export-data', { headers });
-                if (!res.ok) throw new Error('Error en el servidor al exportar datos.');
-
-                const blob = await res.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `bio-avatar-datos-gdpr.json`;
-                document.body.appendChild(a);
-                a.click();
-                a.remove();
-                window.URL.revokeObjectURL(url);
-                toast.success('¡Datos exportados con éxito!');
-              } catch (err) {
-                console.error(err);
-                toast.error('No se pudieron exportar los datos. Inténtalo de nuevo.');
-              }
-            }}
-            className="inline-flex items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-800 shadow-sm transition hover:bg-slate-50"
-          >
-            📥 Exportar Datos (GDPR)
-          </button>
+          <ExportDataButton />
           <button
             type="button"
             onPointerDown={() => {

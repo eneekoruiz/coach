@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 
 import HomeDashboard from '@/components/HomeDashboard';
+import { createSupabaseServerClient } from '@/lib/supabase-server';
 
 type HomePageProps = {
   searchParams: Promise<{
@@ -34,5 +35,20 @@ export default async function Page({ searchParams }: HomePageProps) {
     redirect('/login?error=email_confirmation_link_expired');
   }
 
+  // Automatic onboarding redirection for new users
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const metadata = user.user_metadata || {};
+      if (!metadata.onboarding_completed) {
+        redirect('/onboarding');
+      }
+    }
+  } catch (err) {
+    console.warn('[Page] Supabase server client not available or missing environment variables. Running in safe demo mode.', err);
+  }
+
   return <HomeDashboard />;
 }
+

@@ -1,52 +1,39 @@
 import { z } from 'zod';
 
-export const dailyDietTargetSchema = z.object({
+export const mealItemSchema = z.object({
+  id: z.string(),
+  name: z.string().min(1).max(100),
+  text: z.string().max(2000),
+  target_kcal: z.number().int().min(0).max(5000),
+  target_protein: z.number().int().min(0).max(300),
+  target_carbs: z.number().int().min(0).max(500),
+  target_fats: z.number().int().min(0).max(200),
+});
+
+export const dietTemplateSchema = z.object({
+  id: z.string().uuid().optional(),
+  name: z.string().min(1).max(100),
   target_kcal: z.number().int().min(500).max(10000),
   target_protein: z.number().int().min(0).max(500),
   target_carbs: z.number().int().min(0).max(1000),
   target_fats: z.number().int().min(0).max(300),
-  meals: z.object({
-    breakfast: z.string().max(1000).optional().default(''),
-    lunch: z.string().max(1000).optional().default(''),
-    dinner: z.string().max(1000).optional().default(''),
-    snacks: z.string().max(1000).optional().default(''),
-  }),
+  meals: z.array(mealItemSchema),
 });
 
-export const weeklyDietScheduleSchema = z.object({
-  lunes: dailyDietTargetSchema,
-  martes: dailyDietTargetSchema,
-  miercoles: dailyDietTargetSchema,
-  jueves: dailyDietTargetSchema,
-  viernes: dailyDietTargetSchema,
-  sabado: dailyDietTargetSchema,
-  domingo: dailyDietTargetSchema,
-});
+export type MealItem = z.infer<typeof mealItemSchema>;
+export type DietTemplate = z.infer<typeof dietTemplateSchema>;
 
-export type DailyDietTarget = z.infer<typeof dailyDietTargetSchema>;
-export type WeeklyDietSchedule = z.infer<typeof weeklyDietScheduleSchema>;
-
-export const defaultDailyPlan: DailyDietTarget = {
+export const defaultTemplate: DietTemplate = {
+  name: 'Nueva Plantilla',
   target_kcal: 2000,
   target_protein: 150,
   target_carbs: 200,
   target_fats: 70,
-  meals: {
-    breakfast: '',
-    lunch: '',
-    dinner: '',
-    snacks: '',
-  },
-};
-
-export const defaultWeeklyPlan: WeeklyDietSchedule = {
-  lunes: defaultDailyPlan,
-  martes: defaultDailyPlan,
-  miercoles: defaultDailyPlan,
-  jueves: defaultDailyPlan,
-  viernes: defaultDailyPlan,
-  sabado: defaultDailyPlan,
-  domingo: defaultDailyPlan,
+  meals: [
+    { id: 'm1', name: 'Desayuno', text: '', target_kcal: 0, target_protein: 0, target_carbs: 0, target_fats: 0 },
+    { id: 'm2', name: 'Almuerzo', text: '', target_kcal: 0, target_protein: 0, target_carbs: 0, target_fats: 0 },
+    { id: 'm3', name: 'Cena', text: '', target_kcal: 0, target_protein: 0, target_carbs: 0, target_fats: 0 },
+  ],
 };
 
 export const dailyLogSchema = z
@@ -144,3 +131,15 @@ export const endOfDaySchema = z
   .strict();
 
 export type EndOfDaySummary = z.infer<typeof endOfDaySchema>;
+
+// ─── Mood Tracker ───────────────────────────────────────────────────────────
+
+export const moodEntrySchema = z.object({
+  id: z.string().uuid().optional(),
+  user_id: z.string().uuid().optional(),
+  date: z.string().optional(), // YYYY-MM-DD
+  mood_score: z.number().int().min(1).max(5),
+  impact_factors: z.array(z.string()),
+});
+
+export type MoodEntry = z.infer<typeof moodEntrySchema>;

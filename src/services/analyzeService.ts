@@ -5,6 +5,7 @@ import { type SupabaseClient, type User } from '@supabase/supabase-js';
 import { dailyLogSchema, type DailyLog } from '@/lib/schema';
 import { evaluateAndUpdateStreaks } from '@/lib/habits';
 import { upsertDailyLog } from '@/services/dailyLogService';
+import { getWeeklyContext, type WeeklyContext } from '@/services/weeklyContextService';
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
@@ -247,6 +248,14 @@ export async function analyzeAndPersistDailyLog(params: AnalyzeParams) {
   const previousMomentum = previousLog?.health_momentum ?? 100;
   const currentMomentum = todayLog ? todayLog.health_momentum : previousMomentum;
 
+  // 4) Fetch 7-day RAG context for correlation analysis
+  let weeklyContext: WeeklyContext | null = null;
+  try {
+    weeklyContext = await getWeeklyContext();
+  } catch (e) {
+    console.warn('[analyzeService] Could not fetch weekly context, proceeding without RAG:', e);
+  }
+
   let currentState = {
     water_ml: 0,
     total_kcal: 0,
@@ -316,6 +325,19 @@ export async function analyzeAndPersistDailyLog(params: AnalyzeParams) {
     '- Descargo de responsabilidad: NUNCA emitas diagnósticos médicos. Integra de manera fluida y conversacional un descargo (ej: "Un ibuprofeno te puede ayudar... Recuerda que soy solo tu Coach de hábitos, si el dolor sigue consúltalo con un profesional").\n' +
     `- Tu inercia metabólica actual (health_momentum) es ${currentMomentum}. ${toneInstruction} Adapta tus sugerencias a este estado.\n` +
     `Regla de Cohesión Inquebrantable: Si te refieres al valor de la salud en "accion_manana", usa EXACTAMENTE el número provisto (${currentMomentum}) sin alterarlo.\n\n` +
+    '=========================================\n' +
+    'BLOQUE 3.5: MOTOR DE CORRELACIÓN PROACTIVA (RAG — ÚLTIMOS 7 DÍAS)\n' +
+    '=========================================\n' +
+    'Eres también un Científico de Datos emocional. Tu objetivo secundario es encontrar correlaciones ocultas en los datos de los últimos 7 días. ' +
+    'Si notas que los días con baja proteína coinciden con baja puntuación de ánimo, o que fumar rompe la racha de hidratación, díselo al usuario de forma empática pero directa. ' +
+    'Usa un máximo de 2 frases para tus insights correlacionales, intégralas naturalmente en tu respuesta de "accion_manana".\n' +
+    (weeklyContext
+      ? `[CONTEXTO SEMANAL (últimos 7 días)]:\n${JSON.stringify(weeklyContext, null, 0)}\n`
+      : '[CONTEXTO SEMANAL: Sin datos suficientes aún para correlaciones.]\n') +
+    (weeklyContext?.correlations && weeklyContext.correlations.length > 0
+      ? `[CORRELACIONES DETECTADAS POR EL SISTEMA]:\n${weeklyContext.correlations.map(c => `- ${c}`).join('\n')}\nMenciona estas correlaciones de forma natural cuando sea relevante.\n`
+      : '') +
+    '\n' +
     '=========================================\n' +
     'BLOQUE 4: CONTENCIÓN CONTEXTUAL Y FILTRO INTELIGENTE\n' +
     '=========================================\n' +

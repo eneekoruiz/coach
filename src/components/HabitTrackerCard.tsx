@@ -2,6 +2,7 @@ import React, { useState, useTransition, useOptimistic, useEffect } from 'react'
 import { motion, useAnimation } from 'framer-motion';
 import type { HabitRow, DailyLogRow } from '@/types/habits';
 import HabitDetailModal from './HabitDetailModal';
+import { useHaptic } from '@/hooks/useHaptic';
 
 interface HabitTrackerCardProps {
   habit: HabitRow;
@@ -22,6 +23,7 @@ export default function HabitTrackerCard({
   onSaveValue,
   recentLogs,
 }: HabitTrackerCardProps) {
+  const haptic = useHaptic();
   const [isPending, startTransition] = useTransition();
   const [optimisticValue, setOptimisticValue] = useOptimistic(
     value,
@@ -41,6 +43,7 @@ export default function HabitTrackerCard({
 
   const handleIncrement = (e: React.MouseEvent) => {
     e.stopPropagation();
+    haptic.success();
     
     // Animate pop
     controls.start({

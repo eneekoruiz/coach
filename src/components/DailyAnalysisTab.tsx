@@ -1,13 +1,11 @@
 'use client';
 
 import React from 'react';
-import { type DailyLog } from '@/lib/schema';
-import { type DietPlan } from '@/app/nutrition/actions';
-import { defaultDailyPlan } from '@/lib/schema';
+import { type DailyLog, type DietTemplate } from '@/lib/schema';
 
 interface DailyAnalysisTabProps {
   realLog: DailyLog | null;
-  dietPlan: DietPlan | null;
+  dietPlan: DietTemplate | null;
   dailyWaterTarget: number;
 }
 
@@ -64,22 +62,14 @@ function BatteryMetric({ label, actual, target, unit, colorClass, bgClass }: Bat
 }
 
 export default function DailyAnalysisTab({ realLog, dietPlan, dailyWaterTarget }: DailyAnalysisTabProps) {
-  // Fallbacks if no diet plan is active
-  const dayIndex = new Date().getDay();
-  const daysMap = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
-  const todayKey = daysMap[dayIndex] as keyof NonNullable<DietPlan>['weekly_schedule'];
-  
-  const todayPlan = dietPlan?.weekly_schedule?.[todayKey] || defaultDailyPlan;
-
   const targets = {
-    kcal: todayPlan.target_kcal,
-    protein: todayPlan.target_protein,
-    carbs: todayPlan.target_carbs,
-    fats: todayPlan.target_fats,
+    kcal: dietPlan?.target_kcal ?? 2000,
+    protein: dietPlan?.target_protein ?? 150,
+    carbs: dietPlan?.target_carbs ?? 200,
+    fats: dietPlan?.target_fats ?? 70,
     water: dailyWaterTarget ?? 2000,
   };
 
-  // Real data recorded today
   const actual = {
     kcal: realLog?.total_kcal ?? 0,
     protein: realLog?.protein_g ?? 0,
@@ -87,6 +77,19 @@ export default function DailyAnalysisTab({ realLog, dietPlan, dailyWaterTarget }
     fats: realLog?.fats_g ?? 0,
     water: realLog?.water_ml ?? realLog?.hidratacion_ml ?? 0,
   };
+
+  // Dopamina visual: Trigger confetti once calories reach 100% of target
+  const isKcalGoalMet = actual.kcal >= targets.kcal && targets.kcal > 0;
+  const confettiTriggeredRef = React.useRef(false);
+
+  React.useEffect(() => {
+    if (isKcalGoalMet && !confettiTriggeredRef.current) {
+      confettiTriggeredRef.current = true;
+      import('@/utils/rewards').then((mod) => mod.triggerStreakConfetti());
+    } else if (!isKcalGoalMet) {
+      confettiTriggeredRef.current = false;
+    }
+  }, [isKcalGoalMet]);
 
   const meals = realLog?.comidas ?? [];
 
@@ -185,36 +188,23 @@ export default function DailyAnalysisTab({ realLog, dietPlan, dailyWaterTarget }
         )}
       </div>
 
-      {dietPlan && (
+      {dietPlan && dietPlan.meals && dietPlan.meals.length > 0 && (
         <div className="rounded-[1.75rem] border border-white/60 bg-white/60 p-6 shadow-sm backdrop-blur-xl">
-          <h3 className="text-lg font-semibold text-slate-900">Menús de Referencia del Plan ({todayKey})</h3>
+          <h3 className="text-lg font-semibold text-slate-900">Menús de Referencia: {dietPlan.name}</h3>
           <p className="text-xs text-slate-500 mb-4">Tus menús planificados para comparar con lo consumido.</p>
 
           <div className="grid gap-4 md:grid-cols-4">
-            <div className="rounded-2xl bg-white/80 p-4 border border-slate-100">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-1">Desayuno 🥞</span>
-              <p className="text-sm text-slate-700 whitespace-pre-line">
-                {todayPlan.meals.breakfast || 'No configurado'}
-              </p>
-            </div>
-            <div className="rounded-2xl bg-white/80 p-4 border border-slate-100">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-1">Comida 🍗</span>
-              <p className="text-sm text-slate-700 whitespace-pre-line">
-                {todayPlan.meals.lunch || 'No configurado'}
-              </p>
-            </div>
-            <div className="rounded-2xl bg-white/80 p-4 border border-slate-100">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-1">Cena 🐟</span>
-              <p className="text-sm text-slate-700 whitespace-pre-line">
-                {todayPlan.meals.dinner || 'No configurado'}
-              </p>
-            </div>
-            <div className="rounded-2xl bg-white/80 p-4 border border-slate-100">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-1">Snacks 🍎</span>
-              <p className="text-sm text-slate-700 whitespace-pre-line">
-                {todayPlan.meals.snacks || 'No configurado'}
-              </p>
-            </div>
+            {dietPlan.meals.map(meal => (
+              <div key={meal.id} className="rounded-2xl bg-white/80 p-4 border border-slate-100">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-1">{meal.name}</span>
+                <p className="text-sm text-slate-700 whitespace-pre-line">
+                  {meal.text || 'No hay descripción'}
+                </p>
+                <div className="mt-3 text-[10px] font-bold text-slate-400">
+                  {meal.target_kcal} kcal • P: {meal.target_protein}g • C: {meal.target_carbs}g • G: {meal.target_fats}g
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
