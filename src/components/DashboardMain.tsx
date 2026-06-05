@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { motion, AnimatePresence, type HTMLMotionProps } from 'framer-motion';
 import XRayOverlay from './XRayOverlay';
 import CircularProgressRing from './CircularProgressRing';
@@ -64,27 +64,6 @@ function BentoCard({ children, className = '', layoutId, ...props }: BentoCardPr
 // ── Avatar State Logic ──────────────────────────────────────────────────────
 type AvatarState = 'happy' | 'thirsty' | 'tired' | 'critical' | 'neutral';
 
-function getAvatarState({
-  momentum,
-  waterMl,
-  waterTarget,
-  completedHabits,
-  toxinas,
-}: {
-  momentum: number;
-  waterMl: number;
-  waterTarget: number;
-  completedHabits: number;
-  toxinas: string[];
-}): AvatarState {
-  const waterPct = waterTarget > 0 ? waterMl / waterTarget : 0;
-  if (momentum < 30) return 'critical';
-  if (waterPct < 0.25) return 'thirsty';
-  if (toxinas.length > 0 && momentum < 60) return 'tired';
-  if (completedHabits > 0 && momentum >= 75 && waterPct >= 0.5) return 'happy';
-  return 'neutral';
-}
-
 const AVATAR_CONFIG: Record<AvatarState, {
   url: string;
   label: string;
@@ -93,37 +72,37 @@ const AVATAR_CONFIG: Record<AvatarState, {
   statusColor: string;
 }> = {
   happy: {
-    url: 'https://api.dicebear.com/7.x/bottts/svg?seed=happy-avatar&backgroundColor=b6e3f4',
-    label: 'Óptimo',
-    subLabel: '¡Tu Bio-Avatar está radiante! 🌟',
+    url: 'https://api.dicebear.com/7.x/adventurer/svg?seed=lion&backgroundColor=b6e3f4',
+    label: 'León Radiante (Óptimo)',
+    subLabel: '¡Tu Bio-Avatar está en su mejor momento! 🦁🌟',
     aura: 'shadow-[0_0_80px_rgba(16,185,129,0.35)]',
     statusColor: 'bg-emerald-500',
   },
   thirsty: {
-    url: 'https://api.dicebear.com/7.x/bottts/svg?seed=thirsty-avatar&backgroundColor=dbeafe',
-    label: 'Sediento',
-    subLabel: '¡Necesita agua urgente! 💧',
+    url: 'https://api.dicebear.com/7.x/adventurer/svg?seed=camel&backgroundColor=dbeafe',
+    label: 'Camello Sediento',
+    subLabel: '¡Necesito hidratación urgente! 🐫💧',
     aura: 'shadow-[0_0_80px_rgba(59,130,246,0.4)]',
     statusColor: 'bg-blue-500',
   },
   tired: {
-    url: 'https://api.dicebear.com/7.x/bottts/svg?seed=tired-avatar&backgroundColor=fef9c3',
-    label: 'Cansado',
-    subLabel: 'Detecté toxinas hoy. A descansar 😴',
+    url: 'https://api.dicebear.com/7.x/adventurer/svg?seed=koala&backgroundColor=fef9c3',
+    label: 'Koala Fatigado',
+    subLabel: 'Desbalance o toxinas hoy. A descansar 🐨😴',
     aura: 'shadow-[0_0_80px_rgba(234,179,8,0.35)]',
     statusColor: 'bg-amber-500',
   },
   critical: {
-    url: 'https://api.dicebear.com/7.x/bottts/svg?seed=sad-avatar&backgroundColor=fee2e2',
-    label: 'Crítico',
-    subLabel: '¡Ayúdame! Necesito hábitos ahora 🆘',
+    url: 'https://api.dicebear.com/7.x/adventurer/svg?seed=panda&backgroundColor=fee2e2',
+    label: 'Panda en Crisis',
+    subLabel: '¡SOS! Inercia baja, necesito hábitos 🐼🆘',
     aura: 'shadow-[0_0_80px_rgba(239,68,68,0.4)]',
     statusColor: 'bg-rose-500',
   },
   neutral: {
-    url: 'https://api.dicebear.com/7.x/bottts/svg?seed=neutral-avatar&backgroundColor=f1f5f9',
-    label: 'Estable',
-    subLabel: 'Sigue así, vas bien 💪',
+    url: 'https://api.dicebear.com/7.x/adventurer/svg?seed=wolf&backgroundColor=f1f5f9',
+    label: 'Lobo Estable',
+    subLabel: 'Vas por buen camino, mantente firme 🐺💪',
     aura: 'shadow-[0_0_60px_rgba(148,163,184,0.3)]',
     statusColor: 'bg-slate-400',
   },
@@ -260,13 +239,32 @@ export default function DashboardMain({
     );
   }, [displayLog.habits_count]);
 
-  const avatarState = useMemo(() => getAvatarState({
-    momentum: normalizedMomentum,
-    waterMl,
-    waterTarget: dailyWaterTarget,
-    completedHabits: completedHabitsCount,
-    toxinas: displayLog.toxinas || [],
-  }), [normalizedMomentum, waterMl, dailyWaterTarget, completedHabitsCount, displayLog.toxinas]);
+  const [avatarState, setAvatarState] = useState<AvatarState>('neutral');
+
+  useEffect(() => {
+    const inertia = normalizedMomentum;
+    const targetKcal = dietTargets?.kcal ?? 2000;
+    const realKcal = displayLog.total_kcal ?? 0;
+    const nutritionDelta = Math.abs(realKcal - targetKcal);
+    const currentStreak = streak;
+    const waterPct = dailyWaterTarget > 0 ? waterMl / dailyWaterTarget : 0;
+
+    let nextState: AvatarState = 'neutral';
+
+    if (inertia < 35) {
+      nextState = 'critical';
+    } else if (waterPct < 0.35) {
+      nextState = 'thirsty';
+    } else if (nutritionDelta > 800 || (displayLog.toxinas && displayLog.toxinas.length > 0)) {
+      nextState = 'tired';
+    } else if (currentStreak >= 3 && nutritionDelta <= 300 && inertia >= 70) {
+      nextState = 'happy';
+    } else {
+      nextState = 'neutral';
+    }
+
+    setAvatarState(nextState);
+  }, [normalizedMomentum, displayLog.total_kcal, displayLog.toxinas, dietTargets?.kcal, streak, waterMl, dailyWaterTarget]);
 
   const avatar = AVATAR_CONFIG[avatarState];
 

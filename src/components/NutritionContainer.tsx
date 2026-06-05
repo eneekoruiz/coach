@@ -208,7 +208,7 @@ export default function NutritionContainer() {
           {activeTab === 'plan' ? (
             <DietCalendarView templates={templates} calendar={calendar} onUpdate={loadData} />
           ) : (
-            <DailyAnalysisTab realLog={realLog} dietPlan={todayTemplate} dailyWaterTarget={dailyWaterTarget} />
+            <DailyAnalysisTab realLog={realLog} dietPlan={todayTemplate} dailyWaterTarget={dailyWaterTarget} onUpdate={loadData} />
           )}
         </div>
       )}

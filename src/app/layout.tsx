@@ -4,8 +4,9 @@ import { Inter } from 'next/font/google';
 
 import './globals.css';
 import { Toaster } from 'sonner';
-import BottomNav from '@/components/BottomNav';
+import PWAInstallPrompt from '@/components/PWAInstallPrompt';
 import Sidebar from '@/components/Sidebar';
+import BottomNav from '@/components/BottomNav';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
@@ -54,7 +55,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="es" className={`${inter.variable} font-sans`}>
-      <body className="antialiased text-slate-900 bg-slate-50 selection:bg-cyan-500/30 overflow-hidden overscroll-none h-[100dvh] w-full flex">
+      <body className="antialiased text-slate-900 bg-slate-50 selection:bg-cyan-500/30 overflow-hidden overscroll-none h-[100dvh] w-full flex pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
         {/* Spatial 3D Layout Structure */}
         <Sidebar />
         <main className="flex-1 flex flex-col min-h-0 min-w-0 relative overflow-y-auto">
@@ -62,6 +63,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         </main>
         <Toaster richColors theme="system" position="top-center" />
         <BottomNav />
+        <PWAInstallPrompt />
       </body>
     </html>
   );
