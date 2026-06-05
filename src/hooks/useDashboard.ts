@@ -41,6 +41,9 @@ export function useDashboard() {
     carbs: 200,
     fats: 70,
   });
+  const [hasLoggedToday, setHasLoggedToday] = useState(false);
+  const [shields, setShields] = useState(2);
+  const [dailyLogs, setDailyLogs] = useState<any[]>([]);
 
   const loadDashboard = useCallback(async () => {
     try {
@@ -81,17 +84,33 @@ export function useDashboard() {
 
       const { data: records, error } = await supabase
         .from('daily_logs')
-        .select('health_momentum, ai_data, date')
+        .select('health_momentum, ai_data, date, saved_by_shield')
         .order('date', { ascending: false })
-        .limit(15);
+        .limit(45);
 
       if (error) {
         throw error;
       }
 
+      setDailyLogs(records || []);
+
+      let userShields = 2;
+      if (user) {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('shields_available')
+          .eq('id', user.id)
+          .maybeSingle();
+        if (profileData) {
+          userShields = profileData.shields_available;
+        }
+      }
+      setShields(userShields);
+
       // Midnight Reset logic: Only load today's logged activities for lastLog
       const todayStr = getNormalizedDate(new Date());
       const todayRecord = records?.find((r) => r.date === todayStr);
+      setHasLoggedToday(!!todayRecord);
 
       if (todayRecord) {
         const validated = dailyLogSchema.safeParse(todayRecord.ai_data);
@@ -264,5 +283,8 @@ export function useDashboard() {
     updateWaterSettings,
     addWaterIntake,
     reload: loadDashboard,
+    hasLoggedToday,
+    shields,
+    dailyLogs,
   };
 }

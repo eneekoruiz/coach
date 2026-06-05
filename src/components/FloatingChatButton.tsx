@@ -1,11 +1,13 @@
 import React from 'react';
+import { Plus } from 'lucide-react';
 
 type FloatingChatButtonProps = {
   onClick: () => void;
   isOpen?: boolean;
+  hasLoggedToday?: boolean;
 };
 
-export default function FloatingChatButton({ onClick, isOpen }: FloatingChatButtonProps) {
+export default function FloatingChatButton({ onClick, isOpen, hasLoggedToday }: FloatingChatButtonProps) {
   if (isOpen) return null;
 
   return (
@@ -13,18 +15,12 @@ export default function FloatingChatButton({ onClick, isOpen }: FloatingChatButt
       type="button"
       aria-label="Abrir chat"
       onClick={onClick}
-      className="fixed bottom-6 right-6 md:bottom-10 md:right-10 z-[100] flex w-16 h-16 md:w-20 md:h-20 items-center justify-center rounded-full bg-cyan-500 text-white shadow-2xl transition-transform hover:scale-110 active:scale-95 animate-bounce ring-4 ring-cyan-500/30 ring-offset-2 ring-offset-slate-900"
-      style={{ animationDuration: '3s' }}
+      className={`fixed bottom-8 right-8 z-[100] flex items-center gap-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-6 py-4 rounded-full shadow-2xl hover:scale-105 active:scale-95 transition-all ${
+        !hasLoggedToday ? 'ring-4 ring-cyan-500/40 animate-pulse' : ''
+      }`}
     >
-      <svg
-        viewBox="0 0 24 24"
-        className="w-8 h-8 md:w-10 md:h-10"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-      >
-        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-      </svg>
+      <Plus className="w-5 h-5" />
+      <span className="font-semibold text-sm">Registrar</span>
     </button>
   );
 }

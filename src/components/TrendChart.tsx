@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { type DailyLog } from '@/lib/schema';
-import { ArrowUpRight, ArrowDownRight, TrendingUp, Activity, Droplets } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, TrendingUp, Activity, Droplets, CalendarCheck } from 'lucide-react';
 
 type HistoryLog = {
   date: string;
@@ -17,7 +18,10 @@ interface TrendChartProps {
 }
 
 export default function TrendChart({ logs }: TrendChartProps) {
-  const [period, setPeriod] = useState<'7D' | '1M' | '6M'>('7D');
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const urlPeriod = (searchParams.get('period') as '7D' | '1M' | '6M') || '7D';
+  const [period, setPeriod] = useState<'7D' | '1M' | '6M'>(urlPeriod);
 
   const sortedLogs = useMemo(() => {
     const sorted = [...logs].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
@@ -52,12 +56,21 @@ export default function TrendChart({ logs }: TrendChartProps) {
     const avgKcal = Math.round(chartData.reduce((acc, curr) => acc + curr.kcal, 0) / chartData.length);
     const avgAgua = Math.round(chartData.reduce((acc, curr) => acc + curr.agua, 0) / chartData.length);
 
+    const totalDays = period === '7D' ? 7 : period === '1M' ? 30 : 180;
+    const consistency = Math.min(100, Math.round((logs.length / totalDays) * 100));
+
     return {
       inercia: { text: inerciaText, diff: inerciaDiff, color: inerciaColor, Icon: InerciaIcon },
       avgKcal,
       avgAgua,
+      consistency,
     };
-  }, [chartData]);
+  }, [chartData, logs.length, period]);
+
+  const handlePeriodChange = (newPeriod: '7D' | '1M' | '6M') => {
+    setPeriod(newPeriod);
+    router.push(`/history?period=${newPeriod}`);
+  };
 
   if (logs.length === 0) {
     return (
@@ -92,7 +105,7 @@ export default function TrendChart({ logs }: TrendChartProps) {
           {['7D', '1M', '6M'].map(p => (
             <button
               key={p}
-              onClick={() => setPeriod(p as any)}
+              onClick={() => handlePeriodChange(p as any)}
               className={`px-6 py-2 rounded-full text-sm font-bold transition-all duration-300 ${
                 period === p 
                   ? 'bg-white text-slate-900 shadow-sm scale-100' 
@@ -107,7 +120,7 @@ export default function TrendChart({ logs }: TrendChartProps) {
 
       {/* Smart Insights Bento Grid */}
       {insights && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className={`p-5 rounded-3xl border flex items-center justify-between ${insights.inercia.color}`}>
             <div>
               <p className="text-xs font-bold uppercase tracking-widest opacity-60 mb-1">Momentum</p>
@@ -135,6 +148,16 @@ export default function TrendChart({ logs }: TrendChartProps) {
             </div>
             <div className="w-12 h-12 bg-white/50 rounded-full flex items-center justify-center backdrop-blur-md shadow-sm">
               <Droplets className="w-6 h-6" />
+            </div>
+          </div>
+
+          <div className="p-5 rounded-3xl border border-lime-100 bg-lime-50 text-lime-600 flex items-center justify-between">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-widest opacity-60 mb-1">Consistencia</p>
+              <p className="text-lg font-black">{insights.consistency}%</p>
+            </div>
+            <div className="w-12 h-12 bg-white/50 rounded-full flex items-center justify-center backdrop-blur-md shadow-sm">
+              <CalendarCheck className="w-6 h-6" />
             </div>
           </div>
         </div>

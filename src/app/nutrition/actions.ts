@@ -250,14 +250,35 @@ export async function autocompleteDietWithAi(context: string): Promise<{ success
       schema: dietTemplateSchema,
     });
 
-    const parsed = dietTemplateSchema.safeParse(result.object);
+    const rawObject = result.object as any;
+    const sanitizedData: DietTemplate = {
+      id: rawObject.id,
+      name: rawObject.name || 'Plan Generado',
+      target_kcal: Math.round(Number(rawObject.target_kcal || 2000)),
+      target_protein: Math.round(Number(rawObject.target_protein || 150)),
+      target_carbs: Math.round(Number(rawObject.target_carbs || 200)),
+      target_fats: Math.round(Number(rawObject.target_fats || 70)),
+      meals: Array.isArray(rawObject.meals)
+        ? rawObject.meals.map((m: any, index: number) => ({
+            id: m.id ? String(m.id) : `m-${index}-${Date.now()}`,
+            name: m.name ? String(m.name) : `Comida ${index + 1}`,
+            text: m.text ? String(m.text) : 'Alimentos generados',
+            target_kcal: Math.round(Number(m.target_kcal || 0)),
+            target_protein: Math.round(Number(m.target_protein || 0)),
+            target_carbs: Math.round(Number(m.target_carbs || 0)),
+            target_fats: Math.round(Number(m.target_fats || 0)),
+          }))
+        : [],
+    };
+
+    const parsed = dietTemplateSchema.safeParse(sanitizedData);
     if (!parsed.success) {
-      return { success: false, error: 'La IA generó un plan inválido.' };
+      return { success: false, error: 'Fallo en generación' };
     }
 
     return { success: true, data: parsed.data };
   } catch (err) {
     console.error('autocompleteDietWithAi server action error:', err);
-    return { success: false, error: err instanceof Error ? err.message : 'Error al conectar con la Inteligencia Artificial.' };
+    return { success: false, error: 'Fallo en generación' };
   }
 }

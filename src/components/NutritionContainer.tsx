@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { dailyLogSchema, type DailyLog } from '@/lib/schema';
@@ -21,48 +21,60 @@ export default function NutritionContainer() {
   const [realLog, setRealLog] = useState<DailyLog | null>(null);
   const [dailyWaterTarget, setDailyWaterTarget] = useState(2000);
   const [isGeneratingAi, setIsGeneratingAi] = useState(false);
+  const isMounted = useRef(true);
 
   // We need today's template for the daily analysis
   const todayStr = getNormalizedDate(new Date());
   const todayTemplateId = calendar.find(c => c.date === todayStr)?.template_id;
   const todayTemplate = templates.find(t => t.id === todayTemplateId) || null;
 
+  useEffect(() => {
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
+
   const loadData = useCallback(async () => {
-    setLoading(true);
     try {
-      const { data: userData, error: userError } = await supabase.auth.getUser();
-      if (userError || !userData.user) {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+
+      if (!accessToken) {
         setAuthRequired(true);
         setLoading(false);
         return;
       }
-      
-      const user = userData.user;
-      
-      const metadata = user.user_metadata || {};
-      setDailyWaterTarget(Number(metadata.daily_water_target_ml ?? 2000));
+
+      // Get water settings
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const metadata = user.user_metadata || {};
+        setDailyWaterTarget(Number(metadata.daily_water_target_ml ?? 2000));
+      }
 
       const fetchedTemplates = await getDietTemplates();
       setTemplates(fetchedTemplates);
 
-      // Fetch 3 months of calendar
       const today = new Date();
       const start = new Date(today.getFullYear(), today.getMonth() - 1, 1).toISOString().slice(0, 10);
       const end = new Date(today.getFullYear(), today.getMonth() + 2, 0).toISOString().slice(0, 10);
       const fetchedCalendar = await getDietCalendar(start, end);
       setCalendar(fetchedCalendar);
 
-      const { data: logRecord, error: logError } = await supabase
-        .from('daily_logs')
-        .select('ai_data')
-        .eq('user_id', user.id)
-        .eq('date', todayStr)
-        .maybeSingle();
+      if (user) {
+        const { data: logRecord, error: logError } = await supabase
+          .from('daily_logs')
+          .select('ai_data')
+          .eq('user_id', user.id)
+          .eq('date', todayStr)
+          .maybeSingle();
 
-      if (!logError && logRecord?.ai_data) {
-        const validated = dailyLogSchema.safeParse(logRecord.ai_data);
-        if (validated.success) {
-          setRealLog(validated.data);
+        if (!logError && logRecord?.ai_data) {
+          const validated = dailyLogSchema.safeParse(logRecord.ai_data);
+          if (validated.success) {
+            setRealLog(validated.data);
+          }
         }
       }
     } catch (err) {
@@ -76,28 +88,38 @@ export default function NutritionContainer() {
     void loadData();
   }, [loadData]);
 
-  const handleAiGenerate = async () => {
+  const handleAiGenerate = () => {
     setIsGeneratingAi(true);
-    toast.success('Analizando tu perfil e historial para crear tu plan...');
-    try {
-      const res = await autocompleteDietWithAi("Necesito una dieta balanceada para empezar.");
-      if (res.success && res.data) {
-        toast.success('Plan generado. Guardando...');
-        const { saveDietTemplate, assignTemplateToDates } = await import('@/app/nutrition/actions');
-        const saved = await saveDietTemplate(res.data);
-        if (saved.success && saved.data?.id) {
-          // Asignar al día de hoy como demo
-          await assignTemplateToDates(saved.data.id, [todayStr]);
+    toast.success('Generando tu plan con IA en 2º plano... Puedes seguir usando la app.');
+
+    // Launch generation inside an async IIFE without awaiting it
+    (async () => {
+      try {
+        const res = await autocompleteDietWithAi("Necesito una dieta balanceada para empezar.");
+        if (res.success && res.data) {
+          const { saveDietTemplate, assignTemplateToDates } = await import('@/app/nutrition/actions');
+          const saved = await saveDietTemplate(res.data);
+          if (saved.success && saved.data?.id) {
+            await assignTemplateToDates(saved.data.id, [todayStr]);
+            toast.success('¡Tu plan ha sido generado! Ya puedes ir a verlo.');
+          } else {
+            toast.error(saved.error || 'Fallo al guardar el plan.');
+          }
+          if (isMounted.current) {
+            await loadData();
+          }
+        } else {
+          toast.error(res.error || 'Fallo en generación');
         }
-        await loadData();
-      } else {
-        toast.error(res.error || 'Error al generar.');
+      } catch (err) {
+        console.error('AI Diet generation error:', err);
+        toast.error('Fallo en generación de plan.');
+      } finally {
+        if (isMounted.current) {
+          setIsGeneratingAi(false);
+        }
       }
-    } catch (err) {
-      toast.error('Ocurrió un error inesperado con la IA.');
-    } finally {
-      setIsGeneratingAi(false);
-    }
+    })();
   };
 
   if (loading) {
@@ -177,7 +199,7 @@ export default function NutritionContainer() {
       {/* Renders Principales */}
       {!hasAnyData ? (
         <DietEmptyState 
-          onManualCreate={() => {}} // Remove manual modal from here, we will just use the calendar plus button
+          onManualCreate={() => {}} 
           onAiGenerate={handleAiGenerate} 
           isLoadingAi={isGeneratingAi} 
         />

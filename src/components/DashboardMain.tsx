@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, type HTMLMotionProps } from 'framer-motion';
 import XRayOverlay from './XRayOverlay';
 import CircularProgressRing from './CircularProgressRing';
 import { type DailyLog } from '@/lib/schema';
@@ -47,15 +47,13 @@ function clampMomentum(value: number) {
 }
 
 // Reusable Bento Card wrapper with zero-border glassmorphism and layoutId support
-interface BentoCardProps extends React.HTMLAttributes<HTMLDivElement> {
-  layoutId?: string;
-}
+interface BentoCardProps extends HTMLMotionProps<"div"> {}
 
 function BentoCard({ children, className = '', layoutId, ...props }: BentoCardProps) {
   return (
     <motion.div 
       layoutId={layoutId}
-      className={`bg-white/60 dark:bg-black/60 backdrop-blur-2xl rounded-3xl shadow-[0_12px_40px_rgba(0,0,0,0.03),0_1px_2px_rgba(0,0,0,0.01)] p-6 sm:p-8 overflow-hidden flex flex-col relative transition-all duration-300 hover:shadow-[0_20px_50px_rgba(0,0,0,0.06)] cursor-pointer select-none ${className}`}
+      className={`bg-white/60 dark:bg-black/60 backdrop-blur-2xl rounded-3xl shadow-[0_12px_40px_rgba(0,0,0,0.03),0_1px_2px_rgba(0,0,0,0.01)] p-4 sm:p-5 overflow-hidden flex flex-col relative transition-all duration-300 hover:shadow-[0_20px_50px_rgba(0,0,0,0.06)] cursor-pointer select-none ${className}`}
       {...props}
     >
       {children}
@@ -231,26 +229,19 @@ export default function DashboardMain({
   }, [displayLog.habits_count]);
 
   const avatarUrl = useMemo(() => {
-    if (normalizedMomentum > 80) return 'https://image.pollinations.ai/prompt/a%20beautiful%20photorealistic%20german%20shepherd%20dog,%20strong,%20healthy,%20glowing%20coat,%20happy%20face,%20sitting%20proudly%20in%20a%20sunny%20meadow,%20high%20detail,%20warm%20lighting,%20no%20text?width=512&height=512&nologo=true';
-    if (normalizedMomentum > 30) return 'https://image.pollinations.ai/prompt/a%20beautiful%20photorealistic%20german%20shepherd%20dog,%20calm,%20neutral%20expression,%20balanced,%20natural%20forest,%20soft%20morning%20light,%20high%20detail,%20no%20text?width=512&height=512&nologo=true';
-    return 'https://image.pollinations.ai/prompt/a%20beautiful%20photorealistic%20german%20shepherd%20dog,%20sad,%20tired,%20weak,%20lying%20down%20in%20dark%20shadows,%20somber%20mood,%20misty%20environment,%20high%20detail,%20no%20text?width=512&height=512&nologo=true';
+    if (normalizedMomentum > 80) return 'https://api.dicebear.com/7.x/bottts/svg?seed=happy-avatar';
+    if (normalizedMomentum > 30) return 'https://api.dicebear.com/7.x/bottts/svg?seed=neutral-avatar';
+    return 'https://api.dicebear.com/7.x/bottts/svg?seed=sad-avatar';
   }, [normalizedMomentum]);
 
   return (
     <section className="relative flex flex-1 flex-col px-4 md:px-6 pb-24 md:pb-6 pt-4">
       <div className="relative z-10 w-full max-w-6xl mx-auto flex flex-col">
-        {isLoading && (
-          <div className="absolute inset-0 z-50 flex items-center justify-center rounded-[2rem] bg-slate-50/50 backdrop-blur-sm">
-            <div className="bg-white px-6 py-3 rounded-full shadow-lg border border-slate-100 flex items-center gap-3">
-              <div className="w-4 h-4 border-2 border-slate-200 border-t-slate-800 rounded-full animate-spin" />
-              <span className="text-sm font-bold text-slate-700">Sincronizando...</span>
-            </div>
-          </div>
-        )}
+        {/* Loading screen removed for Next.js loading.tsx native transition */}
 
         <PushNotificationManager />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 auto-rows-auto gap-8 flex-1 mt-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 flex-1 mt-6">
           
           {/* Bento Box 1: Bio-Avatar (Main) */}
           <BentoCard 
@@ -259,11 +250,11 @@ export default function DashboardMain({
               triggerVibration('light');
               setExpandedCard('avatar');
             }}
-            className="md:col-span-2 lg:col-span-1 xl:col-span-1 flex flex-col items-center justify-center text-center relative overflow-hidden min-h-[320px]"
+            className="col-span-full lg:col-span-2 flex flex-col sm:flex-row items-center justify-around text-center sm:text-left relative overflow-hidden min-h-[160px] p-6 gap-6"
           >
             <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-sky-500/10 to-transparent pointer-events-none" />
             
-            <div className="relative aspect-square w-[150px] sm:w-[170px] overflow-hidden rounded-[2.2rem] shadow-2xl bg-white/40 mb-6 mt-4 z-10">
+            <div className="relative aspect-square w-[100px] sm:w-[120px] overflow-hidden rounded-[1.8rem] shadow-2xl bg-white/40 z-10 shrink-0">
               <img
                 src={avatarUrl}
                 alt="Bio-Avatar"
@@ -275,9 +266,13 @@ export default function DashboardMain({
               />
             </div>
             
-            <h3 className="text-4xl font-extrabold text-slate-800 dark:text-white tracking-tighter z-10 uppercase">
-              {normalizedMomentum > 80 ? 'Óptimo' : normalizedMomentum > 30 ? 'Estable' : 'Crítico'}
-            </h3>
+            <div className="flex flex-col z-10">
+              <span className="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-extrabold mb-1">Estado de tu Bio-Mascota</span>
+              <h3 className="text-4xl font-extrabold text-slate-800 dark:text-white tracking-tighter uppercase">
+                {normalizedMomentum > 80 ? 'Óptimo' : normalizedMomentum > 30 ? 'Estable' : 'Crítico'}
+              </h3>
+              <p className="text-xs text-slate-400 font-bold mt-1">Pulsa para ver análisis de inercia</p>
+            </div>
           </BentoCard>
 
           {/* Bento Box 2: Nutrition */}
@@ -287,16 +282,16 @@ export default function DashboardMain({
               triggerVibration('light');
               setExpandedCard('nutrition');
             }}
-            className="col-span-full md:col-span-2 lg:col-span-2 xl:col-span-2 min-h-[250px] flex flex-col justify-between"
+            className="col-span-full md:col-span-2 lg:col-span-2 min-h-[140px] flex flex-col justify-between"
           >
             <div>
               <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-extrabold mb-1">Nutrición</p>
             </div>
             <div className="flex-1 flex flex-col justify-center items-start">
-              <h2 className="text-7xl font-extrabold text-rose-500 tracking-tighter leading-none">
+              <h2 className="text-5xl font-extrabold text-rose-500 tracking-tighter leading-none">
                 {displayLog.total_kcal}
               </h2>
-              <span className="text-xs text-slate-400 font-bold uppercase tracking-wider mt-2">Kcal Consumidas Hoy</span>
+              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">Kcal Consumidas Hoy</span>
             </div>
           </BentoCard>
 
@@ -307,16 +302,16 @@ export default function DashboardMain({
               triggerVibration('light');
               setExpandedCard('water');
             }}
-            className="col-span-1 lg:col-span-1 xl:col-span-1 min-h-[250px] flex flex-col justify-between"
+            className="col-span-1 lg:col-span-1 min-h-[140px] flex flex-col justify-between"
           >
             <div>
               <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-extrabold mb-1">Hidratación</p>
             </div>
             <div className="flex-1 flex flex-col justify-center items-start">
-              <h2 className="text-7xl font-extrabold text-cyan-500 tracking-tighter leading-none">
+              <h2 className="text-5xl font-extrabold text-cyan-500 tracking-tighter leading-none">
                 {displayLog.water_ml ?? displayLog.hidratacion_ml ?? 0}
               </h2>
-              <span className="text-xs text-slate-400 font-bold uppercase tracking-wider mt-2">ml de Agua</span>
+              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">ml de Agua</span>
             </div>
           </BentoCard>
 
@@ -327,39 +322,39 @@ export default function DashboardMain({
               triggerVibration('light');
               setExpandedCard('habits');
             }}
-            className="col-span-1 lg:col-span-1 xl:col-span-1 min-h-[250px] flex flex-col justify-between"
+            className="col-span-1 lg:col-span-1 min-h-[140px] flex flex-col justify-between"
           >
             <div>
               <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-extrabold mb-1">Hábitos</p>
             </div>
             <div className="flex-1 flex flex-col justify-center items-start">
-              <h2 className="text-7xl font-extrabold text-lime-500 tracking-tighter leading-none">
+              <h2 className="text-5xl font-extrabold text-lime-500 tracking-tighter leading-none">
                 {completedHabitsCount}
               </h2>
-              <span className="text-xs text-slate-400 font-bold uppercase tracking-wider mt-2">Hábitos Completados</span>
+              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">Hábitos Completados</span>
             </div>
           </BentoCard>
 
           {/* Bento Box 5: Minor Stats Grid */}
-          <div className="col-span-full grid grid-cols-2 md:grid-cols-4 gap-8 min-h-[120px]">
-            <BentoCard className="p-6 flex flex-col justify-center items-center text-center">
-              <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-extrabold mb-1">Inercia Total</p>
-              <p className="text-6xl font-extrabold text-slate-800 dark:text-white tracking-tighter">{normalizedMomentum}<span className="text-lg text-slate-400 ml-1">%</span></p>
+          <div className="col-span-full grid grid-cols-2 md:grid-cols-4 gap-6 min-h-[100px]">
+            <BentoCard className="p-4 flex flex-col justify-center items-center text-center">
+              <p className="text-[9px] uppercase tracking-[0.2em] text-slate-400 font-extrabold mb-1">Inercia Total</p>
+              <p className="text-4xl font-extrabold text-slate-800 dark:text-white tracking-tighter">{normalizedMomentum}<span className="text-xs text-slate-400 ml-0.5">%</span></p>
             </BentoCard>
             
-            <BentoCard className="p-6 flex flex-col justify-center items-center text-center">
-              <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-extrabold mb-1">🔥 Racha</p>
-              <p className="text-6xl font-extrabold text-slate-800 dark:text-white tracking-tighter">{streak}<span className="text-lg text-slate-400 ml-1">días</span></p>
+            <BentoCard className="p-4 flex flex-col justify-center items-center text-center">
+              <p className="text-[9px] uppercase tracking-[0.2em] text-slate-400 font-extrabold mb-1">🔥 Racha</p>
+              <p className="text-4xl font-extrabold text-slate-800 dark:text-white tracking-tighter">{streak}<span className="text-xs text-slate-400 ml-0.5">días</span></p>
             </BentoCard>
 
-            <BentoCard className="p-6 flex flex-col justify-center items-center text-center">
-              <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-extrabold mb-1">Energía</p>
-              <p className="text-6xl font-extrabold text-slate-800 dark:text-white tracking-tighter">{energyLevel}<span className="text-lg text-slate-400 ml-1">/5</span></p>
+            <BentoCard className="p-4 flex flex-col justify-center items-center text-center">
+              <p className="text-[9px] uppercase tracking-[0.2em] text-slate-400 font-extrabold mb-1">Energía</p>
+              <p className="text-4xl font-extrabold text-slate-800 dark:text-white tracking-tighter">{energyLevel}<span className="text-xs text-slate-400 ml-0.5">/5</span></p>
             </BentoCard>
 
-            <BentoCard className="p-6 flex flex-col justify-center items-center text-center">
-              <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-extrabold mb-1">Claridad</p>
-              <p className="text-6xl font-extrabold text-slate-800 dark:text-white tracking-tighter">{mentalClarity}<span className="text-lg text-slate-400 ml-1">/5</span></p>
+            <BentoCard className="p-4 flex flex-col justify-center items-center text-center">
+              <p className="text-[9px] uppercase tracking-[0.2em] text-slate-400 font-extrabold mb-1">Claridad</p>
+              <p className="text-4xl font-extrabold text-slate-800 dark:text-white tracking-tighter">{mentalClarity}<span className="text-xs text-slate-400 ml-0.5">/5</span></p>
             </BentoCard>
           </div>
 

@@ -12,7 +12,7 @@ export async function sendCloseDay(accessToken?: string) {
   return { ok: response.ok, status: response.status, payload };
 }
 
-export async function sendAnalyze(text: string, base64Image: string | null, accessToken?: string) {
+export async function sendAnalyze(text: string, base64Image: string | null, accessToken?: string, history?: Array<{ role: 'user' | 'assistant'; content: string }>, session_id?: string | null) {
   const local_date = new Date().toLocaleDateString('sv').slice(0, 10);
 
   const response = await fetch('/api/analyze', {
@@ -21,7 +21,7 @@ export async function sendAnalyze(text: string, base64Image: string | null, acce
       'Content-Type': 'application/json',
       ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
     },
-    body: JSON.stringify({ text, image: base64Image, local_date }),
+    body: JSON.stringify({ text, image: base64Image, local_date, history, session_id }),
   });
 
   const payload = await response.json();

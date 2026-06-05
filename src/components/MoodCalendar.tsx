@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef, startTransition } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, ChevronRight, Heart } from 'lucide-react';
 
@@ -118,7 +118,9 @@ export default function MoodCalendar({ entries }: MoodCalendarProps) {
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (calendarRef.current && !calendarRef.current.contains(e.target as Node)) {
-        setSelectedDay(null);
+        startTransition(() => {
+          setSelectedDay(null);
+        });
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
@@ -126,15 +128,17 @@ export default function MoodCalendar({ entries }: MoodCalendarProps) {
   }, []);
 
   const navigateMonth = useCallback((delta: number) => {
-    setSelectedDay(null);
-    setDirection(delta);
-    setCurrentMonth((prev) => {
-      let newMonth = prev + delta;
-      let newYear = currentYear;
-      if (newMonth < 0) { newMonth = 11; newYear -= 1; }
-      else if (newMonth > 11) { newMonth = 0; newYear += 1; }
-      setCurrentYear(newYear);
-      return newMonth;
+    startTransition(() => {
+      setSelectedDay(null);
+      setDirection(delta);
+      setCurrentMonth((prev) => {
+        let newMonth = prev + delta;
+        let newYear = currentYear;
+        if (newMonth < 0) { newMonth = 11; newYear -= 1; }
+        else if (newMonth > 11) { newMonth = 0; newYear += 1; }
+        setCurrentYear(newYear);
+        return newMonth;
+      });
     });
   }, [currentYear]);
 
@@ -239,8 +243,10 @@ export default function MoodCalendar({ entries }: MoodCalendarProps) {
                 <motion.button
                   whileTap={{ scale: 0.85 }}
                   onClick={() => {
-                    if (entry) setSelectedDay(isSelected ? null : dateKey);
-                    else setSelectedDay(null);
+                    startTransition(() => {
+                      if (entry) setSelectedDay(isSelected ? null : dateKey);
+                      else setSelectedDay(null);
+                    });
                   }}
                   className={[
                     'relative w-11 h-11 rounded-full flex items-center justify-center transition-all duration-200',

@@ -38,6 +38,7 @@ type HistoryLog = {
 type HistoryPageProps = {
   searchParams: Promise<{
     page?: string;
+    period?: '7D' | '1M' | '6M';
   }>;
 };
 
@@ -62,8 +63,8 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
             </p>
             <div className="mt-4">
               <Link
-                href="/"
-                className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-4 py-2 text-sm font-medium text-white transition hover:scale-[1.01]"
+                 href="/"
+                 className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-4 py-2 text-sm font-medium text-white transition hover:scale-[1.01]"
               >
                 Volver al Dashboard
               </Link>
@@ -74,24 +75,19 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
     );
   }
 
-  // Fetch complete history logs (all pages) for the Trends component
-  // We can fetch up to 180 days for the 6M view
-  const { fetchHistoryPage } = await import('@/lib/history-server');
-  
-  // Here we might just fetch the first page with a high limit or multiple pages
-  // For the sake of the redesign, let's fetch a large batch 
-  // In a real app we would have a dedicated endpoint for chart data, but for now we fetch page 1 with 180 limit if supported,
-  // or we just rely on fetchHistoryPage but we need to modify it or just use the data we have.
-  // Assuming fetchHistoryPage uses PAGE_SIZE = 6, we might not get enough data.
-  // I will just fetch from Supabase directly here for the charts to bypass the pagination limit.
-  
+  const resolvedSearchParams = await searchParams;
+  const period = resolvedSearchParams.period || '7D';
+
+  const endDate = new Date().toISOString().slice(0, 10);
+  let days = 7;
+  if (period === '1M') days = 30;
+  if (period === '6M') days = 180;
+
+  const startDateTime = new Date();
+  startDateTime.setDate(startDateTime.getDate() - days);
+  const startDate = startDateTime.toISOString().slice(0, 10);
+
   const { createServerClient } = await import('@supabase/ssr');
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { cookies: { get: (name) => undefined } } // Readonly is fine here but we need the actual user cookie
-  );
-  
   const cookieStore = await cookies();
   const supabaseReal = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -115,6 +111,8 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
     .from('daily_logs')
     .select('date, health_momentum, avatar_image_url, ai_data')
     .eq('user_id', user.id)
+    .gte('date', startDate)
+    .lte('date', endDate)
     .order('date', { ascending: false })
     .limit(180);
 

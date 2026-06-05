@@ -19,8 +19,7 @@ export function createSafeDemoCloseDayResponse() {
       'a photorealistic german shepherd in a calm bright forest, clean composition, soft morning light, no text',
   };
 
-  const encodedPrompt = encodeURIComponent(summary.prompt_imagen);
-  const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&nologo=true`;
+  const imageUrl = `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(summary.prompt_imagen)}`;
 
   return {
     ...summary,
@@ -77,8 +76,7 @@ export async function closeUserDay(params: CloseDayParams) {
     schema: endOfDaySchema,
   });
 
-  const encodedPrompt = encodeURIComponent(summary.prompt_imagen);
-  const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&nologo=true`;
+  const imageUrl = `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(summary.prompt_imagen)}`;
 
   // 1) Fetch last health_momentum before today to compute EMA
   const { data: previousLog } = await supabase
