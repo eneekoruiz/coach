@@ -4,11 +4,13 @@ import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { moodEntrySchema, type MoodEntry } from '@/lib/schema';
 
 /**
- * Save a new mood entry for today (allows multi-registration)
+ * Save a new mood entry (allows multi-registration, supports custom date and daily summary flag)
  */
 export async function saveMoodEntry(
   moodScore: number,
-  impactFactors: string[]
+  impactFactors: string[],
+  date?: string,
+  isDailySummary?: boolean
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const supabase = await createSupabaseServerClient();
@@ -16,15 +18,20 @@ export async function saveMoodEntry(
     if (!user) return { success: false, error: 'No autenticado.' };
 
     const today = new Date().toISOString().split('T')[0];
+    const targetDate = date || today;
 
     const { error } = await supabase
       .from('mood_logs')
       .insert({
         user_id: user.id,
-        date: today,
-        mood_score: moodScore,
-        impact_factors: impactFactors,
-        logged_at: new Date().toISOString(),
+        date: targetDate,
+        mood_score: moodScore, // Compatibility field
+        valence_score: moodScore,
+        impact_factors: impactFactors, // Compatibility field
+        impact_tags: impactFactors,
+        is_daily_summary: isDailySummary || false,
+        created_at_timestamp: new Date().toISOString(),
+        logged_at: new Date().toISOString(), // Compatibility field
       });
 
     if (error) {
@@ -84,7 +91,7 @@ export async function getTodayMoodEntries(): Promise<MoodEntry[]> {
       .select('*')
       .eq('user_id', user.id)
       .eq('date', today)
-      .order('logged_at', { ascending: false });
+      .order('created_at_timestamp', { ascending: false });
 
     if (error) {
       console.warn('[getTodayMoodEntries] Supabase error:', error.message);
@@ -95,7 +102,17 @@ export async function getTodayMoodEntries(): Promise<MoodEntry[]> {
 
     const entries: MoodEntry[] = [];
     for (const row of data) {
-      const parsed = moodEntrySchema.safeParse(row);
+      // Inject fallback values for parsing compatibility
+      const enrichedRow = {
+        ...row,
+        mood_score: row.mood_score ?? (row.valence_score ? Math.round(Number(row.valence_score)) : 3),
+        valence_score: row.valence_score ?? row.mood_score ?? 3,
+        impact_factors: row.impact_factors ?? row.impact_tags ?? [],
+        impact_tags: row.impact_tags ?? row.impact_factors ?? [],
+        created_at_timestamp: row.created_at_timestamp ?? row.logged_at ?? row.created_at,
+        logged_at: row.logged_at ?? row.created_at_timestamp ?? row.created_at,
+      };
+      const parsed = moodEntrySchema.safeParse(enrichedRow);
       if (parsed.success) entries.push(parsed.data);
     }
     return entries;
@@ -140,7 +157,8 @@ export async function getMoodEntriesForMonth(
       .eq('user_id', user.id)
       .gte('date', startDate)
       .lte('date', endDate)
-      .order('date', { ascending: true });
+      .order('date', { ascending: true })
+      .order('created_at_timestamp', { ascending: true });
 
     if (error) {
       console.warn('[getMoodEntriesForMonth] Supabase error:', error.message);
@@ -151,7 +169,16 @@ export async function getMoodEntriesForMonth(
 
     const entries: MoodEntry[] = [];
     for (const row of data) {
-      const parsed = moodEntrySchema.safeParse(row);
+      const enrichedRow = {
+        ...row,
+        mood_score: row.mood_score ?? (row.valence_score ? Math.round(Number(row.valence_score)) : 3),
+        valence_score: row.valence_score ?? row.mood_score ?? 3,
+        impact_factors: row.impact_factors ?? row.impact_tags ?? [],
+        impact_tags: row.impact_tags ?? row.impact_factors ?? [],
+        created_at_timestamp: row.created_at_timestamp ?? row.logged_at ?? row.created_at,
+        logged_at: row.logged_at ?? row.created_at_timestamp ?? row.created_at,
+      };
+      const parsed = moodEntrySchema.safeParse(enrichedRow);
       if (parsed.success) entries.push(parsed.data);
     }
 

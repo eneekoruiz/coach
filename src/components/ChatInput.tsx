@@ -39,6 +39,8 @@ export default function ChatInput({ onUpdate, momentum, onClose }: ChatInputProp
     activeSessionId,
     createNewSession,
     switchSession,
+    retroactiveDate,
+    setRetroactiveDate,
   } = useChat(onUpdate, momentum);
 
   const messageEndRef = useRef<HTMLDivElement | null>(null);
@@ -62,6 +64,38 @@ export default function ChatInput({ onUpdate, momentum, onClose }: ChatInputProp
   }, []);
 
   const activeSession = chatSessions.find((s) => s.id === activeSessionId);
+
+  const handlePrevDay = () => {
+    const current = new Date(retroactiveDate + 'T12:00:00');
+    current.setDate(current.getDate() - 1);
+    setRetroactiveDate(current.toISOString().slice(0, 10));
+  };
+
+  const handleNextDay = () => {
+    const current = new Date(retroactiveDate + 'T12:00:00');
+    const todayStr = new Date().toISOString().slice(0, 10);
+    if (retroactiveDate !== todayStr) {
+      current.setDate(current.getDate() + 1);
+      setRetroactiveDate(current.toISOString().slice(0, 10));
+    }
+  };
+
+  const isDateToday = retroactiveDate === new Date().toISOString().slice(0, 10);
+
+  const getFriendlyDateLabel = (dateStr: string) => {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    if (dateStr === todayStr) return 'Hoy';
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().slice(0, 10);
+    if (dateStr === yesterdayStr) return 'Ayer';
+    try {
+      const d = new Date(dateStr + 'T12:00:00');
+      return d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+    } catch {
+      return dateStr;
+    }
+  };
 
   return (
     <>
@@ -173,12 +207,45 @@ export default function ChatInput({ onUpdate, momentum, onClose }: ChatInputProp
                 className="rounded-full p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
                 aria-label="Cerrar chat"
               >
-                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
                   <line x1="18" y1="6" x2="6" y2="18" />
                   <line x1="6" y1="6" x2="18" y2="18" />
                 </svg>
               </motion.button>
             )}
+          </div>
+        </div>
+
+        {/* ── Time-Travel Widget ── */}
+        <div className="bg-slate-50/90 border-b border-slate-200/60 px-4 py-2 flex items-center justify-between text-xs shrink-0 select-none">
+          <span className="font-semibold text-slate-500 flex items-center gap-1">
+            <span>📅</span> Fecha del registro:
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handlePrevDay}
+              className="p-1 rounded-full hover:bg-slate-200/80 text-slate-600 active:scale-90 transition duration-150"
+              title="Día anterior"
+            >
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+            </button>
+            <span className="font-bold text-slate-800 bg-white px-3 py-1 rounded-full border border-slate-200 shadow-sm min-w-[70px] text-center">
+              {getFriendlyDateLabel(retroactiveDate)}
+            </span>
+            <button
+              type="button"
+              onClick={handleNextDay}
+              disabled={isDateToday}
+              className="p-1 rounded-full hover:bg-slate-200/80 text-slate-600 disabled:opacity-30 disabled:hover:bg-transparent active:scale-90 transition duration-150"
+              title="Día siguiente"
+            >
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            </button>
           </div>
         </div>
 

@@ -133,15 +133,17 @@ export const endOfDaySchema = z
 
 export type EndOfDaySummary = z.infer<typeof endOfDaySchema>;
 
-// ─── Mood Tracker ───────────────────────────────────────────────────────────
-
 export const moodEntrySchema = z.object({
   id: z.string().uuid().optional(),
   user_id: z.string().uuid().optional(),
   date: z.string().optional(), // YYYY-MM-DD
-  mood_score: z.number().int().min(1).max(5),
-  impact_factors: z.array(z.string()),
+  mood_score: z.number().int().min(1).max(5).optional(),
+  valence_score: z.number().min(1).max(5).optional(),
+  impact_factors: z.array(z.string()).optional(),
+  impact_tags: z.array(z.string()).optional(),
   logged_at: z.string().optional(),
+  created_at_timestamp: z.string().optional(),
+  is_daily_summary: z.boolean().optional().default(false),
 });
 
 export type MoodEntry = z.infer<typeof moodEntrySchema>;

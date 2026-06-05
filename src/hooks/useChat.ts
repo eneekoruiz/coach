@@ -42,6 +42,7 @@ type CloseDayFeedback = {
 export function useChat(onUpdate?: () => void | Promise<void>, momentum?: number) {
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [retroactiveDate, setRetroactiveDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
   const [submitMode, setSubmitMode] = useState<'analyze' | 'close-day' | null>(null);
   const [feedback, setFeedback] = useState<ChatFeedback | null>(null);
   const [closeDayFeedback, setCloseDayFeedback] = useState<CloseDayFeedback | null>(null);
@@ -446,6 +447,7 @@ export function useChat(onUpdate?: () => void | Promise<void>, momentum?: number
         mode,
         history: [...history, userMsg],
         session_id: activeSessionId,
+        local_date: retroactiveDate,
       });
 
       if (resultMode === 'close-day') {
@@ -517,5 +519,7 @@ export function useChat(onUpdate?: () => void | Promise<void>, momentum?: number
     activeSessionId,
     createNewSession,
     switchSession,
+    retroactiveDate,
+    setRetroactiveDate,
   };
 }

@@ -12,8 +12,15 @@ export async function sendCloseDay(accessToken?: string) {
   return { ok: response.ok, status: response.status, payload };
 }
 
-export async function sendAnalyze(text: string, base64Image: string | null, accessToken?: string, history?: Array<{ role: 'user' | 'assistant'; content: string }>, session_id?: string | null) {
-  const local_date = new Date().toLocaleDateString('sv').slice(0, 10);
+export async function sendAnalyze(
+  text: string,
+  base64Image: string | null,
+  accessToken?: string,
+  history?: Array<{ role: 'user' | 'assistant'; content: string }>,
+  session_id?: string | null,
+  local_date?: string
+) {
+  const local_dt = local_date || new Date().toLocaleDateString('sv').slice(0, 10);
 
   const response = await fetch('/api/analyze', {
     method: 'POST',
@@ -21,7 +28,7 @@ export async function sendAnalyze(text: string, base64Image: string | null, acce
       'Content-Type': 'application/json',
       ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
     },
-    body: JSON.stringify({ text, image: base64Image, local_date, history, session_id }),
+    body: JSON.stringify({ text, image: base64Image, local_date: local_dt, history, session_id }),
   });
 
   const payload = await response.json();

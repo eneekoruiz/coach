@@ -1,20 +1,30 @@
 'use client';
 
-import { useState, useMemo, useCallback, useEffect, useRef, startTransition } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef, startTransition, useTransition } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, ChevronRight, Heart } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Heart, Plus, Trash, X, Loader2, Check } from 'lucide-react';
+import { saveMoodEntry, deleteMoodEntry } from '@/app/mood/actions';
+import toast from '@/lib/toast';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 interface MoodEntry {
+  id?: string;
+  user_id?: string;
   date: string;
-  mood_score: number;
-  impact_factors: string[];
+  mood_score?: number;
+  valence_score?: number;
+  impact_factors?: string[];
+  impact_tags?: string[];
+  created_at_timestamp?: string;
+  logged_at?: string;
+  is_daily_summary?: boolean;
 }
 
 interface MoodCalendarProps {
   entries: MoodEntry[];
   onDaySelect?: (date: string) => void;
+  onSaved?: () => void;
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -54,6 +64,11 @@ const MOOD_LABELS: Record<number, { label: string; emoji: string }> = {
   4: { label: 'Agradable', emoji: '😊' },
   5: { label: 'Muy Agradable', emoji: '😄' },
 };
+
+const IMPACT_FACTORS_LIST = [
+  'Trabajo', 'Familia', 'Dinero', 'Sueño',
+  'Nutrición', 'Ejercicio', 'Social', 'Salud',
+];
 
 const WEEKDAY_LABELS = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
 
@@ -101,7 +116,7 @@ const slideVariants = {
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export default function MoodCalendar({ entries, onDaySelect }: MoodCalendarProps) {
+export default function MoodCalendar({ entries, onDaySelect, onSaved }: MoodCalendarProps) {
   const today = new Date();
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
@@ -109,24 +124,23 @@ export default function MoodCalendar({ entries, onDaySelect }: MoodCalendarProps
   const [direction, setDirection] = useState(0);
   const calendarRef = useRef<HTMLDivElement>(null);
 
-  const entryMap = useMemo(() => {
-    const map = new Map<string, MoodEntry>();
-    for (const entry of entries) map.set(entry.date, entry);
+  // Retroactive logging form state
+  const [showLogForm, setShowLogForm] = useState(false);
+  const [retroScore, setRetroScore] = useState<number>(0);
+  const [retroFactors, setRetroFactors] = useState<string[]>([]);
+  const [retroIsSummary, setRetroIsSummary] = useState(true);
+  const [isPending, startTransition] = useTransition();
+
+  const entriesByDate = useMemo(() => {
+    const map = new Map<string, MoodEntry[]>();
+    for (const entry of entries) {
+      if (!entry.date) continue;
+      const list = map.get(entry.date) || [];
+      list.push(entry);
+      map.set(entry.date, list);
+    }
     return map;
   }, [entries]);
-
-  // Close tooltip on outside click
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (calendarRef.current && !calendarRef.current.contains(e.target as Node)) {
-        startTransition(() => {
-          setSelectedDay(null);
-        });
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
 
   const navigateMonth = useCallback((delta: number) => {
     startTransition(() => {
@@ -156,6 +170,64 @@ export default function MoodCalendar({ entries, onDaySelect }: MoodCalendarProps
 
   const monthKey = `${currentYear}-${currentMonth}`;
 
+  const selectedDateEntries = useMemo(() => {
+    if (!selectedDay) return [];
+    return entriesByDate.get(selectedDay) || [];
+  }, [selectedDay, entriesByDate]);
+
+  // Actions
+  const handleSaveRetro = () => {
+    if (retroScore === 0 || !selectedDay) return;
+    startTransition(async () => {
+      try {
+        const res = await saveMoodEntry(retroScore, retroFactors, selectedDay, retroIsSummary);
+        if (res.success) {
+          toast.success('Registro de ánimo retroactivo guardado');
+          setShowLogForm(false);
+          setRetroScore(0);
+          setRetroFactors([]);
+          if (onSaved) onSaved();
+        } else {
+          toast.error(res.error || 'Error al guardar');
+        }
+      } catch (err) {
+        toast.error('Error inesperado al guardar el registro');
+      }
+    });
+  };
+
+  const handleDeleteEntry = (id: string) => {
+    startTransition(async () => {
+      try {
+        const res = await deleteMoodEntry(id);
+        if (res.success) {
+          toast.success('Registro de ánimo eliminado');
+          if (onSaved) onSaved();
+        } else {
+          toast.error(res.error || 'Error al eliminar');
+        }
+      } catch (err) {
+        toast.error('Error inesperado al eliminar');
+      }
+    });
+  };
+
+  const toggleFactor = (factor: string) => {
+    setRetroFactors((prev) =>
+      prev.includes(factor) ? prev.filter((f) => f !== factor) : [...prev, factor]
+    );
+  };
+
+  const formatTime = (isoString?: string) => {
+    if (!isoString) return '';
+    try {
+      const d = new Date(isoString);
+      return d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+    } catch {
+      return '';
+    }
+  };
+
   return (
     <div
       ref={calendarRef}
@@ -165,13 +237,14 @@ export default function MoodCalendar({ entries, onDaySelect }: MoodCalendarProps
       <div className="flex items-center gap-2 mb-6">
         <Heart className="h-4 w-4 text-rose-400" />
         <span className="text-sm font-semibold text-slate-700 tracking-tight">
-          Estado de Ánimo
+          Calendario de Ánimo Omnitemporal
         </span>
       </div>
 
       {/* ── Month navigation ───────────────────────────────────────────── */}
       <div className="flex items-center justify-between mb-6">
         <motion.button
+          type="button"
           whileTap={{ scale: 0.8 }}
           onClick={() => navigateMonth(-1)}
           className="flex items-center justify-center w-9 h-9 rounded-full bg-slate-100/60 hover:bg-slate-200/70 transition-colors"
@@ -195,6 +268,7 @@ export default function MoodCalendar({ entries, onDaySelect }: MoodCalendarProps
         </AnimatePresence>
 
         <motion.button
+          type="button"
           whileTap={{ scale: 0.8 }}
           onClick={() => navigateMonth(1)}
           className="flex items-center justify-center w-9 h-9 rounded-full bg-slate-100/60 hover:bg-slate-200/70 transition-colors"
@@ -234,29 +308,29 @@ export default function MoodCalendar({ entries, onDaySelect }: MoodCalendarProps
             }
 
             const dateKey = toDateKey(currentYear, currentMonth, day);
-            const entry = entryMap.get(dateKey);
+            const dayEntries = entriesByDate.get(dateKey) || [];
+
+            // Grab the daily summary or fallback to first entry
+            const dailySummary = dayEntries.find((e) => e.is_daily_summary);
+            const displayEntry = dailySummary || dayEntries[0];
+
             const isTodayCell = isToday(currentYear, currentMonth, day);
-            const isSelected = selectedDay === dateKey;
-            const orb = entry ? MOOD_ORBS[entry.mood_score] : null;
+            const scoreVal = displayEntry ? (displayEntry.valence_score ?? displayEntry.mood_score ?? 3) : 3;
+            const orb = dayEntries.length > 0 ? MOOD_ORBS[Math.round(scoreVal)] : null;
 
             return (
               <div key={dateKey} className="relative flex items-center justify-center">
                 <motion.button
+                  type="button"
                   whileTap={{ scale: 0.85 }}
                   onClick={() => {
-                    startTransition(() => {
-                      if (entry) {
-                        setSelectedDay(isSelected ? null : dateKey);
-                        if (onDaySelect) onDaySelect(dateKey);
-                      } else {
-                        setSelectedDay(null);
-                      }
-                    });
+                    setSelectedDay(dateKey);
+                    setShowLogForm(dayEntries.length === 0);
+                    if (onDaySelect) onDaySelect(dateKey);
                   }}
                   className={[
-                    'relative w-11 h-11 rounded-full flex items-center justify-center transition-all duration-200',
-                    isTodayCell && !entry ? 'ring-[1.5px] ring-slate-900/80' : '',
-                    entry ? 'cursor-pointer' : 'cursor-default',
+                    'relative w-11 h-11 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer',
+                    isTodayCell ? 'ring-[1.5px] ring-slate-900/80 font-bold' : '',
                   ].join(' ')}
                 >
                   {/* ── Orb glow behind the number ──────────────────────── */}
@@ -277,65 +351,213 @@ export default function MoodCalendar({ entries, onDaySelect }: MoodCalendarProps
                   <span
                     className={[
                       'relative z-10 text-sm font-medium tabular-nums',
-                      entry ? 'text-slate-800' : 'text-gray-300',
-                      isTodayCell && !entry ? 'text-slate-900 font-bold' : '',
+                      dayEntries.length > 0 ? 'text-slate-800' : 'text-slate-400 hover:text-slate-700',
+                      isTodayCell ? 'text-slate-900 font-bold' : '',
                     ].join(' ')}
                   >
                     {day}
                   </span>
                 </motion.button>
-
-                {/* ── iOS Popover ──────────────────────────────────────── */}
-                <AnimatePresence>
-                  {isSelected && entry && (
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0.85, y: -6 }}
-                      animate={{ opacity: 1, scale: 1, y: 0 }}
-                      exit={{ opacity: 0, scale: 0.85, y: -6 }}
-                      transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-                      className="absolute top-full mt-3 z-50 min-w-[180px] rounded-2xl border border-white/20 bg-white/80 backdrop-blur-md p-4 shadow-xl shadow-slate-200/50"
-                    >
-                      {/* Caret */}
-                      <div className="absolute -top-[6px] left-1/2 -translate-x-1/2 w-3 h-3 rotate-45 bg-white/80 backdrop-blur-md border-l border-t border-white/20" />
-
-                      {/* Mood header */}
-                      <div className="flex items-center gap-2 mb-3">
-                        <span className="text-2xl leading-none">
-                          {MOOD_LABELS[entry.mood_score]?.emoji}
-                        </span>
-                        <div>
-                          <p className="text-sm font-bold text-slate-800 leading-tight">
-                            {MOOD_LABELS[entry.mood_score]?.label}
-                          </p>
-                          <p className="text-[10px] text-slate-400 font-medium mt-0.5">
-                            {new Date(entry.date + 'T12:00:00').toLocaleDateString('es-ES', {
-                              day: 'numeric', month: 'long',
-                            })}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Impact factor pills */}
-                      {entry.impact_factors.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5">
-                          {entry.impact_factors.map((factor) => (
-                            <span
-                              key={factor}
-                              className="inline-flex items-center gap-1 rounded-full bg-slate-900/5 px-2.5 py-1 text-[10px] font-semibold text-slate-600 backdrop-blur-sm"
-                            >
-                              <span className="text-[8px] text-slate-400">✦</span>
-                              {factor}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
               </div>
             );
           })}
         </motion.div>
+      </AnimatePresence>
+
+      {/* ── Bottom Sheet/Modal Elegant ── */}
+      <AnimatePresence>
+        {selectedDay && (
+          <div className="fixed inset-0 z-50 flex items-end justify-center">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.4 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedDay(null)}
+              className="absolute inset-0 bg-slate-950/60"
+            />
+            {/* Sheet */}
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 26, stiffness: 210 }}
+              className="relative w-full max-w-lg bg-white rounded-t-[2.5rem] border-t border-slate-200 shadow-2xl p-6 pb-10 z-10 max-h-[85vh] overflow-y-auto"
+            >
+              {/* Pull indicator */}
+              <div className="absolute top-3 left-1/2 -translate-x-1/2 w-12 h-1.5 bg-slate-200 rounded-full cursor-pointer" onClick={() => setSelectedDay(null)} />
+
+              {/* Close Button */}
+              <button
+                type="button"
+                onClick={() => setSelectedDay(null)}
+                className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 bg-slate-100 rounded-full transition"
+              >
+                <X size={16} />
+              </button>
+
+              <div className="mt-4">
+                <h3 className="text-xl font-black text-slate-950 tracking-tight">
+                  {new Date(selectedDay + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                </h3>
+
+                {/* Timeline view of logs */}
+                {!showLogForm && selectedDateEntries.length > 0 ? (
+                  <div className="mt-6 space-y-4">
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                      <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Línea de tiempo de Ánimo</span>
+                      <button
+                        type="button"
+                        onClick={() => setShowLogForm(true)}
+                        className="flex items-center gap-1.5 px-3 py-1 bg-slate-900 text-white rounded-full text-xs font-semibold hover:bg-slate-800 transition"
+                      >
+                        <Plus size={12} /> Añadir registro
+                      </button>
+                    </div>
+
+                    <div className="space-y-3">
+                      {selectedDateEntries.map((entry) => {
+                        const score = entry.valence_score ?? entry.mood_score ?? 3;
+                        const labelInfo = MOOD_LABELS[Math.round(score)] || MOOD_LABELS[3];
+                        const factors = entry.impact_tags ?? entry.impact_factors ?? [];
+
+                        return (
+                          <div key={entry.id} className="flex items-center justify-between p-4 rounded-2xl border border-slate-100 bg-slate-50 hover:bg-slate-100/60 transition">
+                            <div className="flex items-center gap-3">
+                              <span className="text-2xl">{labelInfo.emoji}</span>
+                              <div>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="text-sm font-bold text-slate-800">{labelInfo.label}</span>
+                                  {entry.is_daily_summary && (
+                                    <span className="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider">
+                                      Balance Diario
+                                    </span>
+                                  )}
+                                  <span className="text-[10px] text-slate-400 font-medium">
+                                    {formatTime(entry.created_at_timestamp || entry.logged_at)}
+                                  </span>
+                                </div>
+                                {factors.length > 0 && (
+                                  <div className="flex flex-wrap gap-1 mt-1.5">
+                                    {factors.map((f) => (
+                                      <span key={f} className="text-[9px] bg-white px-2 py-0.5 border border-slate-200/80 rounded-full text-slate-600 font-medium">
+                                        {f}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => entry.id && handleDeleteEntry(entry.id)}
+                              disabled={isPending}
+                              className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition"
+                              title="Eliminar registro"
+                            >
+                              <Trash size={14} />
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : (
+                  /* Form to log retroactively / add entry */
+                  <div className="mt-6 space-y-6">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-bold text-slate-700">
+                        {selectedDateEntries.length > 0 ? 'Añadir Nuevo Registro' : 'Añadir Registro Retroactivo'}
+                      </span>
+                      {selectedDateEntries.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setShowLogForm(false)}
+                          className="text-xs font-semibold text-slate-500 hover:text-slate-700"
+                        >
+                          Cancelar
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Emoji Selectors */}
+                    <div className="flex items-center justify-between bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                      {[1, 2, 3, 4, 5].map((score) => (
+                        <button
+                          key={score}
+                          type="button"
+                          onClick={() => setRetroScore(score)}
+                          className={[
+                            'w-12 h-12 flex flex-col items-center justify-center rounded-xl transition-all duration-150',
+                            retroScore === score ? 'bg-slate-900 scale-110 text-white shadow-md' : 'hover:bg-slate-200/60 text-slate-400',
+                          ].join(' ')}
+                        >
+                          <span className="text-2xl">{MOOD_LABELS[score].emoji}</span>
+                          <span className="text-[8px] font-bold mt-0.5 truncate max-w-full px-1">
+                            {score}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Impact factors list */}
+                    <div className="space-y-2">
+                      <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">¿Qué factores influyeron?</span>
+                      <div className="flex flex-wrap gap-2">
+                        {IMPACT_FACTORS_LIST.map((factor) => {
+                          const isSelected = retroFactors.includes(factor);
+                          return (
+                            <button
+                              key={factor}
+                              type="button"
+                              onClick={() => toggleFactor(factor)}
+                              className={[
+                                'px-3 py-1.5 rounded-full text-xs font-semibold border transition',
+                                isSelected ? 'bg-slate-950 text-white border-slate-950' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50',
+                              ].join(' ')}
+                            >
+                              {factor}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Toggle daily summary */}
+                    <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                      <div>
+                        <p className="text-xs font-bold text-slate-800">Establecer como Balance Diario</p>
+                        <p className="text-[10px] text-slate-400 mt-0.5">Define el color del orbe en el calendario para este día.</p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={retroIsSummary}
+                        onChange={(e) => setRetroIsSummary(e.target.checked)}
+                        className="h-4 w-4 text-slate-900 focus:ring-slate-900 border-slate-300 rounded"
+                      />
+                    </div>
+
+                    {/* Save Button */}
+                    <button
+                      type="button"
+                      disabled={retroScore === 0 || isPending}
+                      onClick={handleSaveRetro}
+                      className="w-full py-4 bg-slate-950 text-white font-bold rounded-2xl shadow-lg hover:bg-slate-900 transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isPending ? (
+                        <>
+                          <Loader2 size={16} className="animate-spin" /> Guardando...
+                        </>
+                      ) : (
+                        'Guardar Registro'
+                      )}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
       </AnimatePresence>
     </div>
   );
