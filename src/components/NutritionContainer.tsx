@@ -88,13 +88,16 @@ export default function NutritionContainer() {
         if (saved.success && saved.data?.id) {
           // Asignar al día de hoy como demo
           await assignTemplateToDates(saved.data.id, [todayStr]);
+          toast.success('¡Plan guardado con éxito!');
+        } else {
+          toast.error(saved.error || 'Fallo al guardar el plan.');
         }
         await loadData();
       } else {
-        toast.error(res.error || 'Error al generar.');
+        toast.error(res.error || 'Fallo en generación');
       }
     } catch (err) {
-      toast.error('Ocurrió un error inesperado con la IA.');
+      toast.error('Fallo en generación');
     } finally {
       setIsGeneratingAi(false);
     }

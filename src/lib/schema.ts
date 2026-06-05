@@ -4,19 +4,19 @@ export const mealItemSchema = z.object({
   id: z.string(),
   name: z.string().min(1).max(100),
   text: z.string().max(2000),
-  target_kcal: z.number().int().min(0).max(5000),
-  target_protein: z.number().int().min(0).max(300),
-  target_carbs: z.number().int().min(0).max(500),
-  target_fats: z.number().int().min(0).max(200),
+  target_kcal: z.number().min(0).max(5000),
+  target_protein: z.number().min(0).max(300),
+  target_carbs: z.number().min(0).max(500),
+  target_fats: z.number().min(0).max(200),
 });
 
 export const dietTemplateSchema = z.object({
   id: z.string().uuid().optional(),
   name: z.string().min(1).max(100),
-  target_kcal: z.number().int().min(500).max(10000),
-  target_protein: z.number().int().min(0).max(500),
-  target_carbs: z.number().int().min(0).max(1000),
-  target_fats: z.number().int().min(0).max(300),
+  target_kcal: z.number().min(500).max(10000),
+  target_protein: z.number().min(0).max(500),
+  target_carbs: z.number().min(0).max(1000),
+  target_fats: z.number().min(0).max(300),
   meals: z.array(mealItemSchema),
 });
 

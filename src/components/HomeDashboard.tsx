@@ -129,21 +129,23 @@ export default function HomeDashboard() {
 
       <AnimatePresence>
         {isChatOpen ? (
-          <motion.aside
-            className="fixed inset-x-0 bottom-0 z-50 mx-auto w-full max-w-none p-0 sm:max-w-2xl sm:p-6"
-            initial={{ y: 24, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 24, opacity: 0 }}
-            transition={{ type: 'spring', stiffness: 120, damping: 18 }}
-          >
-            <ChatInput
-              momentum={momentum}
-              onClose={() => setIsChatOpen(false)}
-              onUpdate={async () => {
-                await reload();
-              }}
-            />
-          </motion.aside>
+          <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <motion.aside
+              className="w-full max-w-2xl overflow-hidden"
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+            >
+              <ChatInput
+                momentum={momentum}
+                onClose={() => setIsChatOpen(false)}
+                onUpdate={async () => {
+                  await reload();
+                }}
+              />
+            </motion.aside>
+          </div>
         ) : null}
       </AnimatePresence>
     </main>
