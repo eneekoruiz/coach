@@ -237,14 +237,7 @@ export default function DashboardMain({
   return (
     <section className="relative flex flex-1 flex-col px-4 md:px-6 pb-24 md:pb-6 pt-4">
       <div className="relative z-10 w-full max-w-6xl mx-auto flex flex-col">
-        {isLoading && (
-          <div className="absolute inset-0 z-50 flex items-center justify-center rounded-[2rem] bg-slate-50/50 backdrop-blur-sm">
-            <div className="bg-white px-6 py-3 rounded-full shadow-lg border border-slate-100 flex items-center gap-3">
-              <div className="w-4 h-4 border-2 border-slate-200 border-t-slate-800 rounded-full animate-spin" />
-              <span className="text-sm font-bold text-slate-700">Sincronizando...</span>
-            </div>
-          </div>
-        )}
+        {/* Loading screen removed for Next.js loading.tsx native transition */}
 
         <PushNotificationManager />
 

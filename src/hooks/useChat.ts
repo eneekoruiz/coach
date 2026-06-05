@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import toast from '@/lib/toast';
 import { type DailyLog } from '@/lib/schema';
 import { triggerVibration } from '@/lib/haptics';
@@ -45,6 +45,88 @@ export function useChat(onUpdate?: () => void | Promise<void>, momentum?: number
   const [submitMode, setSubmitMode] = useState<'analyze' | 'close-day' | null>(null);
   const [feedback, setFeedback] = useState<ChatFeedback | null>(null);
   const [closeDayFeedback, setCloseDayFeedback] = useState<CloseDayFeedback | null>(null);
+  const [history, setHistory] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([]);
+  const [chatSessions, setChatSessions] = useState<Array<{ id: string; title: string }>>([]);
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+
+  const createNewSession = useCallback(async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('chat_sessions')
+        .insert({ user_id: user.id, title: `Conversación ${new Date().toLocaleDateString()}` })
+        .select('id, title')
+        .single();
+
+      if (error) throw error;
+
+      if (data) {
+        setChatSessions((prev) => [data, ...prev]);
+        setActiveSessionId(data.id);
+        setHistory([]);
+      }
+    } catch (err) {
+      console.error('Error creating new session:', err);
+    }
+  }, []);
+
+  const loadSessions = useCallback(async (selectFirst = false) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('chat_sessions')
+        .select('id, title')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      if (data) {
+        setChatSessions(data);
+        if (data.length > 0) {
+          if (selectFirst || !activeSessionId) {
+            setActiveSessionId(data[0].id);
+          }
+        } else {
+          await createNewSession();
+        }
+      }
+    } catch (err) {
+      console.error('Error loading chat sessions:', err);
+    }
+  }, [activeSessionId, createNewSession]);
+
+  const switchSession = useCallback(async (sessionId: string) => {
+    setActiveSessionId(sessionId);
+    try {
+      const { data, error } = await supabase
+        .from('chat_history')
+        .select('role, content')
+        .eq('session_id', sessionId)
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+      if (data) {
+        setHistory(data as any);
+      }
+    } catch (err) {
+      console.error('Error loading session history:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadSessions(true);
+  }, []);
+
+  useEffect(() => {
+    if (activeSessionId) {
+      switchSession(activeSessionId);
+    }
+  }, [activeSessionId, switchSession]);
 
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -279,6 +361,23 @@ export function useChat(onUpdate?: () => void | Promise<void>, momentum?: number
     if (localResponse) {
       // Interceptado localmente. No consume llamadas a Supabase/Gemini.
       const currentMomentum = momentum ?? 100;
+      
+      const userMsg = { role: 'user' as const, content: trimmed };
+      const assistantMsg = { role: 'assistant' as const, content: localResponse };
+      setHistory((prev) => [...prev, userMsg, assistantMsg]);
+
+      // Guardar en Supabase para persistencia
+      supabase.auth.getUser().then(({ data: { user } }) => {
+        if (user) {
+          supabase.from('chat_history').insert([
+            { user_id: user.id, role: 'user', content: trimmed, session_id: activeSessionId },
+            { user_id: user.id, role: 'assistant', content: localResponse, session_id: activeSessionId }
+          ]).then(({ error }) => {
+            if (error) console.error('Error saving local response to chat_history:', error);
+          });
+        }
+      });
+
       setFeedback({
         previous_health_momentum: currentMomentum,
         health_momentum: currentMomentum,
@@ -315,6 +414,9 @@ export function useChat(onUpdate?: () => void | Promise<void>, momentum?: number
     setIsLoading(true);
     setSubmitMode(mode);
 
+    const userMsg = { role: 'user' as const, content: trimmed };
+    setHistory((prev) => [...prev, userMsg]);
+
     try {
       const token = await getSessionToken();
 
@@ -323,15 +425,23 @@ export function useChat(onUpdate?: () => void | Promise<void>, momentum?: number
         base64Image: selectedImage?.base64 ?? null,
         accessToken: token,
         mode,
+        history: [...history, userMsg],
+        session_id: activeSessionId,
       });
 
       if (resultMode === 'close-day') {
         setFeedback(null);
         setCloseDayFeedback(payload as CloseDayFeedback);
       } else {
-        setFeedback(payload as ChatFeedback);
+        const chatFeed = payload as ChatFeedback;
+        setFeedback(chatFeed);
         triggerVibration('success');
         setCloseDayFeedback(null);
+
+        const assistantText = chatFeed.ai_data?.metricas?.accion_manana;
+        if (assistantText) {
+          setHistory((prev) => [...prev, { role: 'assistant', content: assistantText }]);
+        }
       }
 
       resetUiAfterSuccess();
@@ -381,5 +491,11 @@ export function useChat(onUpdate?: () => void | Promise<void>, momentum?: number
     handleSubmit,
     handleCloseDayModalClose,
     submitLabel,
+    history,
+    setHistory,
+    chatSessions,
+    activeSessionId,
+    createNewSession,
+    switchSession,
   };
 }

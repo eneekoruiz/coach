@@ -1,0 +1,265 @@
+'use client';
+
+import React, { useEffect, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Flame, Shield, Snowflake, X, Loader2 } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
+import { getNormalizedDate } from '@/lib/date-utils';
+
+interface StreakCalendarModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  streak: number;
+}
+
+interface LogEntry {
+  date: string;
+  health_momentum: number;
+  saved_by_shield: boolean;
+}
+
+export default function StreakCalendarModal({ isOpen, onClose, streak }: StreakCalendarModalProps) {
+  const [shields, setShields] = useState(2);
+  const [dailyLogs, setDailyLogs] = useState<LogEntry[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    async function loadData() {
+      setIsLoading(true);
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        // Fetch shields
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('shields_available')
+          .eq('id', user.id)
+          .maybeSingle();
+        setShields(profile?.shields_available ?? 2);
+
+        // Fetch daily logs of current month
+        const today = new Date();
+        const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+        const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+
+        const startStr = `${startOfMonth.getFullYear()}-${String(startOfMonth.getMonth() + 1).padStart(2, '0')}-01`;
+        const endStr = `${endOfMonth.getFullYear()}-${String(endOfMonth.getMonth() + 1).padStart(2, '0')}-${String(endOfMonth.getDate()).padStart(2, '0')}`;
+
+        const { data: logs } = await supabase
+          .from('daily_logs')
+          .select('date, health_momentum, saved_by_shield')
+          .eq('user_id', user.id)
+          .gte('date', startStr)
+          .lte('date', endStr);
+
+        setDailyLogs(logs || []);
+      } catch (err) {
+        console.error('Error fetching calendar stats:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    void loadData();
+  }, [isOpen]);
+
+  // Calendar calculations
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = today.getMonth();
+
+  const firstDayIndex = new Date(year, month, 1).getDay(); // 0 (Sun) to 6 (Sat)
+  const totalDays = new Date(year, month + 1, 0).getDate();
+
+  // Shift starting index to start from Monday (0: Mon, ..., 6: Sun)
+  const startingDay = firstDayIndex === 0 ? 6 : firstDayIndex - 1;
+
+  const daysArray = Array.from({ length: totalDays }, (_, i) => i + 1);
+  const monthNames = [
+    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+  ];
+  const dayLabels = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
+
+  const todayStr = getNormalizedDate(new Date());
+
+  const getDayStatus = (dayNum: number) => {
+    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+    const log = dailyLogs.find((l) => l.date === dateStr);
+
+    if (log) {
+      if (log.saved_by_shield) {
+        return 'shielded';
+      }
+      return log.health_momentum > 80 ? 'perfect' : 'failed';
+    }
+
+    // If day is past and has no log, it counts as failed
+    const checkDate = new Date(year, month, dayNum);
+    const comparisonToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    if (checkDate < comparisonToday) {
+      return 'failed';
+    }
+
+    return 'future';
+  };
+
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center">
+          {/* Backdrop */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 0.5 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+            className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm"
+          />
+
+          {/* Modal Content */}
+          <motion.div
+            initial={{ y: '100%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '100%' }}
+            transition={{ type: 'spring', damping: 25, stiffness: 220 }}
+            className="relative w-full max-w-lg bg-white dark:bg-slate-900 rounded-t-[3rem] border border-t border-slate-200 dark:border-slate-800 shadow-2xl p-8 pb-10 z-10 select-none overflow-hidden"
+          >
+            {/* Top Pull Bar */}
+            <div className="absolute top-3 left-1/2 -translate-x-1/2 w-12 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full" />
+
+            {/* Close Button */}
+            <button
+              onClick={onClose}
+              className="absolute top-6 right-6 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-white transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+
+            {/* Header / Shield Inventory */}
+            <div className="text-center mt-2">
+              <h2 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white">
+                El Santuario de la Racha
+              </h2>
+              <p className="text-sm font-semibold text-slate-500 dark:text-slate-400 mt-1">
+                Racha actual: <span className="text-orange-500 font-extrabold">{streak} días</span>
+              </p>
+            </div>
+
+            {/* Inventory Box */}
+            <div className="mt-6 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 p-4 rounded-3xl flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-500">
+                  <Shield className="w-5 h-5 fill-current" />
+                </div>
+                <div>
+                  <h3 className="font-black text-slate-800 dark:text-white leading-tight">
+                    Escudos Protectores
+                  </h3>
+                  <p className="text-xs font-semibold text-slate-400">
+                    Evitan que pierdas tu racha si fallas un día
+                  </p>
+                </div>
+              </div>
+              <span className="text-lg font-black tracking-tight text-slate-800 dark:text-white px-4 py-1.5 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm shrink-0">
+                🛡️ {shields}/2 Equipados
+              </span>
+            </div>
+
+            {/* Month Header */}
+            <div className="mt-8 mb-4 flex items-center justify-between px-2">
+              <h3 className="text-xl font-black tracking-tight text-slate-900 dark:text-white capitalize">
+                {monthNames[month]} {year}
+              </h3>
+            </div>
+
+            {isLoading ? (
+              <div className="flex flex-col items-center justify-center py-20">
+                <Loader2 className="w-8 h-8 text-cyan-500 animate-spin" />
+                <span className="text-xs font-semibold text-slate-400 mt-2">Cargando santuario...</span>
+              </div>
+            ) : (
+              <>
+                {/* Day Labels Grid */}
+                <div className="grid grid-cols-7 gap-2 text-center text-xs font-extrabold text-slate-400 dark:text-slate-500 mb-2">
+                  {dayLabels.map((lbl, idx) => (
+                    <div key={idx} className="w-10 h-10 flex items-center justify-center">
+                      {lbl}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Days Grid */}
+                <div className="grid grid-cols-7 gap-2">
+                  {/* Empty offsets for starting day */}
+                  {Array.from({ length: startingDay }).map((_, idx) => (
+                    <div key={`empty-${idx}`} className="w-10 h-10" />
+                  ))}
+
+                  {/* Calendar Days */}
+                  {daysArray.map((dayNum) => {
+                    const status = getDayStatus(dayNum);
+                    const isToday = `${year}-${String(month + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}` === todayStr;
+
+                    let dayStyle = 'bg-slate-50 text-slate-300 dark:bg-slate-800 dark:text-slate-600';
+                    let dayIcon = null;
+
+                    if (status === 'perfect') {
+                      dayStyle = 'bg-orange-500 text-white font-extrabold shadow-sm shadow-orange-500/20';
+                      dayIcon = <Flame className="w-4.5 h-4.5 fill-current" />;
+                    } else if (status === 'shielded') {
+                      dayStyle = 'bg-blue-50 text-blue-500 dark:bg-blue-950/40 dark:text-blue-400 font-extrabold border border-blue-100 dark:border-blue-900';
+                      dayIcon = <Snowflake className="w-4 h-4" />;
+                    } else if (status === 'failed') {
+                      dayStyle = 'bg-slate-100 text-slate-400 dark:bg-slate-800/80 dark:text-slate-500';
+                      dayIcon = <span className="text-[10px] font-black">✕</span>;
+                    } else if (status === 'future') {
+                      dayStyle = 'bg-transparent text-slate-400 dark:text-slate-500 border border-dashed border-slate-200 dark:border-slate-800';
+                    }
+
+                    return (
+                      <div
+                        key={`day-${dayNum}`}
+                        className={`relative w-10 h-10 rounded-2xl flex flex-col items-center justify-center text-xs transition-transform hover:scale-105 ${dayStyle} ${
+                          isToday ? 'ring-2 ring-offset-2 ring-orange-500 dark:ring-offset-slate-900' : ''
+                        }`}
+                      >
+                        <span className={dayIcon ? 'text-[9px] font-bold leading-none' : 'font-bold'}>
+                          {dayNum}
+                        </span>
+                        {dayIcon && (
+                          <div className="mt-0.5 leading-none">
+                            {dayIcon}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+
+            {/* Legend */}
+            <div className="mt-8 flex justify-center gap-6 text-[10px] font-bold text-slate-500 dark:text-slate-400">
+              <div className="flex items-center gap-1.5">
+                <span className="w-3.5 h-3.5 rounded-lg bg-orange-500 flex items-center justify-center text-white text-[8px]">🔥</span>
+                <span>Perfecto</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-3.5 h-3.5 rounded-lg bg-blue-50 border border-blue-100 text-blue-500 flex items-center justify-center text-[8px] dark:bg-blue-950/40 dark:border-blue-900">❄️</span>
+                <span>Salvado</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-3.5 h-3.5 rounded-lg bg-slate-100 text-slate-400 flex items-center justify-center text-[8px] dark:bg-slate-800">✕</span>
+                <span>Fallido</span>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
+  );
+}

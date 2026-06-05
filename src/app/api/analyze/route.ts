@@ -28,6 +28,8 @@ const analyzeRequestSchema = z
     image: z.string().trim().min(1).nullable().optional(),
     habit_tracking: z.array(habitReportSchema).nullable().optional(),
     local_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    history: z.array(z.object({ role: z.enum(['user', 'assistant']), content: z.string() })).optional(),
+    session_id: z.string().uuid().nullable().optional(),
   })
   .strict()
   .superRefine((value, ctx) => {
@@ -113,6 +115,8 @@ export async function POST(request: Request) {
         authHeader,
         supabase,
         user,
+        history: body.history,
+        sessionId: body.session_id,
       });
 
       return NextResponse.json({ status: 200, data: result }, { status: 200 });

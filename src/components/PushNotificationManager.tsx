@@ -81,8 +81,8 @@ export default function PushNotificationManager() {
     }
   };
 
-  if (!isSupported || isSubscribed) {
-    return null; // Don't show if not supported or already subscribed
+  if (!isSupported || isSubscribed || !VAPID_PUBLIC_KEY) {
+    return null; // Don't show if not supported, already subscribed, or VAPID key is missing
   }
 
   return (

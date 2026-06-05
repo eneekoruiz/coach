@@ -33,10 +33,12 @@ export async function sendChat<T = unknown>(params: {
   base64Image: string | null;
   accessToken?: string;
   mode: ChatMode;
+  history?: Array<{ role: 'user' | 'assistant'; content: string }>;
+  session_id?: string | null;
 }): Promise<ChatServiceResult<T>> {
-  const { text, base64Image, accessToken, mode } = params;
+  const { text, base64Image, accessToken, mode, history, session_id } = params;
 
-  const result = await performChatRequest({ text, base64Image, accessToken, mode });
+  const result = await performChatRequest({ text, base64Image, accessToken, mode, history, session_id });
 
   if (!result.ok) {
     if (result.status === 401) throw new SessionExpiredError('Unauthorized');

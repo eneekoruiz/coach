@@ -150,6 +150,13 @@ export default function HabitTracker() {
               recentLogs={recentLogs}
             />
           ))}
+
+          <button
+            onClick={() => setIsCreateModalOpen(true)}
+            className="w-full py-8 border-2 border-dashed border-slate-300 hover:border-slate-400 bg-transparent rounded-2xl flex items-center justify-center text-slate-400 hover:text-slate-600 transition-all duration-300 active:scale-95 cursor-pointer mt-2"
+          >
+            <span className="text-4xl font-light leading-none">+</span>
+          </button>
         </div>
       )}
 

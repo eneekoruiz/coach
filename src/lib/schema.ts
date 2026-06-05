@@ -141,6 +141,7 @@ export const moodEntrySchema = z.object({
   date: z.string().optional(), // YYYY-MM-DD
   mood_score: z.number().int().min(1).max(5),
   impact_factors: z.array(z.string()),
+  logged_at: z.string().optional(),
 });
 
 export type MoodEntry = z.infer<typeof moodEntrySchema>;

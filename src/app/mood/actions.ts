@@ -4,7 +4,7 @@ import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { moodEntrySchema, type MoodEntry } from '@/lib/schema';
 
 /**
- * Save or update a mood entry for today
+ * Save a new mood entry for today (allows multi-registration)
  */
 export async function saveMoodEntry(
   moodScore: number,
@@ -19,15 +19,13 @@ export async function saveMoodEntry(
 
     const { error } = await supabase
       .from('mood_logs')
-      .upsert(
-        {
-          user_id: user.id,
-          date: today,
-          mood_score: moodScore,
-          impact_factors: impactFactors,
-        },
-        { onConflict: 'user_id,date' }
-      );
+      .insert({
+        user_id: user.id,
+        date: today,
+        mood_score: moodScore,
+        impact_factors: impactFactors,
+        logged_at: new Date().toISOString(),
+      });
 
     if (error) {
       console.error('[saveMoodEntry] Supabase error:', error.message);
@@ -42,13 +40,42 @@ export async function saveMoodEntry(
 }
 
 /**
- * Get today's mood entry
+ * Delete a specific mood entry by ID
  */
-export async function getTodayMoodEntry(): Promise<MoodEntry | null> {
+export async function deleteMoodEntry(
+  id: string
+): Promise<{ success: boolean; error?: string }> {
   try {
     const supabase = await createSupabaseServerClient();
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return null;
+    if (!user) return { success: false, error: 'No autenticado.' };
+
+    const { error } = await supabase
+      .from('mood_logs')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', user.id);
+
+    if (error) {
+      console.error('[deleteMoodEntry] Supabase error:', error.message);
+      return { success: false, error: 'Error al eliminar de la base de datos.' };
+    }
+
+    return { success: true };
+  } catch (err) {
+    console.error('[deleteMoodEntry] Unexpected error:', err);
+    return { success: false, error: 'Error inesperado.' };
+  }
+}
+
+/**
+ * Get today's mood entries
+ */
+export async function getTodayMoodEntries(): Promise<MoodEntry[]> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return [];
 
     const today = new Date().toISOString().split('T')[0];
 
@@ -57,17 +84,34 @@ export async function getTodayMoodEntry(): Promise<MoodEntry | null> {
       .select('*')
       .eq('user_id', user.id)
       .eq('date', today)
-      .maybeSingle();
+      .order('logged_at', { ascending: false });
 
     if (error) {
-      console.warn('[getTodayMoodEntry] Supabase error:', error.message);
-      return null;
+      console.warn('[getTodayMoodEntries] Supabase error:', error.message);
+      return [];
     }
 
-    if (!data) return null;
+    if (!data) return [];
 
-    const parsed = moodEntrySchema.safeParse(data);
-    return parsed.success ? parsed.data : null;
+    const entries: MoodEntry[] = [];
+    for (const row of data) {
+      const parsed = moodEntrySchema.safeParse(row);
+      if (parsed.success) entries.push(parsed.data);
+    }
+    return entries;
+  } catch (err) {
+    console.error('[getTodayMoodEntries] Unexpected error:', err);
+    return [];
+  }
+}
+
+/**
+ * Get today's latest mood entry (for compatibility)
+ */
+export async function getTodayMoodEntry(): Promise<MoodEntry | null> {
+  try {
+    const entries = await getTodayMoodEntries();
+    return entries.length > 0 ? entries[0] : null;
   } catch (err) {
     console.error('[getTodayMoodEntry] Unexpected error:', err);
     return null;

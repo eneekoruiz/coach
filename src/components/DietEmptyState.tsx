@@ -41,7 +41,7 @@ export default function DietEmptyState({ onManualCreate, onAiGenerate, isLoading
           ) : (
             <span className="text-lg">✨</span>
           )}
-          <span className="z-10">{isLoadingAi ? 'Analizando tu perfil...' : 'Generar plan con IA'}</span>
+          <span className="z-10">{isLoadingAi ? 'Generando en 2º plano...' : 'Generar plan con IA'}</span>
           {!isLoadingAi && <div className="absolute inset-0 w-1/2 h-full bg-white/20 skew-x-12 -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]" />}
         </button>
 

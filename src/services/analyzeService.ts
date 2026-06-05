@@ -175,10 +175,19 @@ export interface AnalyzeParams {
   authHeader?: string;
   supabase: SupabaseClient;
   user: User;
+  history?: Array<{ role: 'user' | 'assistant'; content: string }>;
+  sessionId?: string | null;
 }
 
 export async function analyzeAndPersistDailyLog(params: AnalyzeParams) {
-  const { text, rawImage, habitReports, localDate, authHeader, supabase, user } = params;
+  const { text, rawImage, habitReports, localDate, authHeader, supabase, user, history, sessionId } = params;
+
+  // Insert user's chat message to chat_history table
+  if (text && text.trim()) {
+    await supabase
+      .from('chat_history')
+      .insert({ user_id: user.id, role: 'user', content: text, session_id: sessionId || null });
+  }
 
   const metadata = user.user_metadata || {};
   const defaultGlassSize = Number(metadata.default_glass_size_ml ?? 250);
@@ -371,6 +380,10 @@ export async function analyzeAndPersistDailyLog(params: AnalyzeParams) {
       model: google('gemini-2.5-flash'),
       system: systemPrompt,
       messages: [
+        ...(history || []).map(msg => ({
+          role: msg.role === 'assistant' ? 'assistant' as const : 'user' as const,
+          content: msg.content,
+        })),
         {
           role: 'user',
           content: userMessageContent,
@@ -387,6 +400,13 @@ export async function analyzeAndPersistDailyLog(params: AnalyzeParams) {
     }
 
     analyzedLog = validatedResult.data;
+    
+    // Insert AI's response message into chat_history table
+    if (analyzedLog.metricas && analyzedLog.metricas.accion_manana) {
+      await supabase
+        .from('chat_history')
+        .insert({ user_id: user.id, role: 'assistant', content: analyzedLog.metricas.accion_manana, session_id: sessionId || null });
+    }
   } catch (aiError) {
     if (aiError instanceof AiServiceError) throw aiError;
     const message = aiError instanceof Error ? aiError.message : 'AI service failure.';
