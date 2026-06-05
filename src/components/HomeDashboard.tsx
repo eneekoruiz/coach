@@ -9,6 +9,9 @@ import { useDashboard } from '@/hooks/useDashboard';
 import DashboardHeader from '@/components/DashboardHeader';
 import DashboardMain from '@/components/DashboardMain';
 import FloatingChatButton from '@/components/FloatingChatButton';
+import AchievementsModal from '@/components/AchievementsModal';
+import AchievementUnlockedModal from '@/components/AchievementUnlockedModal';
+import WeeklyReportModal from '@/components/WeeklyReportModal';
 import type { DailyLog } from '@/lib/schema';
 
 const fallbackLog: DailyLog = {
@@ -37,6 +40,7 @@ const fallbackLog: DailyLog = {
 export default function HomeDashboard() {
   const [isXRayMode, setIsXRayMode] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isAchievementsOpen, setIsAchievementsOpen] = useState(false);
   const {
     isLoading,
     lastLog,
@@ -50,6 +54,8 @@ export default function HomeDashboard() {
     updateWaterSettings,
     addWaterIntake,
     hasLoggedToday,
+    newUnlockedAch,
+    setNewUnlockedAch,
   } = useDashboard();
 
   const theme = useMemo(() => {
@@ -105,6 +111,7 @@ export default function HomeDashboard() {
           momentum={momentum}
           streak={streak}
           setRayXModeFromGesture={setRayXModeFromGesture}
+          onOpenAchievements={() => setIsAchievementsOpen(true)}
         />
 
         <DashboardMain
@@ -150,6 +157,9 @@ export default function HomeDashboard() {
           </div>
         ) : null}
       </AnimatePresence>
+      <AchievementsModal isOpen={isAchievementsOpen} onClose={() => setIsAchievementsOpen(false)} />
+      <AchievementUnlockedModal achievement={newUnlockedAch} onClose={() => setNewUnlockedAch(null)} />
+      <WeeklyReportModal />
     </main>
   );
 }

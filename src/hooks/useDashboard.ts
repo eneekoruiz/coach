@@ -44,6 +44,7 @@ export function useDashboard() {
   const [hasLoggedToday, setHasLoggedToday] = useState(false);
   const [shields, setShields] = useState(2);
   const [dailyLogs, setDailyLogs] = useState<any[]>([]);
+  const [newUnlockedAch, setNewUnlockedAch] = useState<any | null>(null);
 
   const loadDashboard = useCallback(async () => {
     try {
@@ -159,6 +160,60 @@ export function useDashboard() {
         }
       } else {
         setInsightText('Registra al menos 3 días para activar tus recomendaciones de inercia y hábitos.');
+      }
+
+      if (user) {
+        try {
+          const { data: unlockedData } = await supabase
+            .from('user_achievements')
+            .select('achievement_id');
+          
+          const unlockedIds = new Set(unlockedData?.map((ua) => ua.achievement_id) || []);
+          const newlyUnlocked: string[] = [];
+
+          const unlock = async (id: string) => {
+            const { error: insertErr } = await supabase
+              .from('user_achievements')
+              .insert({ user_id: user.id, achievement_id: id });
+            if (!insertErr) {
+              newlyUnlocked.push(id);
+            }
+          };
+
+          if (!unlockedIds.has('streak_3') && currentStreak >= 3) {
+            await unlock('streak_3');
+          }
+          if (!unlockedIds.has('streak_7') && currentStreak >= 7) {
+            await unlock('streak_7');
+          }
+          const maxWater = records?.reduce((max, r) => {
+            const water = Number(r.ai_data?.water_ml ?? r.ai_data?.hidratacion_ml ?? 0);
+            return water > max ? water : max;
+          }, 0) ?? 0;
+          if (!unlockedIds.has('hydration_master') && maxWater >= 3000) {
+            await unlock('hydration_master');
+          }
+          const currentMomentumVal = typeof latestRecord?.health_momentum === 'number' ? latestRecord.health_momentum : 100;
+          if (!unlockedIds.has('momentum_hero') && currentMomentumVal >= 120) {
+            await unlock('momentum_hero');
+          }
+          if (!unlockedIds.has('close_day_first') && records && records.length >= 1) {
+            await unlock('close_day_first');
+          }
+
+          if (newlyUnlocked.length > 0) {
+            const { data: achDetails } = await supabase
+              .from('achievements')
+              .select('*')
+              .eq('id', newlyUnlocked[0])
+              .single();
+            if (achDetails) {
+              setNewUnlockedAch(achDetails);
+            }
+          }
+        } catch (achErr) {
+          console.warn('Error checking achievements:', achErr);
+        }
       }
 
       setIsLoading(false);
@@ -286,5 +341,7 @@ export function useDashboard() {
     hasLoggedToday,
     shields,
     dailyLogs,
+    newUnlockedAch,
+    setNewUnlockedAch,
   };
 }

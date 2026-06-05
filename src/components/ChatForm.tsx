@@ -101,10 +101,29 @@ export default function ChatForm({
             type="button"
             onClick={toggleListening}
             disabled={isLoading}
-            className={`inline-flex h-11 w-11 items-center justify-center rounded-full border transition disabled:cursor-not-allowed disabled:opacity-60 ${isListening ? 'border-red-200 bg-red-50 text-red-600 shadow-[0_0_0_4px_rgba(239,68,68,0.12)] animate-pulse' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'}`}
+            className={`relative inline-flex h-11 w-11 items-center justify-center rounded-full border transition disabled:cursor-not-allowed disabled:opacity-60 ${isListening ? 'border-red-300 bg-red-50 text-red-600 pulsating-mic' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'}`}
             aria-label={isListening ? 'Detener dictado' : 'Activar dictado por voz'}
           >
-            {isListening ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+            <style>{`
+              @keyframes pulse-wave {
+                0% {
+                  box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5), 0 0 0 0 rgba(239, 68, 68, 0.3);
+                }
+                40% {
+                  box-shadow: 0 0 0 8px rgba(239, 68, 68, 0), 0 0 0 4px rgba(239, 68, 68, 0.3);
+                }
+                80% {
+                  box-shadow: 0 0 0 8px rgba(239, 68, 68, 0), 0 0 0 16px rgba(239, 68, 68, 0);
+                }
+                100% {
+                  box-shadow: 0 0 0 0 rgba(239, 68, 68, 0), 0 0 0 0 rgba(239, 68, 68, 0);
+                }
+              }
+              .pulsating-mic {
+                animation: pulse-wave 1.6s infinite cubic-bezier(0.66, 0, 0, 1);
+              }
+            `}</style>
+            {isListening ? <Square className="h-4 w-4 animate-pulse" /> : <Mic className="h-4 w-4" />}
           </button>
           <button
             type="button"

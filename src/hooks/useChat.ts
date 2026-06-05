@@ -133,12 +133,31 @@ export function useChat(onUpdate?: () => void | Promise<void>, momentum?: number
   const { selectedImage, fileInputRef, handleImageButtonClick, handleImageSelect, clearSelectedImage } =
     useImageSelection();
 
-  const { recognitionRef, isListening, toggleListening, stop } = useSpeechRecognition((transcript) => {
-    setInputText((current) => {
-      const sep = current.trim().length > 0 ? ' ' : '';
-      return `${current}${sep}${transcript}`.trimStart();
-    });
+  const speechBaseTextRef = useRef('');
+  const inputTextRef = useRef(inputText);
+  useEffect(() => {
+    inputTextRef.current = inputText;
+  }, [inputText]);
+
+  const { recognitionRef, isListening, toggleListening, stop } = useSpeechRecognition({
+    onTranscript: (transcript) => {
+      const base = speechBaseTextRef.current;
+      setInputText(base + (base.trim() ? ' ' : '') + transcript);
+    },
+    onEnd: () => {
+      const textToSubmit = inputTextRef.current.trim();
+      if (textToSubmit) {
+        handleSubmit();
+      }
+    }
   });
+
+  const handleToggleListening = useCallback(() => {
+    if (!isListening) {
+      speechBaseTextRef.current = inputTextRef.current;
+    }
+    toggleListening();
+  }, [isListening, toggleListening]);
 
   useEffect(() => {
     const textarea = textareaRef.current;
@@ -184,8 +203,8 @@ export function useChat(onUpdate?: () => void | Promise<void>, momentum?: number
     toast.error(message);
   }
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function handleSubmit(event?: React.FormEvent<HTMLFormElement>) {
+    if (event) event.preventDefault();
 
     const trimmed = inputText.trim();
     const hasImage = Boolean(selectedImage);
@@ -448,6 +467,7 @@ export function useChat(onUpdate?: () => void | Promise<void>, momentum?: number
 
       if (onUpdate) await onUpdate();
     } catch (err) {
+      setHistory((prev) => prev.slice(0, -1));
       handleServiceError(err);
       setFeedback(null);
     } finally {
@@ -487,7 +507,7 @@ export function useChat(onUpdate?: () => void | Promise<void>, momentum?: number
     handleImageButtonClick,
     handleImageSelect,
     clearSelectedImage,
-    toggleListening,
+    toggleListening: handleToggleListening,
     handleSubmit,
     handleCloseDayModalClose,
     submitLabel,

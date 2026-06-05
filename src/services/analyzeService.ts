@@ -382,10 +382,10 @@ export async function analyzeAndPersistDailyLog(params: AnalyzeParams) {
   let analyzedLog: DailyLog;
   try {
     const result = await generateObject({
-      model: google('gemini-2.5-flash'),
+      model: google('gemini-1.5-flash'),
       system: systemPrompt,
       messages: [
-        ...(history || []).map(msg => ({
+        ...(history || []).slice(-10).map(msg => ({
           role: msg.role === 'assistant' ? 'assistant' as const : 'user' as const,
           content: msg.content,
         })),

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import toast from '@/lib/toast';
+import { useOfflineMutation } from './useOfflineMutation';
 import { isMissingHabitTableError } from '@/lib/habits';
 import { getNormalizedDate } from '@/lib/date-utils';
 import type { HabitRow, DailyLogRow, HabitType, HabitTrackingEntry } from '@/types/habits';
@@ -16,6 +17,7 @@ import {
 
 export function useHabits() {
   const router = useRouter();
+  const { executeMutation } = useOfflineMutation();
   const [habits, setHabits] = useState<HabitRow[]>([]);
   const [values, setValues] = useState<Record<number, number>>({});
   const [recentLogs, setRecentLogs] = useState<DailyLogRow[]>([]);
@@ -165,22 +167,7 @@ export function useHabits() {
       const previousValue = values[habitId] ?? 0;
       setValues((current) => ({ ...current, [habitId]: nextValue }));
 
-      try {
-        const token = await getTokenOrThrow();
-        const response = await fetch('/api/habits/update-today', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ habit_id: habitId, amount: nextValue, date: selectedDate }),
-        });
-
-        if (!response.ok) {
-          const payload = await parseJsonResponse<{ error?: string }>(response);
-          throw new Error(payload?.error || 'Error al guardar.');
-        }
-
+      const updateStateLogs = () => {
         setRecentLogs((currentLogs) => {
           const nextLogs = [...currentLogs];
           const index = nextLogs.findIndex((log) => log.date === selectedDate);
@@ -204,10 +191,24 @@ export function useHabits() {
 
           return nextLogs;
         });
+      };
 
-        const message = 'Guardado';
-        setStatusMessage(message);
-        toast.success(message);
+      try {
+        await executeMutation(
+          '/api/habits/update-today',
+          { habit_id: habitId, amount: nextValue, date: selectedDate },
+          {
+            optimisticUpdate: () => {
+              updateStateLogs();
+            },
+            onSuccess: (data) => {
+              if (data?.offline) return;
+              const message = 'Guardado';
+              setStatusMessage(message);
+              toast.success(message);
+            },
+          }
+        );
 
         // Dopamina visual: Check streak rewards
         try {
@@ -237,7 +238,7 @@ export function useHabits() {
         throw error;
       }
     },
-    [values, getTokenOrThrow, router, selectedDate]
+    [values, executeMutation, router, selectedDate]
   );
 
   const saveHabit = useCallback(

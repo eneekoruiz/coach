@@ -63,6 +63,36 @@ function jsonError(
   );
 }
 
+const rateLimitMap = new Map<string, number[]>();
+
+function checkRateLimit(userId: string): boolean {
+  const now = Date.now();
+  const windowMs = 10000; // 10 seconds
+  const maxRequests = 5;
+
+  if (Math.random() < 0.05) {
+    for (const [key, timestamps] of rateLimitMap.entries()) {
+      const active = timestamps.filter(t => now - t < windowMs);
+      if (active.length === 0) {
+        rateLimitMap.delete(key);
+      } else {
+        rateLimitMap.set(key, active);
+      }
+    }
+  }
+
+  const timestamps = rateLimitMap.get(userId) || [];
+  const activeTimestamps = timestamps.filter(t => now - t < windowMs);
+
+  if (activeTimestamps.length >= maxRequests) {
+    return false;
+  }
+
+  activeTimestamps.push(now);
+  rateLimitMap.set(userId, activeTimestamps);
+  return true;
+}
+
 export async function POST(request: Request) {
   try {
     // 1) Verify presence of Gemini API key immediately
@@ -85,6 +115,17 @@ export async function POST(request: Request) {
     }
 
     const { supabase, user } = auth;
+
+    if (!checkRateLimit(user.id)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'RATE_LIMIT',
+          message: 'Has hecho demasiadas peticiones. Por favor, espera un momento.',
+        },
+        { status: 429 }
+      );
+    }
 
     let rawBody: unknown;
     try {
