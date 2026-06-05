@@ -33,7 +33,8 @@ export default function StreakFlame({ streak, weeklyTarget = 7 }: StreakFlamePro
     <>
       <div
         onClick={(e) => {
-          e.stopPropagation(); // Prevent card clicks if nested
+          e.stopPropagation();
+          e.preventDefault();
           setIsModalOpen(true);
         }}
         className="flex items-center gap-3 bg-white/40 dark:bg-black/20 p-2 px-3 rounded-2xl border border-white/50 backdrop-blur-md shadow-sm select-none hover:bg-white/60 dark:hover:bg-black/30 transition-all cursor-pointer transform hover:scale-[1.03] active:scale-[0.98]"

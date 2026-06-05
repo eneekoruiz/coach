@@ -16,23 +16,38 @@ export default function XRayOverlay({
   theme,
   displayLog,
   momentum,
+  onClose,
 }: {
   isXRayMode: boolean;
   theme: DashboardTheme;
   displayLog: DailyLog;
   momentum: number;
+  onClose: () => void;
 }) {
   return (
     <AnimatePresence>
       {isXRayMode ? (
         <motion.div
-          className="pointer-events-none absolute inset-0 z-20 p-3 sm:p-4 sm:p-6"
+          className="fixed inset-0 z-[160] bg-slate-950/60 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 overflow-y-auto pointer-events-auto"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.18 }}
+          onClick={onClose}
         >
-          <div className="grid h-full grid-cols-1 gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+          <div
+            className="relative w-full max-w-4xl grid grid-cols-1 gap-4 lg:grid-cols-[1.1fr_0.9fr] p-2"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Float Close Button */}
+            <button
+              type="button"
+              onClick={onClose}
+              className="absolute top-4 right-4 w-10 h-10 rounded-full bg-slate-900/90 dark:bg-white/90 text-white dark:text-slate-900 flex items-center justify-center font-bold shadow-lg transition-transform hover:scale-105 active:scale-95 z-30"
+              aria-label="Cerrar"
+            >
+              ✕
+            </button>
             <div
               className={`rounded-[1.8rem] border p-5 shadow-[0_18px_60px_rgba(15,23,42,0.12)] backdrop-blur-2xl ${theme?.glass ?? ''}`}
             >

@@ -1,126 +1,27 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React from 'react';
 import Link from 'next/link';
-import { supabase } from '@/lib/supabase';
-import { dailyLogSchema, type DailyLog } from '@/lib/schema';
-import { getNormalizedDate } from '@/lib/date-utils';
-import { getDietTemplates, getDietCalendar, autocompleteDietWithAi } from '@/app/nutrition/actions';
-import { type DietTemplate } from '@/lib/schema';
 import DietEmptyState from './DietEmptyState';
 import DietCalendarView from './DietCalendarView';
 import DailyAnalysisTab from './DailyAnalysisTab';
-import toast from '@/lib/toast';
+import { useNutritionPlan } from '@/hooks/useNutritionPlan';
 
 export default function NutritionContainer() {
-  const [activeTab, setActiveTab] = useState<'plan' | 'analysis'>('plan');
-  const [loading, setLoading] = useState(true);
-  const [authRequired, setAuthRequired] = useState(false);
-  const [templates, setTemplates] = useState<DietTemplate[]>([]);
-  const [calendar, setCalendar] = useState<Array<{ date: string; template_id: string }>>([]);
-  const [realLog, setRealLog] = useState<DailyLog | null>(null);
-  const [dailyWaterTarget, setDailyWaterTarget] = useState(2000);
-  const [isGeneratingAi, setIsGeneratingAi] = useState(false);
-  const isMounted = useRef(true);
-
-  // We need today's template for the daily analysis
-  const todayStr = getNormalizedDate(new Date());
-  const todayTemplateId = calendar.find(c => c.date === todayStr)?.template_id;
-  const todayTemplate = templates.find(t => t.id === todayTemplateId) || null;
-
-  useEffect(() => {
-    isMounted.current = true;
-    return () => {
-      isMounted.current = false;
-    };
-  }, []);
-
-  const loadData = useCallback(async () => {
-    try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const accessToken = sessionData.session?.access_token;
-
-      if (!accessToken) {
-        setAuthRequired(true);
-        setLoading(false);
-        return;
-      }
-
-      // Get water settings
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const metadata = user.user_metadata || {};
-        setDailyWaterTarget(Number(metadata.daily_water_target_ml ?? 2000));
-      }
-
-      const fetchedTemplates = await getDietTemplates();
-      setTemplates(fetchedTemplates);
-
-      const today = new Date();
-      const start = new Date(today.getFullYear(), today.getMonth() - 1, 1).toISOString().slice(0, 10);
-      const end = new Date(today.getFullYear(), today.getMonth() + 2, 0).toISOString().slice(0, 10);
-      const fetchedCalendar = await getDietCalendar(start, end);
-      setCalendar(fetchedCalendar);
-
-      if (user) {
-        const { data: logRecord, error: logError } = await supabase
-          .from('daily_logs')
-          .select('ai_data')
-          .eq('user_id', user.id)
-          .eq('date', todayStr)
-          .maybeSingle();
-
-        if (!logError && logRecord?.ai_data) {
-          const validated = dailyLogSchema.safeParse(logRecord.ai_data);
-          if (validated.success) {
-            setRealLog(validated.data);
-          }
-        }
-      }
-    } catch (err) {
-      console.error('Error loading nutrition module data:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, [todayStr]);
-
-  useEffect(() => {
-    void loadData();
-  }, [loadData]);
-
-  const handleAiGenerate = () => {
-    setIsGeneratingAi(true);
-    toast.success('Generando tu plan con IA en 2º plano... Puedes seguir usando la app.');
-
-    // Launch generation inside an async IIFE without awaiting it
-    (async () => {
-      try {
-        const res = await autocompleteDietWithAi("Necesito una dieta balanceada para empezar.");
-        if (res.success && res.data) {
-          const { saveDietTemplate, assignTemplateToDates } = await import('@/app/nutrition/actions');
-          const saved = await saveDietTemplate(res.data);
-          if (saved.success && saved.data?.id) {
-            await assignTemplateToDates(saved.data.id, [todayStr]);
-            toast.success('¡Tu plan ha sido generado! Ya puedes ir a verlo.');
-          } else {
-            toast.error(saved.error || 'Fallo al guardar el plan.');
-          }
-          if (isMounted.current) {
-            await loadData();
-          }
-        } else {
-          toast.error(res.error || 'Fallo en generación');
-        }
-      } catch (err) {
-        console.error('AI Diet generation error:', err);
-        toast.error('Fallo en generación de plan.');
-      } finally {
-        if (isMounted.current) {
-          setIsGeneratingAi(false);
-        }
-      }
-    })();
-  };
+  const {
+    activeTab,
+    setActiveTab,
+    loading,
+    authRequired,
+    templates,
+    calendar,
+    realLog,
+    dailyWaterTarget,
+    isGeneratingAi,
+    todayTemplate,
+    loadData,
+    handleAiGenerate,
+  } = useNutritionPlan();
 
   if (loading) {
     return (
@@ -140,7 +41,10 @@ export default function NutritionContainer() {
         <p className="text-sm text-rose-700 mt-2">
           Debes iniciar sesión para configurar tu plan de dieta.
         </p>
-        <Link href="/login" className="mt-4 inline-flex rounded-full bg-slate-950 px-6 py-2 text-sm font-semibold text-white">
+        <Link
+          href="/login"
+          className="mt-4 inline-flex rounded-full bg-slate-950 px-6 py-2 text-sm font-semibold text-white"
+        >
           Iniciar sesión
         </Link>
       </div>
@@ -180,7 +84,9 @@ export default function NutritionContainer() {
               }`}
             >
               Calendario de Dietas
-              {activeTab === 'plan' && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-slate-950 rounded-full" />}
+              {activeTab === 'plan' && (
+                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-slate-950 rounded-full" />
+              )}
             </button>
             <button
               type="button"
@@ -190,7 +96,9 @@ export default function NutritionContainer() {
               }`}
             >
               Análisis de Hoy
-              {activeTab === 'analysis' && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-slate-950 rounded-full" />}
+              {activeTab === 'analysis' && (
+                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-slate-950 rounded-full" />
+              )}
             </button>
           </div>
         )}
@@ -198,17 +106,22 @@ export default function NutritionContainer() {
 
       {/* Renders Principales */}
       {!hasAnyData ? (
-        <DietEmptyState 
-          onManualCreate={() => {}} 
-          onAiGenerate={handleAiGenerate} 
-          isLoadingAi={isGeneratingAi} 
+        <DietEmptyState
+          onManualCreate={() => {}}
+          onAiGenerate={handleAiGenerate}
+          isLoadingAi={isGeneratingAi}
         />
       ) : (
         <div>
           {activeTab === 'plan' ? (
             <DietCalendarView templates={templates} calendar={calendar} onUpdate={loadData} />
           ) : (
-            <DailyAnalysisTab realLog={realLog} dietPlan={todayTemplate} dailyWaterTarget={dailyWaterTarget} onUpdate={loadData} />
+            <DailyAnalysisTab
+              realLog={realLog}
+              dietPlan={todayTemplate}
+              dailyWaterTarget={dailyWaterTarget}
+              onUpdate={loadData}
+            />
           )}
         </div>
       )}

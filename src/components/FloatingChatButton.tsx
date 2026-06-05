@@ -15,7 +15,7 @@ export default function FloatingChatButton({ onClick, isOpen, hasLoggedToday }: 
       type="button"
       aria-label="Abrir chat"
       onClick={onClick}
-      className={`fixed bottom-8 right-8 z-[100] flex items-center gap-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-6 py-4 rounded-full shadow-2xl hover:scale-105 active:scale-95 transition-all ${
+      className={`fixed bottom-[calc(env(safe-area-inset-bottom)+5rem)] md:bottom-8 right-8 z-60 flex items-center gap-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-6 py-4 rounded-full shadow-2xl hover:scale-105 active:scale-95 transition-all ${
         !hasLoggedToday ? 'ring-4 ring-cyan-500/40 animate-pulse' : ''
       }`}
     >

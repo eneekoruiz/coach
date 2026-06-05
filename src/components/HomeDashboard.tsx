@@ -98,8 +98,8 @@ export default function HomeDashboard() {
   const setRayXModeFromGesture = (nextValue: boolean) => setIsXRayMode(nextValue);
 
   return (
-    <main
-      className={`relative flex flex-col flex-1 pb-32 min-h-0 ${theme.background} ${theme.text}`}
+    <div
+      className={`relative flex flex-col flex-1 pb-32 min-h-0 overflow-y-auto custom-scrollbar ${theme.background} ${theme.text}`}
     >
       <div className={`absolute inset-0 bg-gradient-to-br ${theme.accent}`} />
       <div className="absolute inset-0 opacity-25 [background-image:radial-gradient(rgba(255,255,255,0.65)_1px,transparent_1px)] [background-size:22px_22px]" />
@@ -110,7 +110,7 @@ export default function HomeDashboard() {
           theme={theme}
           momentum={momentum}
           streak={streak}
-          setRayXModeFromGesture={setRayXModeFromGesture}
+          onOpenRayX={() => setIsXRayMode(true)}
           onOpenAchievements={() => setIsAchievementsOpen(true)}
         />
 
@@ -158,6 +158,6 @@ export default function HomeDashboard() {
         ) : null}
       </AnimatePresence>
       <WeeklyReportModal />
-    </main>
+    </div>
   );
 }

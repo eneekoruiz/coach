@@ -181,11 +181,11 @@ export default function DietCalendarView({ templates, calendar, onUpdate }: Diet
   };
 
   return (
-    <div className="flex flex-col xl:flex-row gap-6 items-start w-full relative">
+    <div className="flex flex-col xl:flex-row gap-6 items-start w-full relative xl:max-h-[calc(100vh-240px)] xl:overflow-hidden pb-4">
       {/* Columna Izquierda: Calendario */}
-      <div className="w-full xl:w-2/3 space-y-6">
-        <div className="bg-white/80 dark:bg-black/60 backdrop-blur-xl border border-slate-200/60 dark:border-white/10 rounded-[2.5rem] p-6 shadow-[0_15px_45px_rgba(15,23,42,0.04)]">
-          <div className="flex items-center justify-between mb-6">
+      <div className="w-full xl:w-2/3 space-y-4 xl:max-h-[calc(100vh-240px)] xl:overflow-y-auto pr-2 custom-scrollbar">
+        <div className="bg-white/80 dark:bg-black/60 backdrop-blur-xl border border-slate-200/60 dark:border-white/10 rounded-[2.5rem] p-5 shadow-[0_15px_45px_rgba(15,23,42,0.04)]">
+          <div className="flex items-center justify-between mb-4">
             <h3 className="text-xl font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
               <Calendar className="w-6 h-6 text-emerald-500" />
               {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
@@ -202,7 +202,7 @@ export default function DietCalendarView({ templates, calendar, onUpdate }: Diet
 
           <div className="grid grid-cols-7 gap-2 mb-2">
             {['L', 'M', 'X', 'J', 'V', 'S', 'D'].map(day => (
-              <div key={day} className="text-center text-xs font-bold text-slate-400 py-2 uppercase tracking-widest">
+              <div key={day} className="text-center text-xs font-bold text-slate-400 py-1 uppercase tracking-widest">
                 {day}
               </div>
             ))}
@@ -210,7 +210,7 @@ export default function DietCalendarView({ templates, calendar, onUpdate }: Diet
 
           <div className="grid grid-cols-7 gap-2">
             {monthGrid.map((dateStr, idx) => {
-              if (!dateStr) return <div key={`empty-${idx}`} className="h-16 sm:h-24" />;
+              if (!dateStr) return <div key={`empty-${idx}`} className="h-14" />;
               
               const dayNum = parseInt(dateStr.split('-')[2], 10);
               const template = getTemplateForDate(dateStr);
@@ -225,7 +225,7 @@ export default function DietCalendarView({ templates, calendar, onUpdate }: Diet
                   onDragOver={(e) => handleDragOver(e, dateStr)}
                   onDragLeave={handleDragLeave}
                   onDrop={(e) => handleDrop(e, dateStr)}
-                  className={`relative flex flex-col items-center justify-between h-16 sm:h-24 p-2 rounded-2xl transition-all border-2 select-none min-h-[44px]
+                  className={`relative flex flex-col items-center justify-center h-14 p-1.5 rounded-xl transition-all border-2 select-none min-h-[44px]
                     ${isSelected ? 'border-emerald-500 bg-emerald-50/50 shadow-sm dark:bg-emerald-950/20' : 'border-slate-100 dark:border-white/5 bg-slate-50/30 hover:bg-slate-50 dark:hover:bg-white/5'}
                     ${isToday && !isSelected ? 'ring-2 ring-slate-900/10 dark:ring-white/10' : ''}
                     ${isOver ? 'ring-4 ring-emerald-400 bg-emerald-100/50 scale-[1.03] border-emerald-400 z-10' : ''}
@@ -235,21 +235,19 @@ export default function DietCalendarView({ templates, calendar, onUpdate }: Diet
                     {dayNum}
                   </span>
                   
-                  {template ? (
-                    <div className="w-full mt-1 flex flex-col items-center">
-                      <div className="mx-auto px-1.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 text-[8px] sm:text-[9px] font-bold truncate max-w-full text-center shadow-xs">
+                  {template && (
+                    <div className="w-full mt-0.5 flex flex-col items-center gap-1">
+                      <div className="mx-auto px-1 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 text-[8px] font-bold truncate max-w-full text-center">
                         {template.name}
                       </div>
                       
                       {/* Micro-metrics visual dots representing macros */}
-                      <div className="flex items-center justify-center gap-1 mt-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-rose-500" title="Proteína" />
-                        <span className="w-1.5 h-1.5 rounded-full bg-sky-500" title="Carbs" />
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" title="Grasas" />
+                      <div className="flex items-center justify-center gap-1">
+                        <span className="w-1 h-1 rounded-full bg-rose-500" title="Proteína" />
+                        <span className="w-1 h-1 rounded-full bg-sky-500" title="Carbs" />
+                        <span className="w-1 h-1 rounded-full bg-emerald-500" title="Grasas" />
                       </div>
                     </div>
-                  ) : (
-                    <div className="text-[8px] text-slate-300 font-medium hidden sm:block">Arrastra una plantilla</div>
                   )}
                 </button>
               );
@@ -259,7 +257,7 @@ export default function DietCalendarView({ templates, calendar, onUpdate }: Diet
       </div>
 
       {/* Columna Derecha: Plantillas */}
-      <div className="w-full xl:w-1/3 space-y-4">
+      <div className="w-full xl:w-1/3 space-y-4 xl:max-h-[calc(100vh-240px)] xl:overflow-y-auto pr-2 custom-scrollbar">
         <div className="flex items-center justify-between bg-slate-900 dark:bg-white/10 text-white rounded-2xl p-4 shadow-sm">
           <h3 className="font-bold text-sm sm:text-base">Tus Plantillas</h3>
           <button 
@@ -485,32 +483,42 @@ export default function DietCalendarView({ templates, calendar, onUpdate }: Diet
         document.body
       )}
 
-      {/* Modales */}
-      {(isCreatingTemplate || editingTemplate) && (
-        <TemplateEditorModal 
-          template={editingTemplate}
-          onClose={() => {
-            setIsCreatingTemplate(false);
-            setEditingTemplate(null);
-          }}
-          onSave={() => {
-            setIsCreatingTemplate(false);
-            setEditingTemplate(null);
-            onUpdate();
-          }}
-        />
+      {/* Modales - RENDERED IN PORTALS TO PREVENT STACKING CONTEXT BUGS */}
+      {mounted && typeof document !== 'undefined' && createPortal(
+        <AnimatePresence>
+          {(isCreatingTemplate || editingTemplate) && (
+            <TemplateEditorModal 
+              template={editingTemplate}
+              onClose={() => {
+                setIsCreatingTemplate(false);
+                setEditingTemplate(null);
+              }}
+              onSave={() => {
+                setIsCreatingTemplate(false);
+                setEditingTemplate(null);
+                onUpdate();
+              }}
+            />
+          )}
+        </AnimatePresence>,
+        document.body
       )}
 
-      {assigningTemplate && (
-        <TemplateAssignModal 
-          template={assigningTemplate}
-          onClose={() => setAssigningTemplate(null)}
-          onAssign={() => {
-            setAssigningTemplate(null);
-            onUpdate();
-          }}
-          preselectedDate={selectedDate}
-        />
+      {mounted && typeof document !== 'undefined' && createPortal(
+        <AnimatePresence>
+          {assigningTemplate && (
+            <TemplateAssignModal 
+              template={assigningTemplate}
+              onClose={() => setAssigningTemplate(null)}
+              onAssign={() => {
+                setAssigningTemplate(null);
+                onUpdate();
+              }}
+              preselectedDate={selectedDate}
+            />
+          )}
+        </AnimatePresence>,
+        document.body
       )}
     </div>
   );

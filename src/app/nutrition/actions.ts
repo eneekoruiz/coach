@@ -123,31 +123,28 @@ export async function saveDietTemplate(template: DietTemplate): Promise<{ succes
     };
 
     let result;
-    if (parsed.data.id) {
-      result = await supabase
-        .from('diet_templates')
-        .update(templateData)
-        .eq('id', parsed.data.id)
-        .eq('user_id', user.id)
-        .select('*')
-        .single();
-    } else {
-      result = await supabase
-        .from('diet_templates')
-        .insert(templateData)
-        .select('*')
-        .single();
-    }
-
-    if (result.error) {
-      const errDetails = [
-        result.error.message,
-        result.error.code ? `code=${result.error.code}` : '',
-        result.error.details ? `details=${result.error.details}` : '',
-        result.error.hint ? `hint=${result.error.hint}` : '',
-      ].filter(Boolean).join(' | ');
-      console.error('[Supabase] Error saving diet template:', errDetails);
-      return { success: false, error: `Error al guardar: ${result.error.message}` };
+    try {
+      if (parsed.data.id) {
+        result = await supabase
+          .from('diet_templates')
+          .update(templateData)
+          .eq('id', parsed.data.id)
+          .eq('user_id', user.id)
+          .select('*')
+          .single();
+      } else {
+        result = await supabase
+          .from('diet_templates')
+          .insert(templateData)
+          .select('*')
+          .single();
+      }
+      if (result.error) {
+        throw result.error;
+      }
+    } catch (dbError: any) {
+      console.error("ERROR IA DB:", dbError);
+      return { success: false, error: dbError.message || 'Error en la base de datos.' };
     }
 
     const responseParsed = dietTemplateSchema.safeParse(result.data);
@@ -283,12 +280,178 @@ export async function autocompleteDietWithAi(context: string): Promise<{ success
 
     const parsed = dietTemplateSchema.safeParse(sanitizedData);
     if (!parsed.success) {
-      return { success: false, error: 'Fallo en generación' };
+      const formattedErrors = parsed.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join(', ');
+      return { success: false, error: `Error de validación del plan: ${formattedErrors}` };
     }
 
     return { success: true, data: parsed.data };
   } catch (err) {
     console.error('autocompleteDietWithAi server action error:', err);
-    return { success: false, error: 'Fallo en generación' };
+    return { success: false, error: err instanceof Error ? err.message : 'Fallo en generación' };
   }
 }
+
+export async function analyzeFoodImage(
+  base64Image: string,
+  mimeType: string
+): Promise<{
+  success: boolean;
+  data?: {
+    items: Array<{
+      name: string;
+      quantity_grams: number;
+      calories: number;
+      protein: number;
+      carbs: number;
+      fat: number;
+    }>;
+  };
+  error?: string;
+}> {
+  try {
+    // Clean base64 header if present
+    const base64Data = base64Image.includes(';base64,')
+      ? base64Image.split(';base64,')[1]
+      : base64Image;
+
+    const systemPrompt =
+      "Eres un nutricionista clínico. Analiza esta imagen. Extrae cada alimento visible o etiqueta nutricional. Devuelve un JSON estricto con un array items: [{ name: string, quantity_grams: number, calories: number, protein: number, carbs: number, fat: number }]. Si no estás seguro del peso exacto, haz una estimación experta basada en el tamaño de la ración estándar.";
+
+    const result = await generateObject({
+      model: google('gemini-2.5-flash'),
+      system: systemPrompt,
+      schema: z.object({
+        items: z.array(
+          z.object({
+            name: z.string(),
+            quantity_grams: z.number(),
+            calories: z.number(),
+            protein: z.number(),
+            carbs: z.number(),
+            fat: z.number(),
+          })
+        ),
+      }),
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'image',
+              image: base64Data,
+              mediaType: mimeType,
+            },
+            {
+              type: 'text',
+              text: 'Analiza esta imagen de comida y extrae la información nutricional.',
+            },
+          ],
+        },
+      ],
+    });
+
+    return { success: true, data: result.object };
+  } catch (err) {
+    console.error('analyzeFoodImage server action error:', err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : 'Error al procesar la imagen con IA.',
+    };
+  }
+}
+
+export async function importDailyLogsBulk(
+  entries: Array<{
+    date: string;
+    meals: Array<{ hora: string; descripcion: string; calidad_nutricional: 'buena' | 'regular' | 'mala' }>;
+    total_kcal: number;
+    protein_g: number;
+    carbs_g: number;
+    fats_g: number;
+    water_ml: number;
+  }>
+): Promise<{ success: boolean; count?: number; error?: string }> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { success: false, error: 'Usuario no autenticado.' };
+
+    if (!entries || entries.length === 0) {
+      return { success: false, error: 'No hay registros para importar.' };
+    }
+
+    // Extract all dates to query existing daily logs in one go
+    const dates = entries.map(e => e.date);
+
+    // Fetch existing logs for these dates to merge metadata
+    const { data: existingLogs, error: fetchError } = await supabase
+      .from('daily_logs')
+      .select('*')
+      .eq('user_id', user.id)
+      .in('date', dates);
+
+    if (fetchError) {
+      console.warn(`[Supabase Fetch Warning] importDailyLogsBulk fetch: ${fetchError.message}`);
+    }
+
+    const existingLogsMap = new Map<string, any>();
+    if (existingLogs) {
+      existingLogs.forEach(row => {
+        existingLogsMap.set(row.date, row);
+      });
+    }
+
+    const rowsToUpsert = entries.map(entry => {
+      const existing = existingLogsMap.get(entry.date);
+      const existingAiData = existing?.ai_data || {};
+
+      const newAiData: any = {
+        date: entry.date,
+        comidas: entry.meals,
+        hidratacion_ml: entry.water_ml,
+        toxinas: existingAiData.toxinas || [],
+        bio_avatar: existingAiData.bio_avatar || {
+          estado_fisiologico: 'Estable',
+          energia_fisica: 3,
+          claridad_mental: 3,
+        },
+        metricas: existingAiData.metricas || {
+          variacion_inercia: 0,
+          aciertos: [],
+          error_clave: 'ninguno',
+          accion_manana: 'Ninguna',
+        },
+        water_ml: entry.water_ml,
+        total_kcal: entry.total_kcal,
+        protein_g: entry.protein_g,
+        carbs_g: entry.carbs_g,
+        fats_g: entry.fats_g,
+        habits_count: existingAiData.habits_count || {},
+        propuestas_habitos: existingAiData.propuestas_habitos || [],
+      };
+
+      return {
+        user_id: user.id,
+        date: entry.date,
+        health_momentum: existing?.health_momentum ?? 50,
+        ai_data: newAiData,
+        habit_tracking: existing?.habit_tracking ?? [],
+      };
+    });
+
+    const { error: upsertError } = await supabase
+      .from('daily_logs')
+      .upsert(rowsToUpsert, { onConflict: 'user_id,date' });
+
+    if (upsertError) {
+      console.error('[Supabase] Error bulk upserting daily_logs:', upsertError.message);
+      return { success: false, error: `Error en base de datos: ${upsertError.message}` };
+    }
+
+    return { success: true, count: rowsToUpsert.length };
+  } catch (err) {
+    console.error('importDailyLogsBulk server action error:', err);
+    return { success: false, error: err instanceof Error ? err.message : 'Error inesperado al importar.' };
+  }
+}
+

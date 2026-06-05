@@ -10,6 +10,7 @@ import PushNotificationManager from './PushNotificationManager';
 import { triggerVibration } from '@/lib/haptics';
 import NutritionContainer from './NutritionContainer';
 import HabitTracker from './HabitTracker';
+import { useDashboardState, type AvatarState, AVATAR_CONFIG } from '@/hooks/useDashboardState';
 
 interface DashboardTheme {
   background: string;
@@ -43,9 +44,7 @@ type DashboardMainProps = {
   onChatOpen?: () => void;
 };
 
-function clampMomentum(value: number) {
-  return Math.min(100, Math.max(0, value));
-}
+
 
 interface BentoCardProps extends HTMLMotionProps<"div"> {}
 
@@ -61,52 +60,7 @@ function BentoCard({ children, className = '', layoutId, ...props }: BentoCardPr
   );
 }
 
-// ── Avatar State Logic ──────────────────────────────────────────────────────
-type AvatarState = 'happy' | 'thirsty' | 'tired' | 'critical' | 'neutral';
 
-const AVATAR_CONFIG: Record<AvatarState, {
-  url: string;
-  label: string;
-  subLabel: string;
-  aura: string;
-  statusColor: string;
-}> = {
-  happy: {
-    url: 'https://api.dicebear.com/7.x/adventurer/svg?seed=lion&backgroundColor=b6e3f4',
-    label: 'León Radiante (Óptimo)',
-    subLabel: '¡Tu Bio-Avatar está en su mejor momento! 🦁🌟',
-    aura: 'shadow-[0_0_80px_rgba(16,185,129,0.35)]',
-    statusColor: 'bg-emerald-500',
-  },
-  thirsty: {
-    url: 'https://api.dicebear.com/7.x/adventurer/svg?seed=camel&backgroundColor=dbeafe',
-    label: 'Camello Sediento',
-    subLabel: '¡Necesito hidratación urgente! 🐫💧',
-    aura: 'shadow-[0_0_80px_rgba(59,130,246,0.4)]',
-    statusColor: 'bg-blue-500',
-  },
-  tired: {
-    url: 'https://api.dicebear.com/7.x/adventurer/svg?seed=koala&backgroundColor=fef9c3',
-    label: 'Koala Fatigado',
-    subLabel: 'Desbalance o toxinas hoy. A descansar 🐨😴',
-    aura: 'shadow-[0_0_80px_rgba(234,179,8,0.35)]',
-    statusColor: 'bg-amber-500',
-  },
-  critical: {
-    url: 'https://api.dicebear.com/7.x/adventurer/svg?seed=panda&backgroundColor=fee2e2',
-    label: 'Panda en Crisis',
-    subLabel: '¡SOS! Inercia baja, necesito hábitos 🐼🆘',
-    aura: 'shadow-[0_0_80px_rgba(239,68,68,0.4)]',
-    statusColor: 'bg-rose-500',
-  },
-  neutral: {
-    url: 'https://api.dicebear.com/7.x/adventurer/svg?seed=wolf&backgroundColor=f1f5f9',
-    label: 'Lobo Estable',
-    subLabel: 'Vas por buen camino, mantente firme 🐺💪',
-    aura: 'shadow-[0_0_60px_rgba(148,163,184,0.3)]',
-    statusColor: 'bg-slate-400',
-  },
-};
 
 // ── Water Glass sub-component ───────────────────────────────────────────────
 function WaterGlass({
@@ -212,6 +166,7 @@ function WaterGlass({
 // ── Main Component ──────────────────────────────────────────────────────────
 export default function DashboardMain({
   isXRayMode,
+  setRayXModeFromGesture,
   isLoading,
   theme,
   displayLog,
@@ -227,46 +182,20 @@ export default function DashboardMain({
   addWaterIntake,
   onChatOpen,
 }: DashboardMainProps) {
-  const normalizedMomentum = clampMomentum(momentum);
-  const [expandedCard, setExpandedCard] = useState<'avatar' | 'nutrition' | 'water' | 'habits' | null>(null);
-
-  const waterMl = displayLog.water_ml ?? displayLog.hidratacion_ml ?? 0;
-
-  const completedHabitsCount = useMemo(() => {
-    return Object.values(displayLog.habits_count || {}).reduce(
-      (acc, val) => acc + (Number(val) > 0 ? 1 : 0),
-      0
-    );
-  }, [displayLog.habits_count]);
-
-  const [avatarState, setAvatarState] = useState<AvatarState>('neutral');
-
-  useEffect(() => {
-    const inertia = normalizedMomentum;
-    const targetKcal = dietTargets?.kcal ?? 2000;
-    const realKcal = displayLog.total_kcal ?? 0;
-    const nutritionDelta = Math.abs(realKcal - targetKcal);
-    const currentStreak = streak;
-    const waterPct = dailyWaterTarget > 0 ? waterMl / dailyWaterTarget : 0;
-
-    let nextState: AvatarState = 'neutral';
-
-    if (inertia < 35) {
-      nextState = 'critical';
-    } else if (waterPct < 0.35) {
-      nextState = 'thirsty';
-    } else if (nutritionDelta > 800 || (displayLog.toxinas && displayLog.toxinas.length > 0)) {
-      nextState = 'tired';
-    } else if (currentStreak >= 3 && nutritionDelta <= 300 && inertia >= 70) {
-      nextState = 'happy';
-    } else {
-      nextState = 'neutral';
-    }
-
-    setAvatarState(nextState);
-  }, [normalizedMomentum, displayLog.total_kcal, displayLog.toxinas, dietTargets?.kcal, streak, waterMl, dailyWaterTarget]);
-
-  const avatar = AVATAR_CONFIG[avatarState];
+  const {
+    normalizedMomentum,
+    expandedCard,
+    setExpandedCard,
+    waterMl,
+    completedHabitsCount,
+    avatar,
+  } = useDashboardState({
+    momentum,
+    displayLog,
+    dietTargets,
+    streak,
+    dailyWaterTarget,
+  });
 
   return (
     <section className="relative flex flex-1 flex-col px-4 md:px-6 pb-24 md:pb-6 overflow-x-hidden">
@@ -287,15 +216,8 @@ export default function DashboardMain({
           <motion.div
             layoutId="avatar-card"
             onClick={() => { triggerVibration('light'); setExpandedCard('avatar'); }}
-            whileTap={{ scale: 0.97 }}
-            animate={{
-              y: [0, -12, 0],
-            }}
-            transition={{
-              duration: 5,
-              repeat: Infinity,
-              ease: "easeInOut"
-            }}
+            whileTap={{ scale: 0.95 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 10 }}
             className={`relative w-56 h-56 sm:w-64 sm:h-64 rounded-[2.5rem] overflow-hidden bg-white dark:bg-slate-950 cursor-pointer ${avatar.aura} border border-slate-100 dark:border-slate-800 transition-shadow duration-700`}
           >
             <img
@@ -476,6 +398,7 @@ export default function DashboardMain({
             theme={theme}
             displayLog={displayLog}
             momentum={momentum}
+            onClose={() => setRayXModeFromGesture?.(false)}
           />
         </div>
       </div>

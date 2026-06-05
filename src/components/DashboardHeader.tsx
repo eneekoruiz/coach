@@ -1,22 +1,12 @@
-import React from 'react';
-import Link from 'next/link';
-const History = (props: React.SVGProps<SVGSVGElement>) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
-    <path d="M21 6v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6" />
-    <path d="M7 10h10" />
-  </svg>
-);
+'use client';
 
-const LogOut = (props: React.SVGProps<SVGSVGElement>) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
-    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-    <path d="M16 17l5-5-5-5" />
-    <path d="M21 12H9" />
-  </svg>
-);
+import React, { useState } from 'react';
+import { Settings, Scan, Download, LogOut, Loader2 } from 'lucide-react';
 import { logout } from '@/app/login/actions';
 import { triggerVibration } from '@/lib/haptics';
-import ExportDataButton from '@/components/ExportDataButton';
+import { supabase } from '@/lib/supabase';
+import toast from '@/lib/toast';
+import BottomSheet from '@/components/BottomSheet';
 
 interface DashboardTheme {
   background: string;
@@ -30,7 +20,7 @@ interface DashboardHeaderProps {
   theme: DashboardTheme;
   momentum: number;
   streak: number;
-  setRayXModeFromGesture: (v: boolean) => void;
+  onOpenRayX: () => void;
   onOpenAchievements: () => void;
 }
 
@@ -38,62 +28,137 @@ export default function DashboardHeader({
   theme,
   momentum,
   streak,
-  setRayXModeFromGesture,
+  onOpenRayX,
   onOpenAchievements,
 }: DashboardHeaderProps) {
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExport = async () => {
+    triggerVibration('light');
+    setIsExporting(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      
+      const headers: Record<string, string> = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const res = await fetch('/api/user/export', { headers });
+      if (!res.ok) {
+        throw new Error('Error en el servidor al exportar datos.');
+      }
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      
+      const a = document.createElement('a');
+      a.href = url;
+      const dateStr = new Date().toISOString().split('T')[0];
+      a.download = `bio-avatar-gdpr-export-${dateStr}.json`;
+      
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      
+      toast.success('Tus datos han sido exportados de forma segura');
+    } catch (err) {
+      console.error('[ExportData ERROR]', err);
+      toast.error('No se pudieron exportar los datos. Inténtalo de nuevo.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
-    <header
-      className={`rounded-[2rem] border px-4 py-4 shadow-[0_14px_60px_rgba(15,23,42,0.08)] backdrop-blur-2xl sm:px-5 ${theme.glass}`}
-    >
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-[10px] uppercase tracking-[0.35em] text-slate-500">
-            Gemelo Digital Fisiológico
-          </p>
-          <h1 className="mt-1 text-xl font-semibold text-slate-900 sm:text-3xl">
-            Dashboard del Bio-Avatar
-          </h1>
+    <>
+      <header className="relative z-40 flex items-center justify-between px-4 py-3 bg-white/40 dark:bg-slate-900/40 backdrop-blur-xl border border-white/20 dark:border-slate-800/20 rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+        {/* Left spacing to center the pill */}
+        <div className="w-9 h-9" />
+
+        {/* Center: Momentum Pill */}
+        <div className="flex items-center gap-1.5 px-4 py-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-full text-xs font-black tracking-wider shadow-sm transition-transform active:scale-95">
+          <span className="opacity-80">INERCIA ACTUAL:</span>
+          <span>{momentum}%</span>
         </div>
-        <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end sm:gap-3">
-          <div className="rounded-full border border-white/70 bg-white/60 px-3 py-2 text-center text-sm text-slate-700 backdrop-blur-xl sm:px-4 sm:text-left">
-            Inercia actual: <span className="font-semibold text-slate-900">{momentum}</span>
-          </div>
- 
-          <form action={logout}>
-            <button
-              type="submit"
-              className="inline-flex items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-800 shadow-sm transition hover:bg-slate-50"
-            >
-              <LogOut className="h-4 w-4" />
-              Salir
-            </button>
-          </form>
-          <ExportDataButton />
+
+        {/* Right: Settings Icon */}
+        <button
+          type="button"
+          onClick={() => {
+            triggerVibration('light');
+            setIsSettingsOpen(true);
+          }}
+          className="p-2 rounded-full bg-white/80 dark:bg-slate-900/80 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 transition-all border border-slate-200/50 dark:border-slate-800/50 shadow-sm active:scale-95"
+          aria-label="Ajustes"
+        >
+          <Settings className="w-5 h-5" />
+        </button>
+      </header>
+
+      {/* Settings Bottom Sheet (vaul) */}
+      <BottomSheet
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        title="Menú de Configuración"
+      >
+        <div className="flex flex-col gap-4 pb-4">
+          {/* Option 1: Rayos X */}
           <button
             type="button"
-            onPointerDown={() => {
+            onClick={() => {
               triggerVibration('light');
-              setRayXModeFromGesture(true);
+              setIsSettingsOpen(false);
+              onOpenRayX();
             }}
-            onPointerUp={() => setRayXModeFromGesture(false)}
-            onPointerCancel={() => setRayXModeFromGesture(false)}
-            onMouseDown={() => {
-              triggerVibration('light');
-              setRayXModeFromGesture(true);
-            }}
-            onMouseUp={() => setRayXModeFromGesture(false)}
-            onMouseLeave={() => setRayXModeFromGesture(false)}
-            onTouchStart={() => {
-              triggerVibration('light');
-              setRayXModeFromGesture(true);
-            }}
-            onTouchEnd={() => setRayXModeFromGesture(false)}
-            className="rounded-full border border-slate-900/10 bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-lg transition hover:scale-[1.01] active:scale-[0.98]"
+            className="w-full flex items-center gap-4 p-4 rounded-2xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/40 dark:hover:bg-slate-800/70 transition-colors text-left border border-slate-100 dark:border-slate-800/60"
           >
-            Mantener para Rayos X
+            <div className="p-2.5 rounded-xl bg-violet-100 dark:bg-violet-950/50 text-violet-600 dark:text-violet-400">
+              <Scan className="w-5 h-5" />
+            </div>
+            <div className="flex-1">
+              <p className="font-bold text-slate-800 dark:text-slate-200 text-sm">Ver Análisis de Rayos X</p>
+              <p className="text-[11px] text-slate-500">Visualiza métricas fisiológicas y de salud activas.</p>
+            </div>
           </button>
+
+          {/* Option 2: Export Data */}
+          <button
+            type="button"
+            onClick={handleExport}
+            disabled={isExporting}
+            className="w-full flex items-center gap-4 p-4 rounded-2xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/40 dark:hover:bg-slate-800/70 transition-colors text-left border border-slate-100 dark:border-slate-800/60 disabled:opacity-60"
+          >
+            <div className="p-2.5 rounded-xl bg-blue-100 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400">
+              {isExporting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Download className="w-5 h-5" />}
+            </div>
+            <div className="flex-1">
+              <p className="font-bold text-slate-800 dark:text-slate-200 text-sm">Exportar Datos (GDPR)</p>
+              <p className="text-[11px] text-slate-500">Descarga tu historial metabólico completo en JSON.</p>
+            </div>
+          </button>
+
+          {/* Option 3: Logout */}
+          <form action={logout} className="w-full">
+            <button
+              type="submit"
+              onClick={() => triggerVibration('light')}
+              className="w-full flex items-center gap-4 p-4 rounded-2xl bg-rose-50/50 hover:bg-rose-50 dark:bg-rose-950/10 dark:hover:bg-rose-950/20 transition-colors text-left border border-rose-100/50 dark:border-rose-900/30 text-rose-600 dark:text-rose-450"
+            >
+              <div className="p-2.5 rounded-xl bg-rose-100 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400">
+                <LogOut className="w-5 h-5" />
+              </div>
+              <div className="flex-1">
+                <p className="font-bold text-sm">Salir</p>
+                <p className="text-[11px] text-rose-500/80">Cierra la sesión actual de forma segura.</p>
+              </div>
+            </button>
+          </form>
         </div>
-      </div>
-    </header>
+      </BottomSheet>
+    </>
   );
 }

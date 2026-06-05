@@ -6,7 +6,10 @@ import { supabase } from '@/lib/supabase';
 import { getNormalizedDate } from '@/lib/date-utils';
 import ConcentricProgressRings from './ConcentricProgressRings';
 import toast from '@/lib/toast';
-import { Flame, Dumbbell, Droplet, Plus, Trash2, Edit3, Settings, ShieldAlert, Sparkles } from 'lucide-react';
+import { Flame, Dumbbell, Droplet, Plus, Trash2, Edit3, Settings, ShieldAlert, Sparkles, Camera, UploadCloud, Loader2 } from 'lucide-react';
+import BottomSheet from './BottomSheet';
+import { analyzeFoodImage } from '@/app/nutrition/actions';
+import { useDailyAnalysis } from '@/hooks/useDailyAnalysis';
 
 interface DailyAnalysisTabProps {
   realLog: DailyLog | null;
@@ -65,176 +68,51 @@ function BatteryMetric({ label, actual, target, unit, colorClass, bgClass }: Bat
 }
 
 export default function DailyAnalysisTab({ realLog, dietPlan, dailyWaterTarget, onUpdate }: DailyAnalysisTabProps) {
-  const todayStr = getNormalizedDate(new Date());
-  
-  const targets = {
-    kcal: dietPlan?.target_kcal ?? 2000,
-    protein: dietPlan?.target_protein ?? 150,
-    carbs: dietPlan?.target_carbs ?? 200,
-    fats: dietPlan?.target_fats ?? 70,
-    water: dailyWaterTarget ?? 2000,
-  };
-
-  // State to hold local edits
-  const [engineMode, setEngineMode] = useState<'agile' | 'surgical'>('agile');
-  const [loading, setLoading] = useState(false);
-
-  // Agile sliders / inputs
-  const [kcalInput, setKcalInput] = useState(0);
-  const [proteinInput, setProteinInput] = useState(0);
-  const [carbsInput, setCarbsInput] = useState(0);
-  const [fatsInput, setFatsInput] = useState(0);
-  const [waterInput, setWaterInput] = useState(0);
-
-  // Surgical list
-  const [mealsList, setMealsList] = useState<Array<{ hora: string; descripcion: string; calidad_nutricional: 'buena' | 'regular' | 'mala' }>>([]);
-  
-  // Form for new meal in surgical mode
-  const [newMealDesc, setNewMealDesc] = useState('');
-  const [newMealHour, setNewMealHour] = useState('08:00');
-  const [newMealQuality, setNewMealQuality] = useState<'buena' | 'regular' | 'mala'>('buena');
-
-  // Sync state with incoming realLog
-  useEffect(() => {
-    if (realLog) {
-      setKcalInput(realLog.total_kcal ?? 0);
-      setProteinInput(realLog.protein_g ?? 0);
-      setCarbsInput(realLog.carbs_g ?? 0);
-      setFatsInput(realLog.fats_g ?? 0);
-      setWaterInput(realLog.water_ml ?? realLog.hidratacion_ml ?? 0);
-      setMealsList(realLog.comidas ?? []);
-    } else {
-      setKcalInput(0);
-      setProteinInput(0);
-      setCarbsInput(0);
-      setFatsInput(0);
-      setWaterInput(0);
-      setMealsList([]);
-    }
-  }, [realLog]);
-
-  // Dopamina visual: Confetti trigger
-  const isKcalGoalMet = kcalInput >= targets.kcal && targets.kcal > 0;
-  const confettiTriggeredRef = React.useRef(false);
-
-  useEffect(() => {
-    if (isKcalGoalMet && !confettiTriggeredRef.current) {
-      confettiTriggeredRef.current = true;
-      import('@/utils/rewards').then((mod) => mod.triggerStreakConfetti());
-    } else if (!isKcalGoalMet) {
-      confettiTriggeredRef.current = false;
-    }
-  }, [isKcalGoalMet]);
-
-  // Save updates to Supabase
-  const handleSave = async (updatedKcal = kcalInput, updatedProtein = proteinInput, updatedCarbs = carbsInput, updatedFats = fatsInput, updatedWater = waterInput, updatedMeals = mealsList) => {
-    setLoading(true);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        toast.error('Debes iniciar sesión.');
-        return;
-      }
-
-      // Fetch existing daily log to preserve non-nutrition data
-      const { data: logRecord } = await supabase
-        .from('daily_logs')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('date', todayStr)
-        .maybeSingle();
-
-      const existingAiData = logRecord?.ai_data || {};
-      const newAiData: DailyLog = {
-        date: todayStr,
-        comidas: updatedMeals,
-        hidratacion_ml: updatedWater,
-        toxinas: existingAiData.toxinas || [],
-        bio_avatar: existingAiData.bio_avatar || {
-          estado_fisiologico: 'Estable',
-          energia_fisica: 3,
-          claridad_mental: 3,
-        },
-        metricas: existingAiData.metricas || {
-          variacion_inercia: 0,
-          aciertos: [],
-          error_clave: 'ninguno',
-          accion_manana: 'Ninguna',
-        },
-        water_ml: updatedWater,
-        total_kcal: updatedKcal,
-        protein_g: updatedProtein,
-        carbs_g: updatedCarbs,
-        fats_g: updatedFats,
-        habits_count: existingAiData.habits_count || {},
-        propuestas_habitos: existingAiData.propuestas_habitos || [],
-      };
-
-      const { error } = await supabase
-        .from('daily_logs')
-        .upsert(
-          {
-            user_id: user.id,
-            date: todayStr,
-            health_momentum: logRecord?.health_momentum ?? 50,
-            ai_data: newAiData,
-            habit_tracking: logRecord?.habit_tracking ?? [],
-          },
-          { onConflict: 'user_id,date' }
-        );
-
-      if (error) throw error;
-
-      toast.success('¡Nutrición actualizada con éxito!');
-      if (onUpdate) await onUpdate();
-    } catch (err: any) {
-      console.error('Error saving nutrition:', err);
-      toast.error('Error al guardar: ' + (err.message || err));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Quick increment handlers for agile mode
-  const quickKcal = (amount: number) => {
-    const nextVal = Math.max(0, kcalInput + amount);
-    setKcalInput(nextVal);
-  };
-  const quickProtein = (amount: number) => {
-    const nextVal = Math.max(0, proteinInput + amount);
-    setProteinInput(nextVal);
-  };
-  const quickWater = (amount: number) => {
-    const nextVal = Math.max(0, waterInput + amount);
-    setWaterInput(nextVal);
-  };
-
-  // Surgical mode additions
-  const addMeal = async () => {
-    if (!newMealDesc.trim()) {
-      toast.error('Escribe una descripción de la comida.');
-      return;
-    }
-
-    const newMeal = {
-      hora: newMealHour,
-      descripcion: newMealDesc.trim(),
-      calidad_nutricional: newMealQuality,
-    };
-
-    const updatedMeals = [...mealsList, newMeal];
-    setMealsList(updatedMeals);
-    setNewMealDesc('');
-
-    // Save and update
-    await handleSave(kcalInput, proteinInput, carbsInput, fatsInput, waterInput, updatedMeals);
-  };
-
-  const removeMeal = async (idx: number) => {
-    const updatedMeals = mealsList.filter((_, i) => i !== idx);
-    setMealsList(updatedMeals);
-    await handleSave(kcalInput, proteinInput, carbsInput, fatsInput, waterInput, updatedMeals);
-  };
+  const {
+    targets,
+    engineMode,
+    setEngineMode,
+    loading,
+    isScanDrawerOpen,
+    setIsScanDrawerOpen,
+    isScanning,
+    dragOver,
+    setDragOver,
+    ocrImage,
+    setOcrImage,
+    ocrResult,
+    setOcrResult,
+    kcalInput,
+    setKcalInput,
+    proteinInput,
+    setProteinInput,
+    carbsInput,
+    setCarbsInput,
+    fatsInput,
+    setFatsInput,
+    waterInput,
+    setWaterInput,
+    mealsList,
+    newMealDesc,
+    setNewMealDesc,
+    newMealHour,
+    setNewMealHour,
+    newMealQuality,
+    setNewMealQuality,
+    handleSave,
+    quickKcal,
+    quickProtein,
+    quickWater,
+    addMeal,
+    removeMeal,
+    handleImageUpload,
+    handleConfirmOcr,
+  } = useDailyAnalysis({
+    realLog,
+    dietPlan,
+    dailyWaterTarget,
+    onUpdate,
+  });
 
   return (
     <div className="space-y-6">
@@ -411,8 +289,16 @@ export default function DailyAnalysisTab({ realLog, dietPlan, dailyWaterTarget, 
           <div className="space-y-6">
             {/* Meal Creator Form */}
             <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 space-y-4">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1">
-                Registrar Comida Específica
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center justify-between w-full">
+                <span>Registrar Comida Específica</span>
+                <button
+                  type="button"
+                  onClick={() => setIsScanDrawerOpen(true)}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-cyan-50 border border-cyan-100 hover:bg-cyan-100 px-3 py-1 text-xs font-bold text-cyan-700 transition-all shadow-sm"
+                >
+                  <Camera className="h-3.5 w-3.5" />
+                  Escanear Plato con IA 📸
+                </button>
               </h4>
               
               <div className="grid gap-3 sm:grid-cols-[1.5fr_0.8fr_0.8fr_auto] items-end">
@@ -641,6 +527,231 @@ export default function DailyAnalysisTab({ realLog, dietPlan, dailyWaterTarget, 
           </div>
         </div>
       )}
+      {/* Visual AI Scan Drawer */}
+      <BottomSheet
+        isOpen={isScanDrawerOpen}
+        onClose={() => {
+          setIsScanDrawerOpen(false);
+          setOcrResult(null);
+          setOcrImage(null);
+        }}
+        title="OCR Nutricional - IA Visual"
+      >
+        <div className="space-y-6 animate-fade-in">
+          {!ocrResult && !isScanning ? (
+            /* Drag & Drop Upload Zone */
+            <div className="space-y-4">
+              <div
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setDragOver(true);
+                }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setDragOver(false);
+                  const files = e.dataTransfer.files;
+                  if (files && files.length > 0) {
+                    handleImageUpload(files[0]);
+                  }
+                }}
+                className={`flex flex-col items-center justify-center border-2 border-dashed rounded-3xl p-8 transition text-center ${
+                  dragOver
+                    ? 'border-cyan-500 bg-cyan-50/50'
+                    : 'border-slate-200 bg-slate-50/50 hover:bg-slate-50 hover:border-slate-300'
+                }`}
+              >
+                <div className="p-4 bg-white rounded-2xl shadow-sm border border-slate-100 mb-4 text-slate-400">
+                  <UploadCloud className="h-8 w-8 text-cyan-500" />
+                </div>
+                <h4 className="text-sm font-bold text-slate-700">Arrastra una foto de tu plato aquí</h4>
+                <p className="text-xs text-slate-400 mt-1 max-w-[240px]">
+                  O haz clic para seleccionar una foto desde tu galería o archivos.
+                </p>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const files = e.target.files;
+                    if (files && files.length > 0) {
+                      handleImageUpload(files[0]);
+                    }
+                  }}
+                  className="hidden"
+                  id="ocr-file-upload"
+                />
+                <label
+                  htmlFor="ocr-file-upload"
+                  className="mt-4 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition shadow-sm cursor-pointer"
+                >
+                  Seleccionar Imagen
+                </label>
+              </div>
+
+              {/* Mobile Direct Camera Button */}
+              <div className="flex flex-col items-center justify-center p-4 border border-slate-100 bg-white rounded-2xl">
+                <p className="text-xs text-slate-500 mb-2 font-medium">¿Estás en tu móvil? Abre la cámara directo:</p>
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={(e) => {
+                    const files = e.target.files;
+                    if (files && files.length > 0) {
+                      handleImageUpload(files[0]);
+                    }
+                  }}
+                  className="hidden"
+                  id="ocr-camera-upload"
+                />
+                <label
+                  htmlFor="ocr-camera-upload"
+                  className="w-full py-3 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition shadow-md cursor-pointer"
+                >
+                  <Camera className="h-5 w-5" />
+                  Abrir Cámara del Móvil
+                </label>
+              </div>
+
+              <div className="rounded-xl bg-amber-50/50 border border-amber-100 p-3.5 text-xs text-amber-800 flex items-start gap-2.5">
+                <Sparkles className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-bold">Estimación Experta:</span> Si no se puede determinar el peso exacto por la imagen, Coach Mascota estimará las cantidades basándose en raciones clínicas estándar.
+                </div>
+              </div>
+            </div>
+          ) : isScanning ? (
+            /* Modern Skeleton Loading Spinner */
+            <div className="flex flex-col items-center justify-center py-12 text-center space-y-6">
+              <div className="relative flex items-center justify-center">
+                {/* Visual pulse rings */}
+                <div className="absolute inset-0 rounded-full bg-cyan-400/20 animate-ping" />
+                <div className="relative h-16 w-16 rounded-full bg-cyan-50 flex items-center justify-center border border-cyan-100">
+                  <Loader2 className="h-8 w-8 text-cyan-600 animate-spin" />
+                </div>
+              </div>
+              
+              <div className="space-y-2 max-w-[280px]">
+                <h4 className="text-sm font-bold text-slate-700">Analizando plato de comida</h4>
+                <p className="text-xs text-slate-400">
+                  Analizando texturas, volumen e ingredientes con IA. Un nutricionista clínico está en camino...
+                </p>
+              </div>
+
+              {/* Skeleton UI elements */}
+              <div className="w-full space-y-3 bg-slate-50 border border-slate-100 rounded-2xl p-4 animate-pulse">
+                <div className="h-4 bg-slate-200 rounded-full w-1/3" />
+                <div className="space-y-2 pt-2">
+                  <div className="grid grid-cols-5 gap-2">
+                    <div className="h-3 bg-slate-200 rounded-full col-span-2" />
+                    <div className="h-3 bg-slate-200 rounded-full col-span-1" />
+                    <div className="h-3 bg-slate-200 rounded-full col-span-1" />
+                    <div className="h-3 bg-slate-200 rounded-full col-span-1" />
+                  </div>
+                  <div className="grid grid-cols-5 gap-2">
+                    <div className="h-3 bg-slate-200 rounded-full col-span-2" />
+                    <div className="h-3 bg-slate-200 rounded-full col-span-1" />
+                    <div className="h-3 bg-slate-200 rounded-full col-span-1" />
+                    <div className="h-3 bg-slate-200 rounded-full col-span-1" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* Scanned Results Panel */
+            <div className="space-y-5 animate-fade-in">
+              {ocrImage && (
+                <div className="relative h-44 w-full overflow-hidden rounded-2xl border border-slate-100 bg-slate-100">
+                  <img
+                    src={ocrImage}
+                    alt="Plato analizado"
+                    className="h-full w-full object-cover"
+                  />
+                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-3 text-white flex items-end justify-between">
+                    <span className="text-xs font-bold">Foto del Plato</span>
+                    <span className="text-[10px] bg-cyan-600 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
+                      Procesado con IA
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-3">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Ingredientes y Macros Detectados</h4>
+                
+                <div className="divide-y divide-slate-100 rounded-2xl border border-slate-100 bg-white overflow-hidden shadow-sm">
+                  {ocrResult?.items.map((item, idx) => (
+                    <div key={idx} className="p-3 text-xs hover:bg-slate-50 transition flex flex-col gap-1">
+                      <div className="flex items-center justify-between font-bold text-slate-800">
+                        <span>{item.name}</span>
+                        <span>{item.quantity_grams}g</span>
+                      </div>
+                      <div className="flex items-center gap-3 text-slate-400">
+                        <span>🔥 {item.calories} kcal</span>
+                        <span>• P: {item.protein}g</span>
+                        <span>• C: {item.carbs}g</span>
+                        <span>• G: {item.fat}g</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Total Summary */}
+              {ocrResult && (
+                <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex flex-col gap-3">
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Total del plato</span>
+                  <div className="grid grid-cols-4 gap-2 text-center">
+                    <div className="bg-white rounded-xl p-2 border border-slate-100">
+                      <div className="text-sm font-black text-rose-500">
+                        {ocrResult.items.reduce((acc, i) => acc + (i.calories ?? 0), 0)}
+                      </div>
+                      <div className="text-[8px] font-bold text-slate-400 uppercase">kcal</div>
+                    </div>
+                    <div className="bg-white rounded-xl p-2 border border-slate-100">
+                      <div className="text-sm font-black text-emerald-500">
+                        {ocrResult.items.reduce((acc, i) => acc + (i.protein ?? 0), 0)}g
+                      </div>
+                      <div className="text-[8px] font-bold text-slate-400 uppercase">Prot</div>
+                    </div>
+                    <div className="bg-white rounded-xl p-2 border border-slate-100">
+                      <div className="text-sm font-black text-yellow-600">
+                        {ocrResult.items.reduce((acc, i) => acc + (i.carbs ?? 0), 0)}g
+                      </div>
+                      <div className="text-[8px] font-bold text-slate-400 uppercase">Carb</div>
+                    </div>
+                    <div className="bg-white rounded-xl p-2 border border-slate-100">
+                      <div className="text-sm font-black text-amber-700">
+                        {ocrResult.items.reduce((acc, i) => acc + (i.fat ?? 0), 0)}g
+                      </div>
+                      <div className="text-[8px] font-bold text-slate-400 uppercase">Grasa</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setOcrResult(null);
+                    setOcrImage(null);
+                  }}
+                  className="flex-1 py-3 border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-2xl text-xs font-bold transition"
+                >
+                  Volver a intentar
+                </button>
+                <button
+                  onClick={handleConfirmOcr}
+                  className="flex-[2] py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-md"
+                >
+                  <Plus className="h-4 w-4" />
+                  Añadir a Ingestas del Día
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </BottomSheet>
     </div>
   );
 }

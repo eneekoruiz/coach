@@ -8,8 +8,9 @@ import { motion } from 'framer-motion';
 export default function Sidebar() {
   const pathname = usePathname();
 
-  // Hide on login page
-  if (pathname === '/login') {
+  // Hide on auth and public routes
+  const isPublicRoute = ['/login', '/signup', '/auth/callback'].includes(pathname);
+  if (isPublicRoute) {
     return null;
   }
 

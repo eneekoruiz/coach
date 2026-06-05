@@ -109,6 +109,7 @@ export default function HabitTrackerCard({
 
   const handleIncrement = (e: React.MouseEvent) => {
     e.stopPropagation();
+    e.preventDefault();
     haptic.success();
     
     buttonControls.start({
@@ -189,30 +190,30 @@ export default function HabitTrackerCard({
           }}
           transition={{ duration: 0.3 }}
           onClick={() => setIsDetailOpen(true)}
-          className={`group flex items-center justify-between p-4 rounded-2xl border shadow-sm hover:shadow-md cursor-pointer transition-shadow duration-300 ${showGlow ? 'ring-2 ring-emerald-400 shadow-emerald-100' : ''}`}
+          className={`group flex items-center justify-between p-3 rounded-2xl border shadow-sm hover:shadow-md cursor-pointer transition-shadow duration-300 ${showGlow ? 'ring-2 ring-emerald-400 shadow-emerald-100' : ''}`}
         >
-          <div className="flex items-center gap-4 min-w-0 flex-1">
-            <div className={`flex items-center justify-center w-12 h-12 rounded-2xl shrink-0 ${isPositive ? 'bg-emerald-50 text-emerald-500' : 'bg-rose-50 text-rose-500'}`}>
-              <span className="text-xl font-black">{habit.name.charAt(0).toUpperCase()}</span>
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className={`flex items-center justify-center w-9 h-9 rounded-xl shrink-0 ${isPositive ? 'bg-emerald-50 text-emerald-500' : 'bg-rose-50 text-rose-500'}`}>
+              <span className="text-sm font-black">{habit.name.charAt(0).toUpperCase()}</span>
             </div>
             
             <div className="min-w-0 flex-1">
-              <h3 className={`text-base font-black truncate transition-colors duration-300 ${isExceededNegative ? 'text-rose-900' : 'text-slate-900'}`}>{habit.name}</h3>
+              <h3 className={`text-sm font-black truncate transition-colors duration-300 ${isExceededNegative ? 'text-rose-900' : 'text-slate-900'}`}>{habit.name}</h3>
               {!isPositive && (
-                <p className={`text-[10px] font-bold uppercase tracking-wider mt-0.5 transition-colors duration-300 ${isExceededNegative ? 'text-rose-600' : 'text-slate-400'}`}>
+                <p className={`text-[9px] font-bold uppercase tracking-wider mt-0.5 transition-colors duration-300 ${isExceededNegative ? 'text-rose-600' : 'text-slate-400'}`}>
                   Objetivo: Máx {habit.tolerance_threshold}/día
                 </p>
               )}
-              <div className="mt-2 flex items-baseline gap-1">
-                <span className={`text-4xl font-black tabular-nums tracking-tighter transition-colors duration-300 ${isExceededNegative ? 'text-rose-600' : 'text-slate-900'}`}>
+              <div className="mt-1 flex items-baseline gap-1">
+                <span className={`text-2xl font-black tabular-nums tracking-tighter transition-colors duration-300 ${isExceededNegative ? 'text-rose-600' : 'text-slate-900'}`}>
                   {optimisticValue}
                 </span>
-                <span className="text-xs font-semibold text-slate-400">hoy</span>
+                <span className="text-[10px] font-semibold text-slate-400">hoy</span>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex items-center gap-2.5 shrink-0">
             <motion.div animate={flameControls}>
               <StreakFlame streak={displayedStreak} />
             </motion.div>
@@ -222,7 +223,7 @@ export default function HabitTrackerCard({
               whileTap={{ scale: 0.90 }}
               onClick={handleIncrement}
               disabled={isPending}
-              className={`flex items-center justify-center w-12 h-12 rounded-full text-white font-black text-xl shadow-sm transition-colors disabled:opacity-50 ${isPositive ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-rose-500 hover:bg-rose-600'}`}
+              className={`flex items-center justify-center w-9 h-9 rounded-full text-white font-black text-lg shadow-sm transition-colors disabled:opacity-50 ${isPositive ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-rose-500 hover:bg-rose-600'}`}
             >
               +
             </motion.button>
