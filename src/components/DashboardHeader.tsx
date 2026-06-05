@@ -68,13 +68,6 @@ export default function DashboardHeader({
               Salir
             </button>
           </form>
-          <button
-            type="button"
-            onClick={onOpenAchievements}
-            className="inline-flex items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-800 shadow-sm transition hover:bg-slate-50"
-          >
-            🏆 Vitrina
-          </button>
           <ExportDataButton />
           <button
             type="button"

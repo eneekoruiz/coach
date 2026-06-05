@@ -157,8 +157,6 @@ export default function HomeDashboard() {
           </div>
         ) : null}
       </AnimatePresence>
-      <AchievementsModal isOpen={isAchievementsOpen} onClose={() => setIsAchievementsOpen(false)} />
-      <AchievementUnlockedModal achievement={newUnlockedAch} onClose={() => setNewUnlockedAch(null)} />
       <WeeklyReportModal />
     </main>
   );

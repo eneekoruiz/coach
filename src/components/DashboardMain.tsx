@@ -10,7 +10,6 @@ import PushNotificationManager from './PushNotificationManager';
 import { triggerVibration } from '@/lib/haptics';
 import NutritionContainer from './NutritionContainer';
 import HabitTracker from './HabitTracker';
-import DailyChecklist from './DailyChecklist';
 
 interface DashboardTheme {
   background: string;
@@ -325,8 +324,6 @@ export default function DashboardMain({
           </motion.button>
         </div>
 
-        {/* ══ DAILY CHECKLIST ══════════════════════════════════════════════ */}
-        <DailyChecklist />
 
         {/* ══ DATA PILLS ═══════════════════════════════════════════════════ */}
         <div className="grid grid-cols-3 gap-3">
@@ -385,7 +382,7 @@ export default function DashboardMain({
       {/* ══ MORPHING DETAIL MODALS ══════════════════════════════════════════ */}
       <AnimatePresence>
         {expandedCard === 'avatar' && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-2xl">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-2xl">
             <motion.div
               layoutId="avatar-card"
               className="bg-white/90 dark:bg-black/90 backdrop-blur-3xl rounded-[2.5rem] shadow-[0_24px_60px_rgba(0,0,0,0.15)] p-8 max-w-md w-full max-h-[90vh] overflow-y-auto relative flex flex-col items-center text-center"
@@ -406,7 +403,7 @@ export default function DashboardMain({
         )}
 
         {expandedCard === 'nutrition' && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-2xl">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-2xl">
             <motion.div
               layoutId="nutrition-modal"
               className="bg-white/90 backdrop-blur-3xl rounded-[2.5rem] shadow-[0_24px_60px_rgba(0,0,0,0.15)] p-6 sm:p-10 max-w-4xl w-full max-h-[90vh] overflow-y-auto relative flex flex-col"
@@ -437,7 +434,7 @@ export default function DashboardMain({
         )}
 
         {expandedCard === 'water' && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-2xl">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-2xl">
             <motion.div
               className="bg-white/90 backdrop-blur-3xl rounded-[2.5rem] shadow-[0_24px_60px_rgba(0,0,0,0.15)] p-8 max-w-xl w-full max-h-[90vh] overflow-y-auto relative flex flex-col items-center"
               initial={{ opacity: 0, scale: 0.95 }}
@@ -456,7 +453,7 @@ export default function DashboardMain({
         )}
 
         {expandedCard === 'habits' && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-2xl">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-2xl">
             <motion.div
               className="bg-white/90 backdrop-blur-3xl rounded-[2.5rem] shadow-[0_24px_60px_rgba(0,0,0,0.15)] p-6 sm:p-10 max-w-4xl w-full max-h-[90vh] overflow-y-auto relative flex flex-col"
               initial={{ opacity: 0, scale: 0.95 }}

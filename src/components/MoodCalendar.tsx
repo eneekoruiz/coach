@@ -65,6 +65,22 @@ const MOOD_LABELS: Record<number, { label: string; emoji: string }> = {
   5: { label: 'Muy Agradable', emoji: '😄' },
 };
 
+const MOOD_CONFIG: Record<number, { bg: string; text: string; label: string; emoji: string }> = {
+  1: { bg: 'linear-gradient(135deg, #1e1b4b, #581c87, #0f172a)', text: 'text-white',     label: 'Muy Desagradable', emoji: '😔' },
+  2: { bg: 'linear-gradient(135deg, #475569, #1d4ed8, #334155)', text: 'text-white',     label: 'Desagradable',     emoji: '😕' },
+  3: { bg: 'linear-gradient(135deg, #e2e8f0, #d1fae5, #e2e8f0)', text: 'text-slate-800', label: 'Neutral',          emoji: '😐' },
+  4: { bg: 'linear-gradient(135deg, #fde68a, #ffedd5, #fef3c7)', text: 'text-slate-800', label: 'Agradable',        emoji: '😊' },
+  5: { bg: 'linear-gradient(135deg, #fb923c, #fcd34d, #fde047)', text: 'text-slate-900', label: 'Muy Agradable',    emoji: '😄' },
+};
+
+const DOT_RING: Record<number, string> = {
+  1: 'rgba(139,92,246,0.5)',
+  2: 'rgba(59,130,246,0.5)',
+  3: 'rgba(16,185,129,0.45)',
+  4: 'rgba(245,158,11,0.45)',
+  5: 'rgba(249,115,22,0.5)',
+};
+
 const IMPACT_FACTORS_LIST = [
   'Trabajo', 'Familia', 'Dinero', 'Sueño',
   'Nutrición', 'Ejercicio', 'Social', 'Salud',
@@ -367,14 +383,14 @@ export default function MoodCalendar({ entries, onDaySelect, onSaved }: MoodCale
       {/* ── Bottom Sheet/Modal Elegant ── */}
       <AnimatePresence>
         {selectedDay && (
-          <div className="fixed inset-0 z-50 flex items-end justify-center">
+          <div className="fixed inset-0 z-[100] flex items-end justify-center">
             {/* Backdrop */}
             <motion.div
               initial={{ opacity: 0 }}
-              animate={{ opacity: 0.4 }}
+              animate={{ opacity: 0.5 }}
               exit={{ opacity: 0 }}
               onClick={() => setSelectedDay(null)}
-              className="absolute inset-0 bg-slate-950/60"
+              className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm"
             />
             {/* Sheet */}
             <motion.div
@@ -382,34 +398,34 @@ export default function MoodCalendar({ entries, onDaySelect, onSaved }: MoodCale
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 26, stiffness: 210 }}
-              className="relative w-full max-w-lg bg-white rounded-t-[2.5rem] border-t border-slate-200 shadow-2xl p-6 pb-10 z-10 max-h-[85vh] overflow-y-auto"
+              className="relative w-full max-w-lg bg-white rounded-t-[2.5rem] border-t border-slate-200 shadow-2xl p-6 pb-10 z-10 max-h-[90vh] overflow-y-auto pt-[env(safe-area-inset-top)]"
             >
               {/* Pull indicator */}
               <div className="absolute top-3 left-1/2 -translate-x-1/2 w-12 h-1.5 bg-slate-200 rounded-full cursor-pointer" onClick={() => setSelectedDay(null)} />
 
-              {/* Close Button */}
+              {/* Close Button always visible */}
               <button
                 type="button"
                 onClick={() => setSelectedDay(null)}
-                className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 bg-slate-100 rounded-full transition"
+                className="absolute top-4 right-4 p-2.5 text-slate-400 hover:text-slate-600 bg-slate-100 rounded-full transition min-h-[44px] min-w-[44px] flex items-center justify-center z-20"
               >
-                <X size={16} />
+                <X size={18} />
               </button>
 
-              <div className="mt-4">
-                <h3 className="text-xl font-black text-slate-950 tracking-tight">
+              <div className="mt-6">
+                <h3 className="text-xl font-black text-slate-950 tracking-tight mb-4">
                   {new Date(selectedDay + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
                 </h3>
 
                 {/* Timeline view of logs */}
                 {!showLogForm && selectedDateEntries.length > 0 ? (
-                  <div className="mt-6 space-y-4">
+                  <div className="mt-4 space-y-4">
                     <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                       <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Línea de tiempo de Ánimo</span>
                       <button
                         type="button"
                         onClick={() => setShowLogForm(true)}
-                        className="flex items-center gap-1.5 px-3 py-1 bg-slate-900 text-white rounded-full text-xs font-semibold hover:bg-slate-800 transition"
+                        className="flex items-center gap-1.5 px-4 py-2 bg-slate-900 text-white rounded-full text-xs font-semibold hover:bg-slate-800 transition min-h-[44px]"
                       >
                         <Plus size={12} /> Añadir registro
                       </button>
@@ -452,7 +468,7 @@ export default function MoodCalendar({ entries, onDaySelect, onSaved }: MoodCale
                               type="button"
                               onClick={() => entry.id && handleDeleteEntry(entry.id)}
                               disabled={isPending}
-                              className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition"
+                              className="p-2.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition min-h-[44px] min-w-[44px] flex items-center justify-center"
                               title="Eliminar registro"
                             >
                               <Trash size={14} />
@@ -463,8 +479,8 @@ export default function MoodCalendar({ entries, onDaySelect, onSaved }: MoodCale
                     </div>
                   </div>
                 ) : (
-                  /* Form to log retroactively / add entry */
-                  <div className="mt-6 space-y-6">
+                  /* Form to log retroactively / add entry using Premium Slider */
+                  <div className="mt-4 space-y-5">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-bold text-slate-700">
                         {selectedDateEntries.length > 0 ? 'Añadir Nuevo Registro' : 'Añadir Registro Retroactivo'}
@@ -473,36 +489,87 @@ export default function MoodCalendar({ entries, onDaySelect, onSaved }: MoodCale
                         <button
                           type="button"
                           onClick={() => setShowLogForm(false)}
-                          className="text-xs font-semibold text-slate-500 hover:text-slate-700"
+                          className="text-xs font-semibold text-slate-500 hover:text-slate-700 min-h-[44px] px-3"
                         >
                           Cancelar
                         </button>
                       )}
                     </div>
 
-                    {/* Emoji Selectors */}
-                    <div className="flex items-center justify-between bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                      {[1, 2, 3, 4, 5].map((score) => (
-                        <button
-                          key={score}
-                          type="button"
-                          onClick={() => setRetroScore(score)}
-                          className={[
-                            'w-12 h-12 flex flex-col items-center justify-center rounded-xl transition-all duration-150',
-                            retroScore === score ? 'bg-slate-900 scale-110 text-white shadow-md' : 'hover:bg-slate-200/60 text-slate-400',
-                          ].join(' ')}
-                        >
-                          <span className="text-2xl">{MOOD_LABELS[score].emoji}</span>
-                          <span className="text-[8px] font-bold mt-0.5 truncate max-w-full px-1">
-                            {score}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
+                    {/* Premium Interpolating Mood Slider */}
+                    <motion.div
+                      layout
+                      className="relative overflow-hidden rounded-[2rem] shadow-md p-6"
+                      animate={{ 
+                        background: retroScore > 0 
+                          ? MOOD_CONFIG[retroScore].bg 
+                          : 'linear-gradient(135deg, #e2e8f0, #f1f5f9, #e2e8f0)' 
+                      }}
+                      transition={{ duration: 0.6, ease: [0.4, 0, 0.2, 1] }}
+                    >
+                      <div className="relative z-10 flex flex-col items-center gap-4 text-center">
+                        <AnimatePresence mode="wait">
+                          <motion.div
+                            key={retroScore}
+                            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                            transition={{ duration: 0.3 }}
+                            className="flex flex-col items-center gap-1.5"
+                          >
+                            <span className="text-4xl select-none" role="img">
+                              {retroScore > 0 ? MOOD_CONFIG[retroScore].emoji : '🫥'}
+                            </span>
+                            <h4 className={`text-xl font-black tracking-tight ${retroScore > 0 ? MOOD_CONFIG[retroScore].text : 'text-slate-400'}`}>
+                              {retroScore > 0 ? MOOD_CONFIG[retroScore].label : '¿Cómo fue tu ánimo?'}
+                            </h4>
+                          </motion.div>
+                        </AnimatePresence>
+
+                        {/* Interactive dots slider */}
+                        <div className="flex items-center gap-3.5 mt-2">
+                          {[1, 2, 3, 4, 5].map((score) => {
+                            const isActive = score === retroScore;
+                            return (
+                              <button
+                                key={score}
+                                type="button"
+                                onClick={() => setRetroScore(score)}
+                                className="relative flex items-center justify-center focus:outline-none min-h-[44px] min-w-[44px]"
+                              >
+                                {isActive && (
+                                  <motion.span
+                                    layoutId="retro-mood-ring"
+                                    className="absolute rounded-full"
+                                    style={{
+                                      width: 32,
+                                      height: 32,
+                                      background: DOT_RING[score],
+                                    }}
+                                    transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+                                  />
+                                )}
+                                <span
+                                  className="relative z-10 block rounded-full transition-transform duration-200"
+                                  style={{
+                                    width: 10,
+                                    height: 10,
+                                    backgroundColor: retroScore > 0
+                                      ? retroScore <= 2 ? 'rgba(255,255,255,0.9)' : 'rgba(15,23,42,0.75)'
+                                      : 'rgba(148,163,184,0.6)',
+                                    transform: isActive ? 'scale(1.3)' : 'scale(1)'
+                                  }}
+                                />
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </motion.div>
 
                     {/* Impact factors list */}
                     <div className="space-y-2">
-                      <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">¿Qué factores influyeron?</span>
+                      <span className="text-xs font-bold text-slate-400 uppercase tracking-widest block">¿Qué factores influyeron?</span>
                       <div className="flex flex-wrap gap-2">
                         {IMPACT_FACTORS_LIST.map((factor) => {
                           const isSelected = retroFactors.includes(factor);
@@ -512,7 +579,7 @@ export default function MoodCalendar({ entries, onDaySelect, onSaved }: MoodCale
                               type="button"
                               onClick={() => toggleFactor(factor)}
                               className={[
-                                'px-3 py-1.5 rounded-full text-xs font-semibold border transition',
+                                'px-3.5 py-2 rounded-full text-xs font-semibold border transition min-h-[44px]',
                                 isSelected ? 'bg-slate-950 text-white border-slate-950' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50',
                               ].join(' ')}
                             >
@@ -533,7 +600,7 @@ export default function MoodCalendar({ entries, onDaySelect, onSaved }: MoodCale
                         type="checkbox"
                         checked={retroIsSummary}
                         onChange={(e) => setRetroIsSummary(e.target.checked)}
-                        className="h-4 w-4 text-slate-900 focus:ring-slate-900 border-slate-300 rounded"
+                        className="h-5 w-5 text-slate-900 focus:ring-slate-900 border-slate-300 rounded"
                       />
                     </div>
 
@@ -542,7 +609,7 @@ export default function MoodCalendar({ entries, onDaySelect, onSaved }: MoodCale
                       type="button"
                       disabled={retroScore === 0 || isPending}
                       onClick={handleSaveRetro}
-                      className="w-full py-4 bg-slate-950 text-white font-bold rounded-2xl shadow-lg hover:bg-slate-900 transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full py-4 bg-slate-950 text-white font-bold rounded-2xl shadow-lg hover:bg-slate-900 transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed min-h-[48px]"
                     >
                       {isPending ? (
                         <>
