@@ -14,6 +14,7 @@ interface MoodEntry {
 
 interface MoodCalendarProps {
   entries: MoodEntry[];
+  onDaySelect?: (date: string) => void;
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -100,7 +101,7 @@ const slideVariants = {
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export default function MoodCalendar({ entries }: MoodCalendarProps) {
+export default function MoodCalendar({ entries, onDaySelect }: MoodCalendarProps) {
   const today = new Date();
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
@@ -244,8 +245,12 @@ export default function MoodCalendar({ entries }: MoodCalendarProps) {
                   whileTap={{ scale: 0.85 }}
                   onClick={() => {
                     startTransition(() => {
-                      if (entry) setSelectedDay(isSelected ? null : dateKey);
-                      else setSelectedDay(null);
+                      if (entry) {
+                        setSelectedDay(isSelected ? null : dateKey);
+                        if (onDaySelect) onDaySelect(dateKey);
+                      } else {
+                        setSelectedDay(null);
+                      }
                     });
                   }}
                   className={[

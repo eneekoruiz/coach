@@ -30,6 +30,11 @@ export default function ChatFeedbackPanel({
   const isGreeting = feedback.ai_data?.metricas?.error_clave === 'saludo';
   const messageText = feedback.ai_data?.metricas?.accion_manana || 'Mensaje del Coach no disponible.';
 
+  const EMPTY_ERROR_KEYS = new Set(['', 'ninguno', 'ok', 'n/a', 'sin errores', 'todo bien', null, undefined]);
+  const hasRealError = !EMPTY_ERROR_KEYS.has(
+    (feedback.ai_data?.metricas?.error_clave ?? '').toLowerCase()
+  );
+
   // Filter out proposals that have already been created/clicked locally
   const proposals = (feedback.ai_data?.propuestas_habitos || []).filter(
     (p) => !hiddenProposals.includes(p.nombre.toLowerCase())

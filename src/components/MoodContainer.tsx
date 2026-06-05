@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { type MoodEntry } from '@/lib/schema';
 import { getTodayMoodEntries, getMoodEntriesForMonth, deleteMoodEntry } from '@/app/mood/actions';
 import MoodLogger from '@/components/MoodLogger';
@@ -23,6 +24,9 @@ export default function MoodContainer() {
   const [monthEntries, setMonthEntries] = useState<CalendarEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [isLogging, setIsLogging] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [selectedDateEntries, setSelectedDateEntries] = useState<MoodEntry[]>([]);
+  const [isBottomSheetOpen, setIsBottomSheetOpen] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -56,6 +60,13 @@ export default function MoodContainer() {
       if (res.success) {
         toast.success('Registro de ánimo eliminado');
         await loadData();
+        // Refresh selected date entries if bottom sheet is open
+        if (isBottomSheetOpen && selectedDate) {
+          const today = new Date().toISOString().slice(0, 10);
+          if (selectedDate === today) {
+            setSelectedDateEntries(todayEntries.filter(e => e.id !== id));
+          }
+        }
       } else {
         toast.error(res.error || 'Error al eliminar el registro');
       }
@@ -73,6 +84,20 @@ export default function MoodContainer() {
       return '';
     }
   };
+
+  const handleDaySelect = useCallback(async (date: string) => {
+    setSelectedDate(date);
+    // Filter from monthEntries or fetch from todayEntries if it's today
+    const today = new Date().toISOString().slice(0, 10);
+    if (date === today) {
+      setSelectedDateEntries(todayEntries);
+    } else {
+      // For past days, we only have summary from monthEntries
+      // Show empty for now (could be enhanced later)
+      setSelectedDateEntries([]);
+    }
+    setIsBottomSheetOpen(true);
+  }, [todayEntries]);
 
   return (
     <div className="space-y-8">
@@ -107,53 +132,6 @@ export default function MoodContainer() {
             />
           </div>
         )}
-
-        {/* Today's registrations list */}
-        {todayEntries.length > 0 && (
-          <div className="w-full max-w-md mx-auto space-y-3">
-            <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400">
-              Registros de hoy
-            </h3>
-            <div className="space-y-2.5">
-              {todayEntries.map((entry) => {
-                const info = MOODS[entry.mood_score] || MOODS[3];
-                return (
-                  <div
-                    key={entry.id}
-                    className="flex items-center justify-between p-4 rounded-2xl border border-slate-100 bg-white/80 shadow-sm"
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl">{info.emoji}</span>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-semibold text-slate-800">{info.label}</span>
-                          <span className="text-xs text-slate-400 font-medium">
-                            {formatTime(entry.logged_at)}
-                          </span>
-                        </div>
-                        {entry.impact_factors.length > 0 && (
-                          <p className="text-[11px] text-slate-500 mt-0.5">
-                            {entry.impact_factors.join(', ')}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => handleDelete(entry.id!)}
-                      className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition"
-                      title="Eliminar registro"
-                    >
-                      <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                        <polyline points="3 6 5 6 21 6" />
-                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                      </svg>
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Heatmap Calendar */}
@@ -165,9 +143,80 @@ export default function MoodContainer() {
           </div>
         </div>
       ) : (
-        <MoodCalendar entries={monthEntries} />
+        <MoodCalendar entries={monthEntries} onDaySelect={handleDaySelect} />
       )}
+
+      {/* Bottom Sheet for day entries */}
+      <AnimatePresence>
+        {isBottomSheetOpen && (
+          <div className="fixed inset-0 z-50 flex items-end justify-center">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.5 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsBottomSheetOpen(false)}
+              className="absolute inset-0 bg-slate-950"
+            />
+            {/* Sheet */}
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 220 }}
+              className="relative w-full max-w-lg bg-white rounded-t-[3rem] border-t border-slate-200 shadow-2xl p-6 pb-10 z-10 max-h-[80vh] overflow-y-auto"
+            >
+              {/* Pull bar */}
+              <div className="absolute top-3 left-1/2 -translate-x-1/2 w-12 h-1.5 bg-slate-200 rounded-full" />
+
+              <div className="mt-4">
+                <h3 className="text-xl font-black text-slate-900 tracking-tight">
+                  {selectedDate ? new Date(selectedDate + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' }) : 'Registros del día'}
+                </h3>
+
+                {selectedDateEntries.length === 0 ? (
+                  <div className="mt-6 flex flex-col items-center justify-center py-10 text-slate-400">
+                    <span className="text-4xl mb-3">📊</span>
+                    <p className="text-sm font-medium">Sin registros detallados para este día.</p>
+                    <p className="text-xs mt-1">Solo se muestran datos del día actual.</p>
+                  </div>
+                ) : (
+                  <div className="mt-4 space-y-3">
+                    {selectedDateEntries.map((entry) => {
+                      const info = MOODS[entry.mood_score] || MOODS[3];
+                      return (
+                        <div key={entry.id} className="flex items-center justify-between p-4 rounded-2xl border border-slate-100 bg-slate-50">
+                          <div className="flex items-center gap-3">
+                            <span className="text-2xl">{info.emoji}</span>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-semibold text-slate-800">{info.label}</span>
+                                <span className="text-xs text-slate-400 font-medium">{formatTime(entry.logged_at)}</span>
+                              </div>
+                              {entry.impact_factors.length > 0 && (
+                                <p className="text-[11px] text-slate-500 mt-0.5">{entry.impact_factors.join(', ')}</p>
+                              )}
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => handleDelete(entry.id!)}
+                            className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition"
+                          >
+                            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                              <polyline points="3 6 5 6 21 6" />
+                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                            </svg>
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
-

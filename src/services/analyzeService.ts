@@ -361,7 +361,12 @@ export async function analyzeAndPersistDailyLog(params: AnalyzeParams) {
     '=========================================\n' +
     'BLOQUE 4: CONTENCIÓN CONTEXTUAL Y FILTRO INTELIGENTE\n' +
     '=========================================\n' +
-    'Si el usuario plantea consultas off-topic (programación, política, matemáticas), declina responder de manera amable pero firme recordando tu propósito, e invitándole a registrar un hábito. Establece "metricas.error_clave" a "fuera_de_tema" para que el sistema lo intercepte. Para saludos simples establece "error_clave" a "saludo". Si la interacción es válida, usa un valor neutral como "ninguno".';
+    'Si el usuario plantea consultas off-topic (programación, política, matemáticas), declina responder de manera amable pero firme recordando tu propósito, e invitándole a registrar un hábito. Establece "metricas.error_clave" a "fuera_de_tema" para que el sistema lo intercepte. ' +
+    'Para saludos simples establece "error_clave" a "saludo". Si la interacción es válida y no hay ningún error real que reportar, devuelve null o string vacío ("") en "error_clave". ' +
+    'REGLA ESTRICTA ANTI-DUPLICADOS: El campo "metricas.accion_manana" DEBE ser una recomendación accionable y motivadora completamente DIFERENTE a lo que ya aparece en "metricas.aciertos". ' +
+    'NUNCA copies el contenido de "aciertos" en "accion_manana". ' +
+    'NUNCA devuelvas la palabra "OK", "ninguno", "N/A", "sin errores", o "todo bien" como valor de "metricas.error_clave" — usa null o string vacío "". ' +
+    'Si el mensaje del usuario es un saludo sin contenido nutricional/de hábitos, establece "metricas.error_clave" a "saludo" y responde amablemente en "accion_manana".';
 
   const analysisText = text
     ? `${systemPrompt}\n\nTexto del usuario:\n${text}`
@@ -400,7 +405,7 @@ export async function analyzeAndPersistDailyLog(params: AnalyzeParams) {
     }
 
     analyzedLog = validatedResult.data;
-    
+
     // Insert AI's response message into chat_history table
     if (analyzedLog.metricas && analyzedLog.metricas.accion_manana) {
       await supabase

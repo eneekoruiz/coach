@@ -16,12 +16,12 @@ interface HistoryClientContainerProps {
   logs: HistoryLog[];
 }
 
-const TrendChart = dynamic(() => import('@/components/TrendChart'), {
-  ssr: false,
-});
+const TrendChart = dynamic(() => import('@/components/TrendChart'), { ssr: false });
+const HistoryDetailModal = dynamic(() => import('@/components/HistoryDetailModal'), { ssr: false });
 
 export default function HistoryClientContainer({ logs }: HistoryClientContainerProps) {
   const [activeTab, setActiveTab] = useState<'stats' | 'daily'>('stats');
+  const [selectedLog, setSelectedLog] = useState<HistoryLog | null>(null);
 
   return (
     <div className="space-y-6">
@@ -31,9 +31,7 @@ export default function HistoryClientContainer({ logs }: HistoryClientContainerP
           <button
             onClick={() => setActiveTab('stats')}
             className={`rounded-full px-5 py-2 text-xs font-bold transition-all ${
-              activeTab === 'stats'
-                ? 'bg-slate-900 text-white shadow-md'
-                : 'text-slate-600 hover:text-slate-900'
+              activeTab === 'stats' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
             Estadísticas
@@ -41,9 +39,7 @@ export default function HistoryClientContainer({ logs }: HistoryClientContainerP
           <button
             onClick={() => setActiveTab('daily')}
             className={`rounded-full px-5 py-2 text-xs font-bold transition-all ${
-              activeTab === 'daily'
-                ? 'bg-slate-900 text-white shadow-md'
-                : 'text-slate-600 hover:text-slate-900'
+              activeTab === 'daily' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
             Registro Diario
@@ -51,7 +47,7 @@ export default function HistoryClientContainer({ logs }: HistoryClientContainerP
         </div>
       </div>
 
-      <Suspense fallback={<div className="animate-pulse bg-gray-200 dark:bg-zinc-800 rounded-2xl h-64 w-full" />}>
+      <Suspense fallback={<div className="animate-pulse bg-gray-200 rounded-2xl h-64 w-full" />}>
         {activeTab === 'stats' ? (
           <TrendChart logs={logs} />
         ) : (
@@ -64,12 +60,24 @@ export default function HistoryClientContainer({ logs }: HistoryClientContainerP
               [...logs]
                 .sort((a, b) => b.date.localeCompare(a.date))
                 .map((log, index) => (
-                  <HistoryCard key={`${log.date}-${index}`} log={log} />
+                  <HistoryCard
+                    key={`${log.date}-${index}`}
+                    log={log}
+                    onOpen={() => setSelectedLog(log)}
+                  />
                 ))
             )}
           </div>
         )}
       </Suspense>
+
+      {/* History Detail Modal — rendered outside the grid */}
+      {selectedLog && (
+        <HistoryDetailModal
+          log={selectedLog}
+          onClose={() => setSelectedLog(null)}
+        />
+      )}
     </div>
   );
 }

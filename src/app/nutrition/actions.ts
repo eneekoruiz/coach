@@ -75,6 +75,10 @@ export async function getDietTemplates(): Promise<DietTemplate[]> {
         .insert(seedTemplates)
         .select('*');
 
+      if (insertError) {
+        console.error('[Supabase] Error seeding diet_templates:', insertError.message, insertError.code, insertError.details);
+      }
+
       if (!insertError && inserted) {
         return inserted.map(row => dietTemplateSchema.parse(row));
       }
@@ -136,8 +140,14 @@ export async function saveDietTemplate(template: DietTemplate): Promise<{ succes
     }
 
     if (result.error) {
-      console.error('Error saving diet template:', result.error.message);
-      return { success: false, error: 'Error al guardar en base de datos.' };
+      const errDetails = [
+        result.error.message,
+        result.error.code ? `code=${result.error.code}` : '',
+        result.error.details ? `details=${result.error.details}` : '',
+        result.error.hint ? `hint=${result.error.hint}` : '',
+      ].filter(Boolean).join(' | ');
+      console.error('[Supabase] Error saving diet template:', errDetails);
+      return { success: false, error: `Error al guardar: ${result.error.message}` };
     }
 
     const responseParsed = dietTemplateSchema.safeParse(result.data);

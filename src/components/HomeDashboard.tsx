@@ -123,6 +123,7 @@ export default function HomeDashboard() {
           dietTargets={dietTargets}
           updateWaterSettings={updateWaterSettings}
           addWaterIntake={addWaterIntake}
+          onChatOpen={() => setIsChatOpen(true)}
         />
       </div>
 

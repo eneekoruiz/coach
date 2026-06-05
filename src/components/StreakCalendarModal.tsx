@@ -22,6 +22,14 @@ export default function StreakCalendarModal({ isOpen, onClose, streak }: StreakC
   const [shields, setShields] = useState(2);
   const [dailyLogs, setDailyLogs] = useState<LogEntry[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [viewDate, setViewDate] = useState(new Date());
+
+  const goToPrevMonth = () =>
+    setViewDate((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+  const goToNextMonth = () => {
+    const next = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1);
+    if (next <= new Date()) setViewDate(next);
+  };
 
   useEffect(() => {
     if (!isOpen) return;
@@ -40,10 +48,9 @@ export default function StreakCalendarModal({ isOpen, onClose, streak }: StreakC
           .maybeSingle();
         setShields(profile?.shields_available ?? 2);
 
-        // Fetch daily logs of current month
-        const today = new Date();
-        const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-        const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+        // Fetch daily logs for the viewed month
+        const startOfMonth = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1);
+        const endOfMonth = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0);
 
         const startStr = `${startOfMonth.getFullYear()}-${String(startOfMonth.getMonth() + 1).padStart(2, '0')}-01`;
         const endStr = `${endOfMonth.getFullYear()}-${String(endOfMonth.getMonth() + 1).padStart(2, '0')}-${String(endOfMonth.getDate()).padStart(2, '0')}`;
@@ -64,12 +71,12 @@ export default function StreakCalendarModal({ isOpen, onClose, streak }: StreakC
     }
 
     void loadData();
-  }, [isOpen]);
+  }, [isOpen, viewDate]);
 
   // Calendar calculations
   const today = new Date();
-  const year = today.getFullYear();
-  const month = today.getMonth();
+  const year = viewDate.getFullYear();
+  const month = viewDate.getMonth();
 
   const firstDayIndex = new Date(year, month, 1).getDay(); // 0 (Sun) to 6 (Sat)
   const totalDays = new Date(year, month + 1, 0).getDate();
@@ -171,9 +178,28 @@ export default function StreakCalendarModal({ isOpen, onClose, streak }: StreakC
 
             {/* Month Header */}
             <div className="mt-8 mb-4 flex items-center justify-between px-2">
+              <button
+                onClick={goToPrevMonth}
+                className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 transition-colors"
+                aria-label="Mes anterior"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                  <polyline points="15 18 9 12 15 6" />
+                </svg>
+              </button>
               <h3 className="text-xl font-black tracking-tight text-slate-900 dark:text-white capitalize">
                 {monthNames[month]} {year}
               </h3>
+              <button
+                onClick={goToNextMonth}
+                disabled={new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1) > new Date()}
+                className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                aria-label="Mes siguiente"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
+              </button>
             </div>
 
             {isLoading ? (
