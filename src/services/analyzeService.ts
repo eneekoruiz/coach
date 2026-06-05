@@ -290,31 +290,42 @@ export async function analyzeAndPersistDailyLog(params: AnalyzeParams) {
   }
 
   const stateStr = JSON.stringify(currentState);
+  const nowServer = new Date();
+  const systemTimeContext = `CONTEXTO DEL SISTEMA: Hoy es ${nowServer.toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} y la hora actual del servidor es ${nowServer.toLocaleTimeString('es-ES')}.`;
+
   const systemPrompt =
+    `${systemTimeContext}\n\n` +
     'ROLE: Eres el "Coach Bio-Avatar", un asistente conversacional empático y motor de análisis de hábitos de salud y bienestar. Interactúas con el usuario en un chat diario para recopilar información sobre sus comidas, hidratación, toxinas y hábitos, mientras lo guías de manera inteligente para mantener alta su inercia metabólica.\n\n' +
-    'Tu tarea técnica subyacente es devolver EXCLUSIVAMENTE un objeto JSON que cumpla el esquema estricto de Zod, colocando tu respuesta empática y conversacional dentro del campo "metricas.accion_manana". No incluyas texto extra fuera del JSON. No expliques tu razonamiento.\n\n' +
-    `[CONTEXTO DE TIEMPO ACTUAL: ${new Date().toISOString()}]\n` +
+    'Tu tarea técnica subyacente es devolver EXCLUSIVAMENTE un objeto JSON que cumpla el esquema de Zod, colocando tu respuesta empática y conversacional dentro del campo "metricas.accion_manana". No incluyas texto extra fuera del JSON. No expliques tu razonamiento.\n\n' +
+    `[CONTEXTO DE TIEMPO ACTUAL: ${nowServer.toISOString()}]\n` +
     `[HORA LOCAL DEL USUARIO: ${today}]\n\n` +
     '=========================================\n' +
-    'BLOQUE 1: MOTOR DE EXTRACCIÓN E INFERENCIA DE DATOS\n' +
+    'BLOQUE 1: MOTOR DE EXTRACCIÓN E INFERENCIA DE DATOS (CONSCIENCIA TEMPORAL Y NLP)\n' +
     '=========================================\n' +
     '1.1 Gestión Global del Tiempo y Referencias Relativas:\n' +
-    '- Si el usuario dice "me acabo de tomar/comer...", asocia la acción a la hora exacta provista en HORA LOCAL DEL USUARIO.\n' +
+    '- Si el usuario habla en pasado sobre otro día (ej: "ayer cené...", "anteayer almorcé..."), calcula la fecha exacta correspondiente en formato YYYY-MM-DD basándote en CONTEXTO DEL SISTEMA y devuélvela en el campo "date". Si es hoy, devuélvela también en formato YYYY-MM-DD.\n' +
     '- Traduce expresiones temporales ambiguas a horas estimadas coherentes en el contexto diario del usuario.\n' +
-    '1.2 Estimación Inteligente de Raciones y Resolución de Ambigüedad:\n' +
+    '1.2 Mapeo Semántico de Comidas (Meal Inference):\n' +
+    '- NUNCA uses palabras relativas de tiempo (ej. "ahora", "hoy", "ayer", "mañana") como nombre de una comida.\n' +
+    '- Si el usuario dice "a la mañana", mapea eso a "Desayuno" o "Almuerzo".\n' +
+    '- Si el usuario dice "ahora", mira la HORA ACTUAL del servidor. Si son las 06:00-11:59, clasifícalo como "Desayuno"; 12:00-15:59 como "Almuerzo"; 16:00-19:59 como "Merienda"; 20:00-23:59 como "Cena"; 00:00-05:59 como "Snack Nocturno".\n' +
+    '1.3 Autocorrección y Formateo Profesional (Data Sanitization):\n' +
+    '- El usuario puede escribir con prisa, usar jerga o cometer faltas de ortografía (ej. "me comi un vocadillo de jamon"). ¡Tú eres un nutricionista profesional! Debes limpiar, autocorregir y embellecer la descripción antes de guardarla. Transforma la entrada en algo profesional y descriptivo (ej: "Bocadillo de jamón serrano"). Capitaliza siempre la primera letra de las comidas y los alimentos.\n' +
+    '1.4 Estimación Inteligente de Raciones y Resolución de Ambigüedad:\n' +
     '- "Varias" o "Unas cuantas" = Asume 3 unidades o raciones.\n' +
     '- "Un poco" = Asume 15 gramos o 1 cucharada sopera.\n' +
     '- "Un plato" = Asume 250 gramos.\n' +
     `- "Un vaso" o "Una taza" ambiguo equivale a exactamente ${defaultGlassSize} ml. Botella = 500ml.\n` +
     '- Si el usuario menciona porciones excesivas o muy ambiguas, haz una pregunta aclaratoria rápida y empática en tu respuesta ("accion_manana").\n' +
-    '1.3 Mapeo de Entidades a Estructura Rígida y Tolerancia Ortográfica:\n' +
+    '1.5 Tolerancia Ortográfica de Entidades:\n' +
     '- Ignora faltas ortográficas (ej. Colacau = ColaCao). Mapea lenguaje coloquial o marcas ("birra/copazo" -> cerveza/alcohol, "vaper/pucho" -> tabaco) a toxinas o comidas.\n\n' +
     '=========================================\n' +
     'BLOQUE 2: ACUMULACIÓN TEMPORAL Y DE HÁBITOS (REGLAS ESTRICTAS)\n' +
     '=========================================\n' +
-    'El usuario puede mezclar tiempos verbales. Suma TODO lo mencionado y añádelo al JSON del estado actual de HOY.\n' +
+    'El usuario puede mezclar tiempos verbales o hablar de hábitos conversacionalmente (ej. "me he fumado otro", "fumé uno").\n' +
     `El listado de hábitos activos que el usuario está siguiendo hoy es el siguiente:\n${habitsListStr}\n` +
-    'Si el usuario menciona haber incurrido en alguno de estos hábitos, incrementa su valor en "habits_count" usando la clave provista. Si menciona un hábito rutinario que NO está en la lista, agrégalo a "propuestas_habitos" (nombre y tipo positive/negative) para que el frontend lo sugiera.\n' +
+    'Si el usuario menciona haber incrementado o incurrido en alguno de estos hábitos (ej. "he hecho 10 páginas más", "otro cigarro"), busca el hábito relacionado en la lista y devuelve en "habits_count" el valor correspondiente acumulado de hoy incrementado en el valor relativo mencionado (ej: si ya tenía 2 cigarros y dice "me he fumado otro", el total hoy es 3).\n' +
+    'Si menciona un hábito rutinario nuevo que NO está en la lista de activos, agrégalo a "propuestas_habitos" (nombre y tipo positive/negative) para que el frontend lo sugiera.\n' +
     `El estado actual de hábitos, agua y macros acumulados de HOY es: ${stateStr}.\n` +
     'REGLA INQUEBRANTABLE: Los valores acumulativos (total_kcal, macros, hidratación, habits_count) NUNCA pueden disminuir en el mismo día. Suma tus nuevas extracciones a los valores actuales en el estado.\n\n' +
     '=========================================\n' +
@@ -382,16 +393,44 @@ export async function analyzeAndPersistDailyLog(params: AnalyzeParams) {
     throw new AiServiceError('No se pudo procesar la respuesta del motor de IA.', message);
   }
 
+  const targetDate = analyzedLog.date || today;
+
+  // Fetch the correct existing log for targetDate if it differs from today
+  let activeLog = todayLog;
+  if (targetDate !== today) {
+    const { data: targetLogRecord } = await supabase
+      .from('daily_logs')
+      .select('id, health_momentum, ai_data, habit_tracking')
+      .eq('user_id', user.id)
+      .eq('date', targetDate)
+      .maybeSingle();
+    activeLog = targetLogRecord;
+  }
+
+  // Fetch target previous momentum
+  let targetPreviousMomentum = previousMomentum;
+  if (targetDate !== today) {
+    const { data: targetPrevRecord } = await supabase
+      .from('daily_logs')
+      .select('health_momentum')
+      .eq('user_id', user.id)
+      .lt('date', targetDate)
+      .order('date', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    targetPreviousMomentum = targetPrevRecord?.health_momentum ?? 100;
+  }
+
   if (analyzedLog.metricas.error_clave === 'fuera_de_tema') {
-    const currentMomentum = todayLog ? todayLog.health_momentum : previousMomentum;
+    const currentMomentum = activeLog ? activeLog.health_momentum : targetPreviousMomentum;
     return {
       user_id: user.id,
       previous_health_momentum: currentMomentum,
       health_momentum: currentMomentum,
       daily_log: {
-        id: todayLog ? todayLog.id : 'off-topic-log',
+        id: activeLog ? activeLog.id : 'off-topic-log',
         user_id: user.id,
-        date: today,
+        date: targetDate,
         health_momentum: currentMomentum,
         ai_data: analyzedLog,
         avatar_image_url: null,
@@ -416,22 +455,22 @@ export async function analyzeAndPersistDailyLog(params: AnalyzeParams) {
   let finalAiData = analyzedLog;
   let finalTracking = mergeHabitTracking(habitReports, aiTracking);
 
-  if (todayLog) {
-    const existingAi = dailyLogSchema.safeParse(todayLog.ai_data).success
-      ? dailyLogSchema.parse(todayLog.ai_data)
+  if (activeLog) {
+    const existingAi = dailyLogSchema.safeParse(activeLog.ai_data).success
+      ? dailyLogSchema.parse(activeLog.ai_data)
       : null;
     if (existingAi) {
       finalAiData = mergeDailyLogs(existingAi, analyzedLog);
     }
 
-    const existingTracking = Array.isArray(todayLog.habit_tracking)
-      ? (todayLog.habit_tracking as Array<{ habit_id: number; amount: number }>)
+    const existingTracking = Array.isArray(activeLog.habit_tracking)
+      ? (activeLog.habit_tracking as Array<{ habit_id: number; amount: number }>)
       : [];
     finalTracking = mergeHabitTracking(existingTracking, finalTracking);
   }
 
   const delta = finalAiData.metricas.variacion_inercia;
-  const nextMomentum = Math.min(100, Math.max(0, previousMomentum + delta));
+  const nextMomentum = Math.min(100, Math.max(0, targetPreviousMomentum + delta));
 
   // Health Score Alignment Parser (fail-safe to align AI text to true nextMomentum)
   if (finalAiData.metricas && typeof finalAiData.metricas.accion_manana === 'string') {
@@ -454,7 +493,7 @@ export async function analyzeAndPersistDailyLog(params: AnalyzeParams) {
     finalRecord = await upsertDailyLog({
       supabase,
       userId: user.id,
-      date: today,
+      date: targetDate,
       healthMomentum: nextMomentum,
       aiData: finalAiData,
       habitTracking: finalTracking,
@@ -462,12 +501,12 @@ export async function analyzeAndPersistDailyLog(params: AnalyzeParams) {
   } catch (upsertError) {
     const msg = upsertError instanceof Error ? upsertError.message : String(upsertError);
     const dbStatus = mapDatabaseError(msg);
-    throw new DatabaseError('No se pudo guardar o actualizar el registro diario de hoy.', dbStatus.code);
+    throw new DatabaseError('No se pudo guardar o actualizar el registro diario.', dbStatus.code);
   }
 
   return {
     user_id: user.id,
-    previous_health_momentum: previousMomentum,
+    previous_health_momentum: targetPreviousMomentum,
     health_momentum: nextMomentum,
     daily_log: finalRecord,
     ai_data: finalAiData,

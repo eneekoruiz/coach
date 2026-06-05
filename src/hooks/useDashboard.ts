@@ -41,6 +41,7 @@ export function useDashboard() {
     carbs: 200,
     fats: 70,
   });
+  const [hasLoggedToday, setHasLoggedToday] = useState(false);
 
   const loadDashboard = useCallback(async () => {
     try {
@@ -92,6 +93,7 @@ export function useDashboard() {
       // Midnight Reset logic: Only load today's logged activities for lastLog
       const todayStr = getNormalizedDate(new Date());
       const todayRecord = records?.find((r) => r.date === todayStr);
+      setHasLoggedToday(!!todayRecord);
 
       if (todayRecord) {
         const validated = dailyLogSchema.safeParse(todayRecord.ai_data);
@@ -264,5 +266,6 @@ export function useDashboard() {
     updateWaterSettings,
     addWaterIntake,
     reload: loadDashboard,
+    hasLoggedToday,
   };
 }

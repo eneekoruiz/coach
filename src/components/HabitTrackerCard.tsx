@@ -3,6 +3,7 @@ import { motion, useAnimation } from 'framer-motion';
 import type { HabitRow, DailyLogRow } from '@/types/habits';
 import HabitDetailModal from './HabitDetailModal';
 import { useHaptic } from '@/hooks/useHaptic';
+import StreakFlame from './StreakFlame';
 
 interface HabitTrackerCardProps {
   habit: HabitRow;
@@ -98,7 +99,7 @@ export default function HabitTrackerCard({
         onClick={() => setIsDetailOpen(true)}
         className={`group flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md cursor-pointer transition-all duration-300 ${showGlow ? 'ring-2 ring-emerald-400' : ''}`}
       >
-        <div className="flex items-center gap-4 min-w-0">
+        <div className="flex items-center gap-4 min-w-0 flex-1">
           <div className={`flex items-center justify-center w-12 h-12 rounded-2xl shrink-0 ${isPositive ? 'bg-emerald-50 text-emerald-500' : 'bg-rose-50 text-rose-500'}`}>
             <span className="text-xl font-black">{habit.name.charAt(0).toUpperCase()}</span>
           </div>
@@ -106,19 +107,23 @@ export default function HabitTrackerCard({
           <div className="min-w-0">
             <h3 className="text-base font-black text-slate-900 truncate">{habit.name}</h3>
             <p className="text-xs font-semibold text-slate-500 truncate mt-0.5">
-              Hoy: <span className="text-slate-900">{optimisticValue}</span> • Racha: {habit.current_streak}
+              Hoy: <span className="text-slate-900">{optimisticValue}</span>
             </p>
           </div>
         </div>
 
-        <motion.button
-          animate={controls}
-          onClick={handleIncrement}
-          disabled={isPending}
-          className={`shrink-0 flex items-center justify-center w-12 h-12 rounded-full text-white font-black text-xl shadow-sm hover:scale-105 active:scale-95 transition-transform disabled:opacity-50 ${isPositive ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-rose-500 hover:bg-rose-600'}`}
-        >
-          +
-        </motion.button>
+        <div className="flex items-center gap-3 shrink-0">
+          <StreakFlame streak={habit.current_streak} />
+
+          <motion.button
+            animate={controls}
+            onClick={handleIncrement}
+            disabled={isPending}
+            className={`flex items-center justify-center w-12 h-12 rounded-full text-white font-black text-xl shadow-sm hover:scale-105 active:scale-95 transition-transform disabled:opacity-50 ${isPositive ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-rose-500 hover:bg-rose-600'}`}
+          >
+            +
+          </motion.button>
+        </div>
       </motion.div>
 
       <HabitDetailModal

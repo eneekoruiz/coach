@@ -49,6 +49,7 @@ export default function HomeDashboard() {
     dietTargets,
     updateWaterSettings,
     addWaterIntake,
+    hasLoggedToday,
   } = useDashboard();
 
   const theme = useMemo(() => {
@@ -125,7 +126,7 @@ export default function HomeDashboard() {
         />
       </div>
 
-      <FloatingChatButton onClick={() => setIsChatOpen(true)} isOpen={isChatOpen} />
+      <FloatingChatButton onClick={() => setIsChatOpen(true)} isOpen={isChatOpen} hasLoggedToday={hasLoggedToday} />
 
       <AnimatePresence>
         {isChatOpen ? (

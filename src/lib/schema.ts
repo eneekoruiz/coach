@@ -38,6 +38,7 @@ export const defaultTemplate: DietTemplate = {
 
 export const dailyLogSchema = z
   .object({
+    date: z.string().optional(),
     comidas: z
       .array(
         z
@@ -73,9 +74,9 @@ export const dailyLogSchema = z
           const num = Number(val);
           return isNaN(num) ? 0 : Math.round(num);
         }, z.number().int()),
-        aciertos: z.array(z.string().min(1)),
-        error_clave: z.string().min(1),
-        accion_manana: z.string().min(1),
+        aciertos: z.array(z.string()).default([]),
+        error_clave: z.string().optional().or(z.literal('')).default('ninguno'),
+        accion_manana: z.string().optional().or(z.literal('')).default('Ninguna'),
       })
       .strict(),
     water_ml: z.preprocess((val) => {
