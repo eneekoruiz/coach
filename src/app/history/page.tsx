@@ -120,7 +120,34 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
     let parsedAiData: DailyLog | null = null;
     if (row.ai_data) {
       const result = dailyLogSchema.safeParse(row.ai_data);
-      if (result.success) parsedAiData = result.data;
+      if (result.success) {
+        parsedAiData = result.data;
+      } else {
+        const raw = row.ai_data as any;
+        parsedAiData = {
+          date: raw.date ?? row.date,
+          comidas: raw.comidas ?? [],
+          hidratacion_ml: raw.hidratacion_ml ?? raw.water_ml ?? 0,
+          toxinas: raw.toxinas ?? [],
+          bio_avatar: {
+            estado_fisiologico: raw.bio_avatar?.estado_fisiologico ?? 'Estable',
+            energia_fisica: raw.bio_avatar?.energia_fisica ?? 3,
+            claridad_mental: raw.bio_avatar?.claridad_mental ?? 3,
+          },
+          metricas: {
+            variacion_inercia: raw.metricas?.variacion_inercia ?? 0,
+            aciertos: raw.metricas?.aciertos ?? raw.aciertos ?? [],
+            error_clave: raw.metricas?.error_clave ?? raw.error_clave ?? 'ninguno',
+            accion_manana: raw.metricas?.accion_manana ?? raw.accion_manana ?? 'Ninguna',
+          },
+          water_ml: raw.water_ml ?? raw.hidratacion_ml ?? 0,
+          total_kcal: raw.total_kcal ?? 0,
+          protein_g: raw.protein_g ?? 0,
+          carbs_g: raw.carbs_g ?? 0,
+          fats_g: raw.fats_g ?? 0,
+          habits_count: raw.habits_count ?? {},
+        };
+      }
     }
     return {
       date: row.date,
