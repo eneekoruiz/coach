@@ -1,7 +1,27 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Component, type ReactNode } from 'react';
 import Spline from '@splinetool/react-spline';
+
+// Error Boundary to catch async load/parse errors from Spline runtime
+class SplineErrorBoundary extends Component<{ fallback: ReactNode; children: ReactNode }, { hasError: boolean }> {
+  state = { hasError: false };
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: any, errorInfo: any) {
+    console.warn('[Hero3D] Spline runtime crashed, falling back to CSS background:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback;
+    }
+    return this.props.children;
+  }
+}
 
 export default function Hero3D() {
   const [isLoaded, setIsLoaded] = useState(false);
@@ -57,14 +77,16 @@ export default function Hero3D() {
             isLoaded ? 'opacity-40' : 'opacity-0'
           }`}
         >
-          <Spline
-            scene="https://prod.spline.design/kZqj5O5vOspGLCxi/scene.splinecode"
-            onLoad={() => setIsLoaded(true)}
-            onError={() => {
-              console.warn('[Hero3D] Failed to load Spline scene, using CSS fallback.');
-              setHasError(true);
-            }}
-          />
+          <SplineErrorBoundary fallback={null}>
+            <Spline
+              scene="https://prod.spline.design/kZqj5O5vOspGLCxi/scene.splinecode"
+              onLoad={() => setIsLoaded(true)}
+              onError={() => {
+                console.warn('[Hero3D] Failed to load Spline scene, using CSS fallback.');
+                setHasError(true);
+              }}
+            />
+          </SplineErrorBoundary>
         </div>
       )}
     </div>
