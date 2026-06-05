@@ -1,6 +1,6 @@
 module.exports = [
   {
-    ignores: ['node_modules/**', '.next/**', 'scripts/**'],
+    ignores: ['node_modules/**', '.next/**', 'scripts/**', 'public/**'],
   },
   {
     files: ['**/*.{js,jsx,ts,tsx}'],

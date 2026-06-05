@@ -23,8 +23,8 @@ jobs:
       - name: Build
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://mock-project.supabase.co
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1vY2stcHJvamVjdCIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNzE2ODg0MDAwLCJleHAiOjIwMzI0NjAwMDB9.mockSignature
-          SUPABASE_SERVICE_ROLE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1vY2stcHJvamVjdCIsInJvbGUiOiJzZXJ2aWNlX3JvbGUiLCJpYXQiOjE3MTY4ODQwMDAsImV4cCI6MjAzMjQ2MDAwMH0.mockSignature
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: mock-anon-key
+          SUPABASE_SERVICE_ROLE_KEY: mock-service-role-key
           GOOGLE_GENERATIVE_AI_API_KEY: mock-api-key
         run: npm run build
 
