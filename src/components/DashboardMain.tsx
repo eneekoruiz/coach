@@ -11,6 +11,7 @@ import { triggerVibration } from '@/lib/haptics';
 import NutritionContainer from './NutritionContainer';
 import HabitTracker from './HabitTracker';
 import { useDashboardState, type AvatarState, AVATAR_CONFIG } from '@/hooks/useDashboardState';
+import HealthInsightsDashboard from './HealthInsightsDashboard';
 
 interface DashboardTheme {
   background: string;
@@ -193,6 +194,8 @@ export default function DashboardMain({
     dailyWaterTarget,
   });
 
+  const [isInsightsOpen, setIsInsightsOpen] = useState(false);
+
   return (
     <section className="relative flex flex-1 flex-col px-4 md:px-6 pb-24 md:pb-6 overflow-x-hidden">
       <PushNotificationManager />
@@ -263,7 +266,17 @@ export default function DashboardMain({
                   <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Estado Vital</span>
                   <h3 className="text-xl font-black text-slate-900 mt-0.5">Inercia & Métricas</h3>
                 </div>
-                <span className="bg-slate-100 text-slate-805 text-xs px-2.5 py-1 rounded-lg font-bold">Ver Detalles</span>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    triggerVibration('light');
+                    setIsInsightsOpen(true);
+                  }}
+                  className="bg-slate-100 text-slate-800 text-xs px-2.5 py-1 rounded-lg font-bold hover:bg-slate-200 transition-colors"
+                >
+                  Ver Análisis Profundo
+                </button>
               </div>
               
               <div className="grid grid-cols-3 gap-3 mb-4">
@@ -489,6 +502,8 @@ export default function DashboardMain({
           </div>
         )}
       </AnimatePresence>
+
+      <HealthInsightsDashboard isOpen={isInsightsOpen} onClose={() => setIsInsightsOpen(false)} />
     </section>
   );
 }

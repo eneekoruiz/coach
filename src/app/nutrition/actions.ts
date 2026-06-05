@@ -822,3 +822,154 @@ export async function deleteDailyDietOverride(date: string): Promise<{ success: 
   }
 }
 
+// ── Analytics & Correlation Insights Actions ──────────────────────────────────
+import { generateText } from 'ai';
+
+export async function getHealthCorrelationData(): Promise<{
+  success: boolean;
+  data: Array<{
+    date: string;
+    dayLabel: string;
+    valence: number;
+    kcalPercent: number;
+    kcalConsumed: number;
+    kcalTarget: number;
+  }>;
+  error?: string;
+}> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { success: false, data: [], error: 'No autenticado.' };
+
+    // Generate last 7 days dates in YYYY-MM-DD
+    const dates: string[] = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      dates.push(d.toISOString().slice(0, 10));
+    }
+
+    const startDate = dates[0];
+    const endDate = dates[dates.length - 1];
+
+    // Fetch daily logs
+    const { data: logs, error: logsError } = await supabase
+      .from('daily_logs')
+      .select('date, ai_data')
+      .eq('user_id', user.id)
+      .gte('date', startDate)
+      .lte('date', endDate);
+
+    if (logsError) {
+      console.warn(`[Supabase Fetch Warning] getHealthCorrelationData logs: ${logsError.message}`);
+    }
+
+    // Fetch mood logs
+    const { data: moods, error: moodsError } = await supabase
+      .from('mood_logs')
+      .select('date, valence_score, mood_score')
+      .eq('user_id', user.id)
+      .gte('date', startDate)
+      .lte('date', endDate);
+
+    if (moodsError) {
+      console.warn(`[Supabase Fetch Warning] getHealthCorrelationData moods: ${moodsError.message}`);
+    }
+
+    // Default values
+    const metadata = user.user_metadata || {};
+    const defaultKcal = Number(metadata.daily_kcal_target ?? 2000);
+
+    const logsMap = new Map<string, any>();
+    (logs || []).forEach(l => {
+      const aiData = typeof l.ai_data === 'string' ? JSON.parse(l.ai_data) : l.ai_data;
+      logsMap.set(l.date, aiData);
+    });
+
+    const moodsMap = new Map<string, number[]>();
+    (moods || []).forEach(m => {
+      const valence = m.valence_score ?? m.mood_score ?? 3;
+      const list = moodsMap.get(m.date) || [];
+      list.push(Number(valence));
+      moodsMap.set(m.date, list);
+    });
+
+    const weekdayNames = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+
+    const correlationData = dates.map(dateStr => {
+      const d = new Date(dateStr + 'T12:00:00');
+      const dayLabel = `${weekdayNames[d.getDay()]} ${d.getDate()}`;
+
+      // Mood valence average
+      const valences = moodsMap.get(dateStr);
+      const valence = valences && valences.length > 0 
+        ? Math.round((valences.reduce((acc, v) => acc + v, 0) / valences.length) * 10) / 10 
+        : 3.0; // baseline
+
+      // Calorie stats
+      const log = logsMap.get(dateStr);
+      const kcalConsumed = log?.total_kcal ?? 0;
+      const kcalTarget = log?.target_kcal ?? defaultKcal;
+      const kcalPercent = kcalTarget > 0 ? Math.min(150, Math.round((kcalConsumed / kcalTarget) * 100)) : 0;
+
+      return {
+        date: dateStr,
+        dayLabel,
+        valence,
+        kcalPercent,
+        kcalConsumed,
+        kcalTarget
+      };
+    });
+
+    return { success: true, data: correlationData };
+  } catch (err) {
+    console.error('getHealthCorrelationData error:', err);
+    return { success: false, data: [], error: err instanceof Error ? err.message : 'Error inesperado.' };
+  }
+}
+
+export async function generateHealthInsights(
+  data: Array<{
+    date: string;
+    dayLabel: string;
+    valence: number;
+    kcalPercent: number;
+    kcalConsumed: number;
+    kcalTarget: number;
+  }>
+): Promise<{ success: boolean; insight?: string; error?: string }> {
+  try {
+    if (!data || data.length === 0) {
+      return { success: false, error: 'No hay datos de correlación disponibles.' };
+    }
+
+    const dataString = data.map(d => 
+      `${d.dayLabel} (${d.date}): Estado de ánimo (Valence)=${d.valence}/5, Calorías consumidas=${d.kcalConsumed} kcal (${d.kcalPercent}% de la meta de ${d.kcalTarget} kcal).`
+    ).join('\n');
+
+    const prompt = 
+      `Analiza la relación entre el estado de ánimo diario del usuario (escala 1 a 5, donde 5 es óptimo y 1 es crítico) y su adherencia a la meta calórica en los últimos 7 días:\n\n` +
+      `${dataString}\n\n` +
+      `Tu rol: Coach fisiológico y nutricionista clínico de élite.\n` +
+      `Genera un único párrafo de análisis en español que responda exactamente a las siguientes directrices:\n` +
+      `- Redacta un máximo de 3 líneas.\n` +
+      `- Concluye si se observa una mejoría en el ánimo al cumplir con la alimentación (o viceversa).\n` +
+      `- Ofrece una recomendación práctica, empática y de bio-hackeo directo.\n` +
+      `- No uses viñetas, listas ni títulos.`;
+
+    const result = await generateText({
+      model: google('gemini-2.5-flash'),
+      system: 'Eres un coach fisiológico clínico experto en analizar hábitos y dar sugerencias de estilo de vida de forma extremadamente concisa (máximo 3 líneas).',
+      prompt,
+    });
+
+    return { success: true, insight: result.text.trim() };
+  } catch (err) {
+    console.error('generateHealthInsights error:', err);
+    return { success: false, error: err instanceof Error ? err.message : 'Error inesperado al generar insights.' };
+  }
+}
+
+
