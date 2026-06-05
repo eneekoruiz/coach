@@ -21,6 +21,9 @@ export const metadata: Metadata = {
     statusBarStyle: 'black-translucent',
     title: 'BioAvatar',
   },
+  formatDetection: {
+    telephone: false,
+  },
   openGraph: {
     title: 'Bio-Avatar | Tu Gemelo Digital Fisiológico',
     description: 'Registra, analiza y visualiza tu estado fisiológico en tiempo real con inteligencia artificial.',
@@ -48,6 +51,8 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
   viewportFit: 'cover',
   themeColor: '#ffffff',
 };

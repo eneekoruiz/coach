@@ -269,28 +269,34 @@ export default function DashboardMain({
   const avatar = AVATAR_CONFIG[avatarState];
 
   return (
-    <section className="relative flex flex-1 flex-col px-4 md:px-6 pb-24 md:pb-6">
-      <div className="relative z-10 w-full max-w-2xl mx-auto flex flex-col gap-6 pt-2">
+    <section className="relative flex flex-1 flex-col px-4 md:px-6 pb-24 md:pb-6 overflow-x-hidden">
+      <PushNotificationManager />
 
-        <PushNotificationManager />
-
-        {/* ══ HERO: Avatar Section ══════════════════════════════════════════ */}
-        <div className="flex flex-col items-center text-center pt-2">
-
+      <div className="relative z-10 w-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 pt-2">
+        {/* ══ COLUMNA IZQUIERDA: BioAvatar ══════════════════════════════════ */}
+        <div className="lg:col-span-5 flex flex-col items-center justify-center lg:sticky lg:top-8 h-fit py-6 lg:py-16">
           {/* Status dot */}
           <div className="flex items-center gap-2 mb-4">
             <span className={`w-2.5 h-2.5 rounded-full ${avatar.statusColor} shadow-sm animate-pulse`} />
-            <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">
+            <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
               {avatar.subLabel}
             </span>
           </div>
 
-          {/* Avatar image with reactive aura */}
+          {/* Avatar image with reactive aura & CSS float animation using Framer Motion */}
           <motion.div
             layoutId="avatar-card"
             onClick={() => { triggerVibration('light'); setExpandedCard('avatar'); }}
             whileTap={{ scale: 0.97 }}
-            className={`relative w-48 h-48 sm:w-56 sm:h-56 rounded-[2.5rem] overflow-hidden bg-white/80 backdrop-blur-xl cursor-pointer ${avatar.aura} transition-shadow duration-700`}
+            animate={{
+              y: [0, -12, 0],
+            }}
+            transition={{
+              duration: 5,
+              repeat: Infinity,
+              ease: "easeInOut"
+            }}
+            className={`relative w-56 h-56 sm:w-64 sm:h-64 rounded-[2.5rem] overflow-hidden bg-white dark:bg-slate-950 cursor-pointer ${avatar.aura} border border-slate-100 dark:border-slate-800 transition-shadow duration-700`}
           >
             <img
               src={avatar.url}
@@ -304,11 +310,11 @@ export default function DashboardMain({
           </motion.div>
 
           {/* State label */}
-          <div className="mt-5">
-            <h2 className="text-5xl font-black text-slate-800 tracking-tighter leading-none">
+          <div className="mt-6 text-center">
+            <h2 className="text-4xl sm:text-5xl font-black text-slate-900 dark:text-white tracking-tighter leading-none">
               {avatar.label}
             </h2>
-            <p className="text-lg font-semibold text-slate-400 mt-1 tracking-tight">
+            <p className="text-lg font-semibold text-slate-400 dark:text-slate-500 mt-2 tracking-tight">
               {normalizedMomentum}% de inercia
             </p>
           </div>
@@ -317,66 +323,161 @@ export default function DashboardMain({
           <motion.button
             whileTap={{ scale: 0.96 }}
             onClick={() => { triggerVibration('light'); onChatOpen?.(); }}
-            className="mt-6 inline-flex items-center gap-3 px-8 py-4 rounded-[2rem] bg-slate-900 text-white text-base font-black shadow-2xl hover:bg-slate-800 transition-colors group"
+            className="mt-6 inline-flex items-center gap-3 px-8 py-4 rounded-[2rem] bg-slate-900 dark:bg-white text-white dark:text-slate-950 text-base font-black shadow-2xl hover:bg-slate-800 dark:hover:bg-slate-100 transition-colors group"
           >
             <span className="text-2xl group-hover:scale-110 transition-transform">🐶</span>
             <span>Hablar con mi Coach</span>
           </motion.button>
         </div>
 
+        {/* ══ COLUMNA DERECHA: Bento Grid ═══════════════════════════════════ */}
+        <div className="lg:col-span-7 flex flex-col gap-6 justify-center">
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            
+            {/* Bento Card 1: Inercia & Mini Stats (Full Width on desktop) */}
+            <BentoCard
+              onClick={() => { triggerVibration('light'); setExpandedCard('avatar'); }}
+              className="col-span-1 sm:col-span-2 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-sm"
+            >
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <span className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Estado Vital</span>
+                  <h3 className="text-xl font-black text-slate-900 dark:text-white mt-0.5">Inercia & Métricas</h3>
+                </div>
+                <span className="bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs px-2.5 py-1 rounded-lg font-bold">Ver Detalles</span>
+              </div>
+              
+              <div className="grid grid-cols-3 gap-3 mb-4">
+                <div className="flex flex-col items-center py-3 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800/60">
+                  <span className="text-[9px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Energía</span>
+                  <span className="text-xl font-black text-slate-800 dark:text-white mt-1">{energyLevel}<span className="text-xs text-slate-400 dark:text-slate-500 font-bold">/5</span></span>
+                </div>
+                <div className="flex flex-col items-center py-3 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800/60">
+                  <span className="text-[9px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Inercia</span>
+                  <span className="text-xl font-black text-slate-800 dark:text-white mt-1">{normalizedMomentum}<span className="text-xs text-slate-400 dark:text-slate-500 font-bold">%</span></span>
+                </div>
+                <div className="flex flex-col items-center py-3 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800/60">
+                  <span className="text-[9px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Claridad</span>
+                  <span className="text-xl font-black text-slate-800 dark:text-white mt-1">{mentalClarity}<span className="text-xs text-slate-400 dark:text-slate-500 font-bold">/5</span></span>
+                </div>
+              </div>
 
-        {/* ══ DATA PILLS ═══════════════════════════════════════════════════ */}
-        <div className="grid grid-cols-3 gap-3">
-          <motion.button
-            whileTap={{ scale: 0.95 }}
-            onClick={() => { triggerVibration('light'); setExpandedCard('water'); }}
-            className="flex flex-col items-center justify-center py-4 rounded-3xl bg-white/70 backdrop-blur-xl border border-white/80 shadow-sm hover:shadow-md transition-shadow"
-          >
-            <span className="text-2xl font-black text-cyan-500 tracking-tighter leading-none">{waterMl}</span>
-            <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mt-1">ml Agua</span>
-          </motion.button>
+              <div className="bg-sky-50/50 dark:bg-sky-950/20 rounded-2xl border border-sky-100/50 dark:border-sky-900/20 p-4">
+                <span className="bg-sky-100 dark:bg-sky-900/40 text-sky-700 dark:text-sky-300 text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md inline-block mb-1.5">Coach Inteligente</span>
+                <p className="text-xs text-slate-700 dark:text-slate-300 font-medium leading-relaxed line-clamp-2">{insightText}</p>
+              </div>
+            </BentoCard>
 
-          <motion.button
-            whileTap={{ scale: 0.95 }}
-            onClick={() => { triggerVibration('light'); setExpandedCard('nutrition'); }}
-            className="flex flex-col items-center justify-center py-4 rounded-3xl bg-white/70 backdrop-blur-xl border border-white/80 shadow-sm hover:shadow-md transition-shadow"
-          >
-            <span className="text-2xl font-black text-rose-500 tracking-tighter leading-none">{displayLog.total_kcal}</span>
-            <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mt-1">kcal</span>
-          </motion.button>
+            {/* Bento Card 2: Nutrición */}
+            <BentoCard
+              onClick={() => { triggerVibration('light'); setExpandedCard('nutrition'); }}
+              className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-sm"
+            >
+              <div className="flex justify-between items-start mb-3">
+                <div>
+                  <span className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Alimentación</span>
+                  <h3 className="text-lg font-black text-slate-900 dark:text-white mt-0.5">Nutrición</h3>
+                </div>
+                <span className="text-xl">🍎</span>
+              </div>
+              <div className="mt-2">
+                <p className="text-3xl font-black text-rose-500 tracking-tighter">
+                  {displayLog.total_kcal} <span className="text-sm font-bold text-slate-400">kcal</span>
+                </p>
+                <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-wider">
+                  Objetivo: {dietTargets?.kcal ?? 2000} kcal
+                </p>
+              </div>
+              <div className="flex gap-1.5 mt-4 text-[9px] text-slate-500 dark:text-slate-400 font-bold">
+                <span className="bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 px-1.5 py-0.5 rounded">P: {displayLog.protein_g}g</span>
+                <span className="bg-sky-50 dark:bg-sky-950/30 text-sky-600 dark:text-sky-400 px-1.5 py-0.5 rounded">C: {displayLog.carbs_g}g</span>
+                <span className="bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 px-1.5 py-0.5 rounded">G: {displayLog.fats_g}g</span>
+              </div>
+            </BentoCard>
 
-          <motion.button
-            whileTap={{ scale: 0.95 }}
-            onClick={() => { triggerVibration('light'); setExpandedCard('habits'); }}
-            className="flex flex-col items-center justify-center py-4 rounded-3xl bg-white/70 backdrop-blur-xl border border-white/80 shadow-sm hover:shadow-md transition-shadow"
-          >
-            <span className="text-2xl font-black text-orange-500 tracking-tighter leading-none">🔥 {streak}</span>
-            <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mt-1">días racha</span>
-          </motion.button>
+            {/* Bento Card 3: Hidratación */}
+            <BentoCard
+              onClick={() => { triggerVibration('light'); setExpandedCard('water'); }}
+              className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-sm"
+            >
+              <div className="flex justify-between items-start mb-3">
+                <div>
+                  <span className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Hidratación</span>
+                  <h3 className="text-lg font-black text-slate-900 dark:text-white mt-0.5">Agua</h3>
+                </div>
+                <span className="text-xl">💧</span>
+              </div>
+              <div className="mt-2">
+                <p className="text-3xl font-black text-cyan-500 tracking-tighter">
+                  {waterMl} <span className="text-sm font-bold text-slate-400">ml</span>
+                </p>
+                <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-wider">
+                  Meta: {dailyWaterTarget} ml
+                </p>
+              </div>
+              <div className="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full mt-4 overflow-hidden">
+                <div 
+                  className="bg-cyan-500 h-full rounded-full transition-all duration-500" 
+                  style={{ width: `${Math.min(100, (waterMl / (dailyWaterTarget || 2000)) * 100)}%` }}
+                />
+              </div>
+            </BentoCard>
+
+            {/* Bento Card 4: Hábitos & Racha */}
+            <BentoCard
+              onClick={() => { triggerVibration('light'); setExpandedCard('habits'); }}
+              className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-sm"
+            >
+              <div className="flex justify-between items-start mb-3">
+                <div>
+                  <span className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Hábitos</span>
+                  <h3 className="text-lg font-black text-slate-900 dark:text-white mt-0.5">Rutinas</h3>
+                </div>
+                <span className="text-xl">🔥</span>
+              </div>
+              <div className="mt-2">
+                <p className="text-3xl font-black text-orange-500 tracking-tighter">
+                  {streak} <span className="text-sm font-bold text-slate-400">días</span>
+                </p>
+                <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-wider">
+                  Racha activa de hábitos
+                </p>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-4 font-semibold">
+                {completedHabitsCount} hábitos registrados hoy
+              </p>
+            </BentoCard>
+
+            {/* Bento Card 5: Ánimo */}
+            <BentoCard
+              onClick={() => { triggerVibration('light'); onChatOpen?.(); }}
+              className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-sm"
+            >
+              <div className="flex justify-between items-start mb-3">
+                <div>
+                  <span className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Salud Mental</span>
+                  <h3 className="text-lg font-black text-slate-900 dark:text-white mt-0.5">Bitácora</h3>
+                </div>
+                <span className="text-xl">🧠</span>
+              </div>
+              <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed mt-2">
+                ¿Quieres registrar retrospectivamente cómo te sientes o planificar hábitos con la IA?
+              </p>
+              <span className="text-emerald-500 text-xs font-bold mt-4 inline-flex items-center gap-1">
+                Consultar al Coach →
+              </span>
+            </BentoCard>
+
+          </div>
+
+          <XRayOverlay
+            isXRayMode={isXRayMode}
+            theme={theme}
+            displayLog={displayLog}
+            momentum={momentum}
+          />
         </div>
-
-        {/* ══ MINI STATS ═══════════════════════════════════════════════════ */}
-        <div className="grid grid-cols-3 gap-2">
-          <div className="flex flex-col items-center py-3 rounded-2xl bg-white/40 backdrop-blur-sm">
-            <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest">Energía</span>
-            <span className="text-xl font-black text-slate-700 mt-1">{energyLevel}<span className="text-xs text-slate-400">/5</span></span>
-          </div>
-          <div className="flex flex-col items-center py-3 rounded-2xl bg-white/40 backdrop-blur-sm">
-            <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest">Inercia</span>
-            <span className="text-xl font-black text-slate-700 mt-1">{normalizedMomentum}<span className="text-xs text-slate-400">%</span></span>
-          </div>
-          <div className="flex flex-col items-center py-3 rounded-2xl bg-white/40 backdrop-blur-sm">
-            <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest">Claridad</span>
-            <span className="text-xl font-black text-slate-700 mt-1">{mentalClarity}<span className="text-xs text-slate-400">/5</span></span>
-          </div>
-        </div>
-
-        <XRayOverlay
-          isXRayMode={isXRayMode}
-          theme={theme}
-          displayLog={displayLog}
-          momentum={momentum}
-        />
       </div>
 
       {/* ══ MORPHING DETAIL MODALS ══════════════════════════════════════════ */}

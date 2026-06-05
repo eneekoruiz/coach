@@ -4,9 +4,10 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { type DietTemplate } from '@/lib/schema';
 import { Calendar, Plus, Edit2, Trash2, CheckCircle2, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { createPortal } from 'react-dom';
 import TemplateEditorModal from './TemplateEditorModal';
 import TemplateAssignModal from './TemplateAssignModal';
-import { deleteDietTemplate, assignTemplateToDates } from '@/app/nutrition/actions';
+import { deleteDietTemplate, assignTemplateToDates, saveDietTemplate } from '@/app/nutrition/actions';
 import toast from '@/lib/toast';
 
 interface DietCalendarViewProps {
@@ -25,6 +26,20 @@ export default function DietCalendarView({ templates, calendar, onUpdate }: Diet
 
   // Track the day cell currently dragged over
   const [draggedOverDate, setDraggedOverDate] = useState<string | null>(null);
+
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
+
+  // On-the-fly diet form state
+  const [newDietName, setNewDietName] = useState('');
+  const [newDietKcal, setNewDietKcal] = useState(2000);
+  const [newDietProtein, setNewDietProtein] = useState(150);
+  const [newDietCarbs, setNewDietCarbs] = useState(200);
+  const [newDietFats, setNewDietFats] = useState(70);
+  const [isSubmittingQuickDiet, setIsSubmittingQuickDiet] = useState(false);
 
   // Disable body scroll when date is selected (Drawer/Bottom Sheet open)
   useEffect(() => {
@@ -123,6 +138,48 @@ export default function DietCalendarView({ templates, calendar, onUpdate }: Diet
     }
   };
 
+  const handleCreateQuickDiet = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newDietName.trim()) {
+      toast.error('Introduce un nombre para la dieta.');
+      return;
+    }
+    setIsSubmittingQuickDiet(true);
+    try {
+      const templateData: DietTemplate = {
+        name: newDietName,
+        target_kcal: newDietKcal,
+        target_protein: newDietProtein,
+        target_carbs: newDietCarbs,
+        target_fats: newDietFats,
+        meals: [
+          { id: `m1-${Date.now()}`, name: 'Desayuno', text: 'Desayuno rápido balanceado', target_kcal: Math.round(newDietKcal * 0.25), target_protein: Math.round(newDietProtein * 0.25), target_carbs: Math.round(newDietCarbs * 0.25), target_fats: Math.round(newDietFats * 0.25) },
+          { id: `m2-${Date.now()}`, name: 'Almuerzo', text: 'Almuerzo completo de fuerza', target_kcal: Math.round(newDietKcal * 0.35), target_protein: Math.round(newDietProtein * 0.35), target_carbs: Math.round(newDietCarbs * 0.35), target_fats: Math.round(newDietFats * 0.35) },
+          { id: `m3-${Date.now()}`, name: 'Cena', text: 'Cena ligera y recuperadora', target_kcal: Math.round(newDietKcal * 0.30), target_protein: Math.round(newDietProtein * 0.30), target_carbs: Math.round(newDietCarbs * 0.30), target_fats: Math.round(newDietFats * 0.30) },
+          { id: `m4-${Date.now()}`, name: 'Merienda/Snack', text: 'Snack de carga rápida', target_kcal: Math.round(newDietKcal * 0.10), target_protein: Math.round(newDietProtein * 0.10), target_carbs: Math.round(newDietCarbs * 0.10), target_fats: Math.round(newDietFats * 0.10) }
+        ]
+      };
+      
+      const saveRes = await saveDietTemplate(templateData);
+      if (saveRes.success && saveRes.data?.id) {
+        const assignRes = await assignTemplateToDates(saveRes.data.id, [selectedDate!]);
+        if (assignRes.success) {
+          toast.success('Dieta creada y asignada para este día');
+          setNewDietName('');
+          onUpdate();
+        } else {
+          toast.error(assignRes.error || 'Error al asignar la dieta');
+        }
+      } else {
+        toast.error(saveRes.error || 'Error al guardar la plantilla');
+      }
+    } catch (err) {
+      toast.error('Error inesperado al crear dieta');
+    } finally {
+      setIsSubmittingQuickDiet(false);
+    }
+  };
+
   return (
     <div className="flex flex-col xl:flex-row gap-6 items-start w-full relative">
       {/* Columna Izquierda: Calendario */}
@@ -184,11 +241,11 @@ export default function DietCalendarView({ templates, calendar, onUpdate }: Diet
                         {template.name}
                       </div>
                       
-                      {/* Macro compliance indicators (mini-metrics) in cells */}
-                      <div className="hidden sm:flex items-center justify-center gap-1 mt-1 text-[8px] font-extrabold text-slate-500">
-                        <span className="text-rose-500" title="Proteína">P:{template.target_protein}g</span>
-                        <span className="text-sky-500" title="Carbs">C:{template.target_carbs}g</span>
-                        <span className="text-amber-500" title="Grasas">G:{template.target_fats}g</span>
+                      {/* Micro-metrics visual dots representing macros */}
+                      <div className="flex items-center justify-center gap-1 mt-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-rose-500" title="Proteína" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-sky-500" title="Carbs" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" title="Grasas" />
                       </div>
                     </div>
                   ) : (
@@ -281,76 +338,152 @@ export default function DietCalendarView({ templates, calendar, onUpdate }: Diet
         )}
       </div>
 
-      {/* Drawer Panel Superpuesto de Dieta (Pilar 2 HIG) */}
-      <AnimatePresence>
-        {selectedDate && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-end">
-            {/* Backdrop */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 0.5 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setSelectedDate(null)}
-              className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm"
-            />
-            
-            {/* Drawer container (sliding from right) */}
-            <motion.div
-              initial={{ x: '100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 220 }}
-              className="relative w-full max-w-lg bg-white dark:bg-slate-900 h-full border-l border-slate-200 dark:border-slate-800 shadow-2xl z-10 flex flex-col pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]"
-            >
-              {/* Close button top right */}
-              <button
-                type="button"
+      {/* Drawer Panel Superpuesto de Dieta (Pilar 2 HIG) - RENDERED IN PORTAL TO AVOID STACKING CONTEXT BUGS */}
+      {mounted && typeof document !== 'undefined' && createPortal(
+        <AnimatePresence>
+          {selectedDate && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-end">
+              {/* Backdrop */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 0.5 }}
+                exit={{ opacity: 0 }}
                 onClick={() => setSelectedDate(null)}
-                className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 bg-slate-100 dark:bg-white/10 rounded-full transition min-h-[44px] min-w-[44px] flex items-center justify-center"
+                className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm"
+              />
+              
+              {/* Drawer container (sliding from right) */}
+              <motion.div
+                initial={{ x: '100%' }}
+                animate={{ x: 0 }}
+                exit={{ x: '100%' }}
+                transition={{ type: 'spring', damping: 25, stiffness: 220 }}
+                className="relative w-full max-w-lg bg-white dark:bg-slate-900 h-full border-l border-slate-200 dark:border-slate-800 shadow-2xl z-10 flex flex-col pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]"
               >
-                <X size={18} />
-              </button>
+                {/* Close button top right */}
+                <button
+                  type="button"
+                  onClick={() => setSelectedDate(null)}
+                  className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 bg-slate-100 dark:bg-white/10 rounded-full transition min-h-[44px] min-w-[44px] flex items-center justify-center z-20"
+                >
+                  <X size={18} />
+                </button>
 
-              <div className="p-6 overflow-y-auto flex-1 custom-scrollbar">
-                <h4 className="text-xl font-black text-slate-950 dark:text-white tracking-tight mb-6 mt-6">
-                  Día: {new Date(selectedDate + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
-                </h4>
-                
-                {selectedTemplate ? (
-                  <div className="space-y-6">
-                    <div className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/35 p-5 rounded-3xl">
-                      <h5 className="font-black text-xl text-emerald-700 dark:text-emerald-400">{selectedTemplate.name}</h5>
-                      <p className="text-xs text-emerald-600 dark:text-emerald-300 font-semibold mt-1 leading-relaxed">
-                        Objetivo: {selectedTemplate.target_kcal} kcal • P: {selectedTemplate.target_protein}g • C: {selectedTemplate.target_carbs}g • G: {selectedTemplate.target_fats}g
-                      </p>
-                    </div>
+                <div className="p-6 overflow-y-auto flex-1 custom-scrollbar">
+                  <h4 className="text-xl font-black text-slate-950 dark:text-white tracking-tight mb-6 mt-6">
+                    Día: {new Date(selectedDate + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
+                  </h4>
+                  
+                  {selectedTemplate ? (
+                    <div className="space-y-6">
+                      <div className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/35 p-5 rounded-3xl">
+                        <h5 className="font-black text-xl text-emerald-700 dark:text-emerald-400">{selectedTemplate.name}</h5>
+                        <p className="text-xs text-emerald-600 dark:text-emerald-300 font-semibold mt-1 leading-relaxed">
+                          Objetivo: {selectedTemplate.target_kcal} kcal • P: {selectedTemplate.target_protein}g • C: {selectedTemplate.target_carbs}g • G: {selectedTemplate.target_fats}g
+                        </p>
+                      </div>
 
-                    <div className="space-y-4">
-                      {selectedTemplate.meals.map(meal => (
-                        <div key={meal.id} className="bg-slate-50 dark:bg-white/5 rounded-3xl p-5 border border-slate-100 dark:border-white/5 shadow-xs">
-                          <div className="font-black text-slate-800 dark:text-slate-200 text-xs sm:text-sm uppercase tracking-wide mb-2 flex items-center justify-between">
-                            <span>{meal.name}</span>
-                            {meal.target_kcal > 0 && (
-                              <span className="text-[10px] text-slate-400 font-bold bg-white dark:bg-black/20 border border-slate-200/80 dark:border-white/5 px-2 py-0.5 rounded-full">{meal.target_kcal} kcal</span>
-                            )}
+                      <div className="space-y-4">
+                        {selectedTemplate.meals.map(meal => (
+                          <div key={meal.id} className="bg-slate-50 dark:bg-white/5 rounded-3xl p-5 border border-slate-100 dark:border-white/5 shadow-xs">
+                            <div className="font-black text-slate-800 dark:text-slate-200 text-xs sm:text-sm uppercase tracking-wide mb-2 flex items-center justify-between">
+                              <span>{meal.name}</span>
+                              {meal.target_kcal > 0 && (
+                                <span className="text-[10px] text-slate-400 font-bold bg-white dark:bg-black/20 border border-slate-200/80 dark:border-white/5 px-2 py-0.5 rounded-full">{meal.target_kcal} kcal</span>
+                              )}
+                            </div>
+                            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 whitespace-pre-wrap leading-relaxed">{meal.text || 'Sin descripción registrada.'}</p>
                           </div>
-                          <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 whitespace-pre-wrap leading-relaxed">{meal.text || 'Sin descripción registrada.'}</p>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                ) : (
-                  <div className="text-center py-16 bg-slate-50 dark:bg-white/5 rounded-3xl border border-dashed border-slate-200 dark:border-white/10">
-                    <div className="text-slate-400 mb-2 text-3xl">🥣</div>
-                    <p className="text-sm font-bold text-slate-700 dark:text-slate-300">No hay dieta asignada</p>
-                    <p className="text-xs text-slate-400 mt-2 max-w-xs mx-auto leading-relaxed">Arrastra una plantilla desde el panel lateral al calendario, o pulsa "Asignar al Calendario" para programarla.</p>
-                  </div>
-                )}
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+                  ) : (
+                    <div className="space-y-6">
+                      <div className="text-center py-10 bg-slate-50 dark:bg-white/5 rounded-3xl border border-dashed border-slate-200 dark:border-white/10">
+                        <div className="text-slate-400 mb-2 text-3xl">🥣</div>
+                        <p className="text-sm font-bold text-slate-700 dark:text-slate-300">No hay dieta asignada</p>
+                        <p className="text-xs text-slate-400 mt-2 max-w-xs mx-auto leading-relaxed">Arrastra una plantilla desde el panel lateral al calendario, o pulsa "Asignar al Calendario".</p>
+                      </div>
+
+                      {/* On-the-fly Diet Creation Form */}
+                      <form onSubmit={handleCreateQuickDiet} className="p-5 bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/10 rounded-3xl space-y-4">
+                        <h5 className="font-black text-slate-900 dark:text-white text-sm">Crear dieta al vuelo para hoy</h5>
+                        <div className="space-y-3">
+                          <div>
+                            <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Nombre del Plan</label>
+                            <input
+                              type="text"
+                              required
+                              placeholder="Ej: Dieta Especial Fuerza"
+                              value={newDietName}
+                              onChange={(e) => setNewDietName(e.target.value)}
+                              className="w-full px-3 py-2 text-xs border border-slate-200 dark:border-slate-800 dark:bg-slate-950 rounded-xl text-slate-700 dark:text-slate-300 font-bold focus:ring-2 focus:ring-emerald-500 outline-none"
+                            />
+                          </div>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Calorías (kcal)</label>
+                              <input
+                                type="number"
+                                required
+                                min={500}
+                                max={10000}
+                                value={newDietKcal}
+                                onChange={(e) => setNewDietKcal(Number(e.target.value))}
+                                className="w-full px-3 py-2 text-xs border border-slate-200 dark:border-slate-800 dark:bg-slate-950 rounded-xl text-slate-700 dark:text-slate-300 font-bold focus:ring-2 focus:ring-emerald-500 outline-none"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Proteínas (g)</label>
+                              <input
+                                type="number"
+                                required
+                                value={newDietProtein}
+                                onChange={(e) => setNewDietProtein(Number(e.target.value))}
+                                className="w-full px-3 py-2 text-xs border border-slate-200 dark:border-slate-800 dark:bg-slate-950 rounded-xl text-slate-700 dark:text-slate-300 font-bold focus:ring-2 focus:ring-emerald-500 outline-none"
+                              />
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Carbohidratos (g)</label>
+                              <input
+                                type="number"
+                                required
+                                value={newDietCarbs}
+                                onChange={(e) => setNewDietCarbs(Number(e.target.value))}
+                                className="w-full px-3 py-2 text-xs border border-slate-200 dark:border-slate-800 dark:bg-slate-950 rounded-xl text-slate-700 dark:text-slate-300 font-bold focus:ring-2 focus:ring-emerald-500 outline-none"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Grasas (g)</label>
+                              <input
+                                type="number"
+                                required
+                                value={newDietFats}
+                                onChange={(e) => setNewDietFats(Number(e.target.value))}
+                                className="w-full px-3 py-2 text-xs border border-slate-200 dark:border-slate-800 dark:bg-slate-950 rounded-xl text-slate-700 dark:text-slate-300 font-bold focus:ring-2 focus:ring-emerald-500 outline-none"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                        <button
+                          type="submit"
+                          disabled={isSubmittingQuickDiet}
+                          className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-black shadow-sm transition active:scale-95 flex items-center justify-center gap-1.5 disabled:opacity-50 min-h-[44px]"
+                        >
+                          {isSubmittingQuickDiet ? 'Creando...' : 'Crear y Asignar'}
+                        </button>
+                      </form>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
 
       {/* Modales */}
       {(isCreatingTemplate || editingTemplate) && (
@@ -382,3 +515,7 @@ export default function DietCalendarView({ templates, calendar, onUpdate }: Diet
     </div>
   );
 }
+
+// A simple local wrapper to type-check motion div children correctly inside standard layout
+const Drawer = ({ children }: { children: React.ReactNode }) => <>{children}</>;
+

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, useCallback, useEffect, useRef, startTransition, useTransition } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, ChevronRight, Heart, Plus, Trash, X, Loader2, Check } from 'lucide-react';
 import { saveMoodEntry, deleteMoodEntry } from '@/app/mood/actions';
@@ -139,6 +140,12 @@ export default function MoodCalendar({ entries, onDaySelect, onSaved }: MoodCale
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [direction, setDirection] = useState(0);
   const calendarRef = useRef<HTMLDivElement>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
 
   // Retroactive logging form state
   const [showLogForm, setShowLogForm] = useState(false);
@@ -381,9 +388,10 @@ export default function MoodCalendar({ entries, onDaySelect, onSaved }: MoodCale
       </AnimatePresence>
 
       {/* ── Bottom Sheet/Modal Elegant ── */}
-      <AnimatePresence>
-        {selectedDay && (
-          <div className="fixed inset-0 z-[100] flex items-end justify-center">
+      {mounted && typeof document !== 'undefined' && createPortal(
+        <AnimatePresence>
+          {selectedDay && (
+            <div className="fixed inset-0 z-[100] flex items-end justify-center">
             {/* Backdrop */}
             <motion.div
               initial={{ opacity: 0 }}
@@ -625,7 +633,9 @@ export default function MoodCalendar({ entries, onDaySelect, onSaved }: MoodCale
             </motion.div>
           </div>
         )}
-      </AnimatePresence>
+      </AnimatePresence>,
+      document.body
+    )}
     </div>
   );
 }
