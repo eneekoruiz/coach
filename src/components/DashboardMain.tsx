@@ -2,16 +2,18 @@
 
 import React, { useMemo, useState, useEffect } from 'react';
 import { motion, AnimatePresence, type HTMLMotionProps } from 'framer-motion';
+import dynamic from 'next/dynamic';
 import XRayOverlay from './XRayOverlay';
 import CircularProgressRing from './CircularProgressRing';
 import { type DailyLog } from '@/lib/schema';
 import toast from '@/lib/toast';
 import PushNotificationManager from './PushNotificationManager';
 import { triggerVibration } from '@/lib/haptics';
-import NutritionContainer from './NutritionContainer';
-import HabitTracker from './HabitTracker';
 import { useDashboardState, type AvatarState, AVATAR_CONFIG } from '@/hooks/useDashboardState';
-import HealthInsightsDashboard from './HealthInsightsDashboard';
+
+const NutritionContainer = dynamic(() => import('./NutritionContainer'), { ssr: false });
+const HabitTracker = dynamic(() => import('./HabitTracker'), { ssr: false });
+const HealthInsightsDashboard = dynamic(() => import('./HealthInsightsDashboard'), { ssr: false });
 
 interface DashboardTheme {
   background: string;
@@ -197,12 +199,12 @@ export default function DashboardMain({
   const [isInsightsOpen, setIsInsightsOpen] = useState(false);
 
   return (
-    <section className="relative flex flex-1 flex-col px-4 md:px-6 pb-24 md:pb-6 overflow-x-hidden">
+    <section className="relative flex flex-1 flex-col px-4 md:px-6 pb-24 lg:pb-2 overflow-x-hidden lg:overflow-hidden lg:h-[calc(100vh-120px)]">
       <PushNotificationManager />
 
-      <div className="relative z-10 w-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 pt-2">
+      <div className="relative z-10 w-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 pt-2 lg:h-full lg:items-stretch">
         {/* ══ COLUMNA IZQUIERDA: BioAvatar ══════════════════════════════════ */}
-        <div className="lg:col-span-5 flex flex-col items-center justify-center lg:sticky lg:top-8 h-fit py-6 lg:py-16">
+        <div className="lg:col-span-5 flex flex-col items-center justify-center py-6 lg:py-4 lg:justify-center h-full shrink-0">
           {/* Status dot */}
           <div className="flex items-center gap-2 mb-4">
             <span className={`w-2.5 h-2.5 rounded-full ${avatar.statusColor} shadow-sm animate-pulse`} />
@@ -217,7 +219,7 @@ export default function DashboardMain({
             onClick={() => { triggerVibration('light'); setExpandedCard('avatar'); }}
             whileTap={{ scale: 0.95 }}
             transition={{ type: 'spring', stiffness: 400, damping: 10 }}
-            className={`relative w-56 h-56 sm:w-64 sm:h-64 rounded-[2.5rem] overflow-hidden bg-white cursor-pointer ${avatar.aura} border border-slate-100 transition-shadow duration-700`}
+            className={`relative w-48 h-48 sm:w-56 sm:h-56 lg:w-64 lg:h-64 rounded-[2.5rem] overflow-hidden bg-white cursor-pointer ${avatar.aura} border border-slate-100 transition-shadow duration-700`}
           >
             <img
               src={avatar.url}
@@ -232,10 +234,10 @@ export default function DashboardMain({
 
           {/* State label */}
           <div className="mt-6 text-center">
-            <h2 className="text-4xl sm:text-5xl font-black text-slate-900 tracking-tighter leading-none">
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 tracking-tighter leading-none">
               {avatar.label}
             </h2>
-            <p className="text-lg font-semibold text-slate-400 mt-2 tracking-tight">
+            <p className="text-base sm:text-lg font-semibold text-slate-400 mt-2 tracking-tight">
               {normalizedMomentum}% de inercia
             </p>
           </div>
@@ -252,7 +254,7 @@ export default function DashboardMain({
         </div>
 
         {/* ══ COLUMNA DERECHA: Bento Grid ═══════════════════════════════════ */}
-        <div className="lg:col-span-7 flex flex-col gap-6 justify-center">
+        <div className="lg:col-span-7 flex flex-col gap-6 justify-center lg:overflow-y-auto lg:h-full pr-1 custom-scrollbar">
           
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             

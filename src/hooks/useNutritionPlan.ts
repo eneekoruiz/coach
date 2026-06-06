@@ -15,7 +15,7 @@ import {
 import toast from '@/lib/toast';
 
 export function useNutritionPlan() {
-  const [activeTab, setActiveTab] = useState<'plan' | 'analysis' | 'recipes'>('plan');
+  const [activeTab, setActiveTab] = useState<'recipes' | 'days' | 'programs' | 'calendar' | 'analysis'>('calendar');
   const [loading, setLoading] = useState(true);
   const [authRequired, setAuthRequired] = useState(false);
   const [templates, setTemplates] = useState<DietTemplate[]>([]);

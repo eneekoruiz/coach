@@ -4,10 +4,12 @@ import React from 'react';
 import Link from 'next/link';
 import DietEmptyState from './DietEmptyState';
 import DietCalendarView from './DietCalendarView';
-import DailyAnalysisTab from './DailyAnalysisTab';
 import RecipeLibrary from './RecipeLibrary';
+import DailyTemplateBuilder from './DailyTemplateBuilder';
+import ProgramBuilder from './ProgramBuilder';
+import TodayAnalysis from './TodayAnalysis';
 import { useNutritionPlan } from '@/hooks/useNutritionPlan';
-import { BookOpen, Calendar, PieChart } from 'lucide-react';
+import { BookOpen, Calendar, PieChart, Utensils, RotateCw } from 'lucide-react';
 
 export default function NutritionContainer() {
   const {
@@ -81,24 +83,73 @@ export default function NutritionContainer() {
         </div>
 
         {hasAnyData && (
-          <div className="mt-6 flex border-b border-slate-100 overflow-x-auto whitespace-nowrap scrollbar-none">
+          <div className="mt-6 flex border-b border-slate-100 overflow-x-auto whitespace-nowrap scrollbar-none gap-6">
+            
+            {/* Recetario Tab */}
             <button
               type="button"
-              onClick={() => setActiveTab('plan')}
-              className={`pb-3 text-xs sm:text-sm font-black transition-all relative px-2 mr-6 flex items-center gap-1.5 ${
-                activeTab === 'plan' ? 'text-slate-850' : 'text-slate-400 hover:text-slate-650'
+              onClick={() => setActiveTab('recipes')}
+              className={`pb-3 text-xs sm:text-sm font-black transition-all relative px-2 flex items-center gap-1.5 ${
+                activeTab === 'recipes' ? 'text-slate-850' : 'text-slate-400 hover:text-slate-650'
               }`}
             >
-              <Calendar className="w-4 h-4" />
-              Calendario de Dietas
-              {activeTab === 'plan' && (
+              <BookOpen className="w-4 h-4" />
+              Recetario
+              {activeTab === 'recipes' && (
                 <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-slate-850 rounded-full" />
               )}
             </button>
+
+            {/* Mis Días Tab */}
+            <button
+              type="button"
+              onClick={() => setActiveTab('days')}
+              className={`pb-3 text-xs sm:text-sm font-black transition-all relative px-2 flex items-center gap-1.5 ${
+                activeTab === 'days' ? 'text-slate-850' : 'text-slate-400 hover:text-slate-650'
+              }`}
+            >
+              <Utensils className="w-4 h-4" />
+              Mis Días
+              {activeTab === 'days' && (
+                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-slate-850 rounded-full" />
+              )}
+            </button>
+
+            {/* Programas Tab */}
+            <button
+              type="button"
+              onClick={() => setActiveTab('programs')}
+              className={`pb-3 text-xs sm:text-sm font-black transition-all relative px-2 flex items-center gap-1.5 ${
+                activeTab === 'programs' ? 'text-slate-850' : 'text-slate-400 hover:text-slate-650'
+              }`}
+            >
+              <RotateCw className="w-4 h-4" />
+              Programas
+              {activeTab === 'programs' && (
+                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-slate-850 rounded-full" />
+              )}
+            </button>
+
+            {/* Calendario Tab */}
+            <button
+              type="button"
+              onClick={() => setActiveTab('calendar')}
+              className={`pb-3 text-xs sm:text-sm font-black transition-all relative px-2 flex items-center gap-1.5 ${
+                activeTab === 'calendar' ? 'text-slate-850' : 'text-slate-400 hover:text-slate-650'
+              }`}
+            >
+              <Calendar className="w-4 h-4" />
+              Calendario
+              {activeTab === 'calendar' && (
+                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-slate-850 rounded-full" />
+              )}
+            </button>
+
+            {/* Análisis de Hoy Tab */}
             <button
               type="button"
               onClick={() => setActiveTab('analysis')}
-              className={`pb-3 text-xs sm:text-sm font-black transition-all relative px-2 mr-6 flex items-center gap-1.5 ${
+              className={`pb-3 text-xs sm:text-sm font-black transition-all relative px-2 flex items-center gap-1.5 ${
                 activeTab === 'analysis' ? 'text-slate-850' : 'text-slate-400 hover:text-slate-650'
               }`}
             >
@@ -108,19 +159,7 @@ export default function NutritionContainer() {
                 <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-slate-850 rounded-full" />
               )}
             </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('recipes')}
-              className={`pb-3 text-xs sm:text-sm font-black transition-all relative px-2 flex items-center gap-1.5 ${
-                activeTab === 'recipes' ? 'text-slate-850' : 'text-slate-400 hover:text-slate-650'
-              }`}
-            >
-              <BookOpen className="w-4 h-4" />
-              Mis Recetas
-              {activeTab === 'recipes' && (
-                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-slate-850 rounded-full" />
-              )}
-            </button>
+
           </div>
         )}
       </div>
@@ -134,7 +173,16 @@ export default function NutritionContainer() {
         />
       ) : (
         <div>
-          {activeTab === 'plan' && (
+          {activeTab === 'recipes' && (
+            <RecipeLibrary />
+          )}
+          {activeTab === 'days' && (
+            <DailyTemplateBuilder />
+          )}
+          {activeTab === 'programs' && (
+            <ProgramBuilder />
+          )}
+          {activeTab === 'calendar' && (
             <DietCalendarView
               templates={templates}
               calendar={calendar}
@@ -146,15 +194,12 @@ export default function NutritionContainer() {
             />
           )}
           {activeTab === 'analysis' && (
-            <DailyAnalysisTab
+            <TodayAnalysis
               realLog={realLog}
               dietPlan={todayTemplate}
               dailyWaterTarget={dailyWaterTarget}
               onUpdate={loadData}
             />
-          )}
-          {activeTab === 'recipes' && (
-            <RecipeLibrary />
           )}
         </div>
       )}

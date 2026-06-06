@@ -371,17 +371,27 @@ export default function MoodCalendar({ entries, onDaySelect, onSaved }: MoodCale
                         const score = entry.valence_score ?? entry.mood_score ?? 3;
                         const labelInfo = MOOD_LABELS[Math.round(score)] || MOOD_LABELS[3];
                         const factors = entry.impact_tags ?? entry.impact_factors ?? [];
+                        const isDaily = entry.is_daily_summary;
 
                         return (
-                          <div key={entry.id} className="flex items-center justify-between p-4 rounded-2xl border border-slate-100 bg-slate-50 hover:bg-slate-100/60 transition">
+                          <div
+                            key={entry.id}
+                            className={`flex items-center justify-between transition ${
+                              isDaily
+                                ? 'p-6 rounded-[2rem] border-2 border-amber-400 bg-amber-50/60 shadow-lg scale-[1.02]'
+                                : 'p-4 rounded-2xl border border-slate-100 bg-slate-50 hover:bg-slate-100/60'
+                            }`}
+                          >
                             <div className="flex items-center gap-3">
                               <span className="text-2xl">{labelInfo.emoji}</span>
                               <div>
                                 <div className="flex items-center gap-2 flex-wrap">
-                                  <span className="text-sm font-bold text-slate-800">{labelInfo.label}</span>
-                                  {entry.is_daily_summary && (
-                                    <span className="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider">
-                                      Balance Diario
+                                  <span className={`text-sm font-black ${isDaily ? 'text-amber-900 text-base' : 'text-slate-800'}`}>
+                                    {labelInfo.label}
+                                  </span>
+                                  {isDaily && (
+                                    <span className="bg-amber-100 text-amber-800 border border-amber-250 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider">
+                                      Balance Diario 🌅
                                     </span>
                                   )}
                                   <span className="text-[10px] text-slate-400 font-medium">
@@ -391,7 +401,7 @@ export default function MoodCalendar({ entries, onDaySelect, onSaved }: MoodCale
                                 {factors.length > 0 && (
                                   <div className="flex flex-wrap gap-1 mt-1.5">
                                     {factors.map((f) => (
-                                      <span key={f} className="text-[9px] bg-white px-2 py-0.5 border border-slate-200/80 rounded-full text-slate-600 font-medium">
+                                      <span key={f} className="text-[9px] bg-white px-2 py-0.5 border border-slate-200/80 rounded-full text-slate-600 font-semibold shadow-xs">
                                         {f}
                                       </span>
                                     ))}
@@ -403,7 +413,7 @@ export default function MoodCalendar({ entries, onDaySelect, onSaved }: MoodCale
                               type="button"
                               onClick={() => entry.id && handleDeleteEntry(entry.id)}
                               disabled={isPending}
-                              className="p-2.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition min-h-[44px] min-w-[44px] flex items-center justify-center"
+                              className="p-2.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition min-h-[44px] min-w-[44px] flex items-center justify-center shrink-0"
                               title="Eliminar registro"
                             >
                               <Trash size={14} />

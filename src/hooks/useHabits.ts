@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import toast from '@/lib/toast';
+import { hapticLight, hapticSuccess, hapticError } from '@/utils/haptics';
 import { useOfflineMutation } from './useOfflineMutation';
 import { isMissingHabitTableError } from '@/lib/habits';
 import { getNormalizedDate } from '@/lib/date-utils';
@@ -199,9 +200,11 @@ export function useHabits() {
           { habit_id: habitId, amount: nextValue, date: selectedDate },
           {
             optimisticUpdate: () => {
+              hapticLight();
               updateStateLogs();
             },
             onSuccess: (data) => {
+              hapticSuccess();
               if (data?.offline) return;
               const message = 'Guardado';
               setStatusMessage(message);
@@ -228,6 +231,7 @@ export function useHabits() {
 
         router.refresh();
       } catch (error) {
+        hapticError();
         setValues((current) => ({ ...current, [habitId]: previousValue }));
         const message = getSafeMessage(error);
         if (isUnauthorizedError(message)) {

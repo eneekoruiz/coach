@@ -168,6 +168,19 @@ export const dailyLogSchema = z
           .strict()
       )
       .optional(),
+    alimentos_registrados: z
+      .array(
+        z.object({
+          id: z.string(),
+          nombre: z.string(),
+          gramos: z.number(),
+          kcal: z.number(),
+          proteinas: z.number(),
+          carbohidratos: z.number(),
+          grasas: z.number(),
+        })
+      )
+      .optional(),
   })
   .strict();
 

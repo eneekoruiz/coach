@@ -634,7 +634,7 @@ export async function getActiveDietProgram(): Promise<{ program: DietProgram | n
 export async function saveDietProgram(
   program: DietProgram,
   days: Array<{ day_number: number; template_id: string }>
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; data?: { id: string }; error?: string }> {
   try {
     const supabase = await createSupabaseServerClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -648,9 +648,9 @@ export async function saveDietProgram(
     // Deactivate existing programs for this user if this program is active
     if (parsedProgram.data.is_active) {
       await supabase
-        .from('diet_programs')
-        .update({ is_active: false })
-        .eq('user_id', user.id);
+         .from('diet_programs')
+         .update({ is_active: false })
+         .eq('user_id', user.id);
     }
 
     const programData = {
@@ -664,20 +664,20 @@ export async function saveDietProgram(
     let pId: string;
     if (parsedProgram.data.id) {
       const { data, error } = await supabase
-        .from('diet_programs')
-        .update(programData)
-        .eq('id', parsedProgram.data.id)
-        .eq('user_id', user.id)
-        .select('id')
-        .single();
+         .from('diet_programs')
+         .update(programData)
+         .eq('id', parsedProgram.data.id)
+         .eq('user_id', user.id)
+         .select('id')
+         .single();
       if (error) throw error;
       pId = data.id;
     } else {
       const { data, error } = await supabase
-        .from('diet_programs')
-        .insert(programData)
-        .select('id')
-        .single();
+         .from('diet_programs')
+         .insert(programData)
+         .select('id')
+         .single();
       if (error) throw error;
       pId = data.id;
     }
@@ -693,13 +693,13 @@ export async function saveDietProgram(
       }));
 
       const { error: daysError } = await supabase
-        .from('diet_program_days')
-        .insert(daysToInsert);
+         .from('diet_program_days')
+         .insert(daysToInsert);
 
       if (daysError) throw daysError;
     }
 
-    return { success: true };
+    return { success: true, data: { id: pId } };
   } catch (err) {
     console.error('saveDietProgram server action error:', err);
     return { success: false, error: err instanceof Error ? err.message : 'Error inesperado.' };

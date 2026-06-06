@@ -8,6 +8,9 @@ export interface RoutineTemplate {
   title: string;
   icon: string | null;
   created_at: string;
+  time_of_day: 'morning' | 'afternoon' | 'night';
+  linked_habit_id: number | null;
+  habit_increment_amount: number;
 }
 
 export interface RoutineLog {
@@ -79,7 +82,10 @@ export async function getTodayRoutineLogs(): Promise<RoutineLog[]> {
  */
 export async function createRoutineTemplate(
   title: string,
-  icon: string | null
+  icon: string | null,
+  time_of_day: 'morning' | 'afternoon' | 'night' = 'morning',
+  linked_habit_id: number | null = null,
+  habit_increment_amount: number = 1
 ): Promise<{ success: boolean; data?: RoutineTemplate; error?: string }> {
   try {
     const supabase = await createSupabaseServerClient();
@@ -92,6 +98,9 @@ export async function createRoutineTemplate(
         user_id: user.id,
         title,
         icon,
+        time_of_day,
+        linked_habit_id,
+        habit_increment_amount,
       })
       .select()
       .single();
@@ -150,6 +159,18 @@ export async function markRoutineComplete(
 
     const today = new Date().toISOString().split('T')[0];
 
+    // Fetch the template details first to check if there is a linked habit
+    const { data: template, error: templateError } = await supabase
+      .from('routine_templates')
+      .select('linked_habit_id, habit_increment_amount')
+      .eq('id', routineId)
+      .eq('user_id', user.id)
+      .single();
+
+    if (templateError) {
+      console.error('[markRoutineComplete] Error fetching template details:', templateError.message);
+    }
+
     const { data, error } = await supabase
       .from('routine_logs')
       .insert({
@@ -163,6 +184,21 @@ export async function markRoutineComplete(
     if (error) {
       console.error('[markRoutineComplete] Supabase error:', error.message);
       return { success: false, error: 'Error al marcar como completado.' };
+    }
+
+    // Cascade habit progress update
+    if (template && template.linked_habit_id) {
+      try {
+        const { updateTodayHabit } = await import('@/services/habitsService');
+        await updateTodayHabit({
+          supabase,
+          userId: user.id,
+          habitId: template.linked_habit_id,
+          delta: template.habit_increment_amount,
+        });
+      } catch (habitErr) {
+        console.error('[markRoutineComplete] Failed to cascade update to habit:', habitErr);
+      }
     }
 
     return { success: true, data };
@@ -185,6 +221,18 @@ export async function unmarkRoutineComplete(
 
     const today = new Date().toISOString().split('T')[0];
 
+    // Fetch the template details first to check if there is a linked habit
+    const { data: template, error: templateError } = await supabase
+      .from('routine_templates')
+      .select('linked_habit_id, habit_increment_amount')
+      .eq('id', routineId)
+      .eq('user_id', user.id)
+      .single();
+
+    if (templateError) {
+      console.error('[unmarkRoutineComplete] Error fetching template details:', templateError.message);
+    }
+
     const { error } = await supabase
       .from('routine_logs')
       .delete()
@@ -195,6 +243,21 @@ export async function unmarkRoutineComplete(
     if (error) {
       console.error('[unmarkRoutineComplete] Supabase error:', error.message);
       return { success: false, error: 'Error al desmarcar como completado.' };
+    }
+
+    // Cascade habit progress update (decrease)
+    if (template && template.linked_habit_id) {
+      try {
+        const { updateTodayHabit } = await import('@/services/habitsService');
+        await updateTodayHabit({
+          supabase,
+          userId: user.id,
+          habitId: template.linked_habit_id,
+          delta: -template.habit_increment_amount,
+        });
+      } catch (habitErr) {
+        console.error('[unmarkRoutineComplete] Failed to cascade update to habit:', habitErr);
+      }
     }
 
     return { success: true };

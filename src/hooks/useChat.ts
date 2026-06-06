@@ -12,6 +12,37 @@ import { triggerVibration } from '@/lib/haptics';
 import { supabase } from '@/lib/supabase';
 import { useSpeechRecognition } from './useSpeechRecognition';
 import { useImageSelection } from './useImageSelection';
+
+function extractPartialAccionManana(jsonStr: string): string {
+  const key = '"accion_manana"';
+  const index = jsonStr.indexOf(key);
+  if (index === -1) return '';
+  
+  const colonIndex = jsonStr.indexOf(':', index + key.length);
+  if (colonIndex === -1) return '';
+  
+  const startQuote = jsonStr.indexOf('"', colonIndex + 1);
+  if (startQuote === -1) return '';
+  
+  let result = '';
+  for (let i = startQuote + 1; i < jsonStr.length; i++) {
+    const char = jsonStr[i];
+    if (char === '\\') {
+      if (i + 1 < jsonStr.length) {
+        const nextChar = jsonStr[i + 1];
+        if (nextChar === 'n') result += '\n';
+        else if (nextChar === 't') result += '\t';
+        else result += nextChar;
+        i++;
+      }
+    } else if (char === '"') {
+      break;
+    } else {
+      result += char;
+    }
+  }
+  return result;
+}
 import { computeEvaluationText, computeSubmitLabel } from './useChatHelpers';
 import { createHandleCloseDayModalClose } from './useChatActionsHelpers';
 import { getSessionToken, sendChat, SessionExpiredError, ForbiddenError, PayloadTooLargeError, BadRequestError, RateLimitError } from '@/services/chatService';
@@ -440,28 +471,84 @@ export function useChat(onUpdate?: () => void | Promise<void>, momentum?: number
     try {
       const token = await getSessionToken();
 
-      const { mode: resultMode, payload } = await sendChat({
-        text: trimmed,
-        base64Image: selectedImage?.base64 ?? null,
-        accessToken: token,
-        mode,
-        history: [...history, userMsg],
-        session_id: activeSessionId,
-        local_date: retroactiveDate,
-      });
-
-      if (resultMode === 'close-day') {
+      if (mode === 'close-day') {
+        const { payload } = await sendChat({
+          text: trimmed,
+          base64Image: selectedImage?.base64 ?? null,
+          accessToken: token,
+          mode,
+          history: [...history, userMsg],
+          session_id: activeSessionId,
+          local_date: retroactiveDate,
+        });
         setFeedback(null);
         setCloseDayFeedback(payload as CloseDayFeedback);
       } else {
-        const chatFeed = payload as ChatFeedback;
-        setFeedback(chatFeed);
-        triggerVibration('success');
-        setCloseDayFeedback(null);
+        // Stream analysis request
+        const local_dt = retroactiveDate || new Date().toISOString().slice(0, 10);
+        
+        // Push an empty assistant message to write in real-time
+        setHistory((prev) => [...prev, { role: 'assistant', content: '' }]);
 
-        const assistantText = chatFeed.ai_data?.metricas?.accion_manana;
-        if (assistantText) {
-          setHistory((prev) => [...prev, { role: 'assistant', content: assistantText }]);
+        const response = await fetch('/api/analyze', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            text: trimmed,
+            image: selectedImage?.base64 ?? null,
+            local_date: local_dt,
+            history: [...history, userMsg],
+            session_id: activeSessionId,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('El servicio de análisis no está disponible temporalmente.');
+        }
+
+        const reader = response.body?.getReader();
+        const decoder = new TextDecoder();
+        let accumulated = '';
+        let lastText = '';
+
+        if (reader) {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            accumulated += decoder.decode(value, { stream: true });
+
+            const streamedText = extractPartialAccionManana(accumulated);
+            if (streamedText && streamedText !== lastText) {
+              lastText = streamedText;
+              setHistory((prev) => {
+                const next = [...prev];
+                if (next.length > 0 && next[next.length - 1].role === 'assistant') {
+                  next[next.length - 1] = { role: 'assistant', content: streamedText };
+                }
+                return next;
+              });
+            }
+          }
+        }
+
+        // Parse finished JSON and update metrics
+        try {
+          const parsedLog = JSON.parse(accumulated) as DailyLog;
+          const currentMomentum = momentum ?? 100;
+          const nextMomentum = Math.min(100, Math.max(0, currentMomentum + (parsedLog.metricas?.variacion_inercia ?? 0)));
+
+          setFeedback({
+            previous_health_momentum: currentMomentum,
+            health_momentum: nextMomentum,
+            ai_data: parsedLog,
+          });
+          triggerVibration('success');
+          setCloseDayFeedback(null);
+        } catch (parseErr) {
+          console.error('[useChat] Failed to parse fully accumulated JSON:', parseErr, accumulated);
         }
       }
 

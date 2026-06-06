@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 
 import HomeDashboard from '@/components/HomeDashboard';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
+import GlobalErrorBoundary from '@/components/GlobalErrorBoundary';
 
 type HomePageProps = {
   searchParams: Promise<{
@@ -49,6 +50,10 @@ export default async function Page({ searchParams }: HomePageProps) {
     console.warn('[Page] Supabase server client not available or missing environment variables. Running in safe demo mode.', err);
   }
 
-  return <HomeDashboard />;
+  return (
+    <GlobalErrorBoundary>
+      <HomeDashboard />
+    </GlobalErrorBoundary>
+  );
 }
 

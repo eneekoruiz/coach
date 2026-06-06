@@ -97,9 +97,27 @@ export default function HealthInsightsDashboard({ isOpen, onClose }: HealthInsig
             </div>
 
             {loadingData ? (
-              <div className="flex flex-col items-center justify-center py-20 space-y-4">
-                <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
-                <p className="text-xs font-bold text-slate-400">Analizando el historial de hábitos...</p>
+              <div className="animate-pulse space-y-6">
+                <div className="bg-white border border-slate-200/60 rounded-[2rem] p-5 space-y-4">
+                  <div className="h-4 bg-slate-200 rounded w-1/2" />
+                  <div className="h-64 bg-slate-100 rounded-2xl flex items-end justify-between p-6">
+                    <div className="w-8 h-32 bg-slate-200/70 rounded-t" />
+                    <div className="w-8 h-48 bg-slate-200/70 rounded-t" />
+                    <div className="w-8 h-20 bg-slate-200/70 rounded-t" />
+                    <div className="w-8 h-40 bg-slate-200/70 rounded-t" />
+                    <div className="w-8 h-56 bg-slate-200/70 rounded-t" />
+                    <div className="w-8 h-16 bg-slate-200/70 rounded-t" />
+                    <div className="w-8 h-36 bg-slate-200/70 rounded-t" />
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <div className="h-4 bg-slate-200 rounded w-1/4" />
+                  <div className="bg-white border border-slate-100 rounded-3xl p-6 space-y-3">
+                    <div className="h-3.5 bg-slate-200 rounded w-11/12" />
+                    <div className="h-3.5 bg-slate-200 rounded w-full" />
+                    <div className="h-3.5 bg-slate-200 rounded w-4/5" />
+                  </div>
+                </div>
               </div>
             ) : (
               <div className="space-y-6">

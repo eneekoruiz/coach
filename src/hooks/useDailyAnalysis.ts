@@ -147,6 +147,7 @@ export function useDailyAnalysis({
         fats_g: updatedFats,
         habits_count: existingAiData.habits_count || {},
         propuestas_habitos: existingAiData.propuestas_habitos || [],
+        alimentos_registrados: existingAiData.alimentos_registrados || [],
       };
 
       const { error } = await supabase.from('daily_logs').upsert(

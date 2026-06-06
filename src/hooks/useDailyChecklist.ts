@@ -1,7 +1,7 @@
-'use client';
-
 import React, { useState, useEffect, useTransition } from 'react';
 import toast from '@/lib/toast';
+import { supabase } from '@/lib/supabase';
+import { hapticSuccess, hapticError } from '@/utils/haptics';
 import {
   getRoutineTemplates,
   getTodayRoutineLogs,
@@ -15,10 +15,14 @@ import {
 export function useDailyChecklist() {
   const [templates, setTemplates] = useState<RoutineTemplate[]>([]);
   const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
+  const [userHabits, setUserHabits] = useState<{ id: number; name: string }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newIcon, setNewIcon] = useState('✨');
+  const [timeOfDay, setTimeOfDay] = useState<'morning' | 'afternoon' | 'night'>('morning');
+  const [linkedHabitId, setLinkedHabitId] = useState<number | null>(null);
+  const [habitIncrementAmount, setHabitIncrementAmount] = useState<number>(1);
   const [isPending, startTransition] = useTransition();
   const [mounted, setMounted] = useState(false);
 
@@ -40,6 +44,18 @@ export function useDailyChecklist() {
         ]);
         setTemplates(fetchedTemplates);
         setCompletedIds(new Set(fetchedLogs.map((log) => log.routine_id)));
+
+        // Load active user habits
+        const { data: userData } = await supabase.auth.getUser();
+        if (userData?.user) {
+          const { data: habitsData } = await supabase
+            .from('user_habits')
+            .select('id, name')
+            .eq('user_id', userData.user.id);
+          if (habitsData) {
+            setUserHabits(habitsData);
+          }
+        }
       } catch (error) {
         console.error('Error loading checklist data:', error);
         toast.error('Error al cargar rutinas.');
@@ -50,11 +66,8 @@ export function useDailyChecklist() {
     loadData();
   }, []);
 
-  // Handle checking / unchecking with Optimistic UI and Haptic vibration
   const handleToggle = async (routineId: string) => {
-    if (typeof navigator !== 'undefined' && navigator.vibrate) {
-      navigator.vibrate([15, 30, 15]);
-    }
+    hapticSuccess();
 
     const wasCompleted = completedIds.has(routineId);
 
@@ -78,6 +91,7 @@ export function useDailyChecklist() {
         if (!res.success) throw new Error(res.error);
       }
     } catch (err) {
+      hapticError();
       console.error('Error toggling routine completion:', err);
       toast.error('Error al actualizar rutina.');
       // Revert optimistic UI on error
@@ -102,10 +116,19 @@ export function useDailyChecklist() {
     }
 
     startTransition(async () => {
-      const res = await createRoutineTemplate(newTitle.trim(), newIcon);
+      const res = await createRoutineTemplate(
+        newTitle.trim(),
+        newIcon,
+        timeOfDay,
+        linkedHabitId,
+        habitIncrementAmount
+      );
       if (res.success && res.data) {
         setTemplates((prev) => [...prev, res.data!]);
         setNewTitle('');
+        setLinkedHabitId(null);
+        setHabitIncrementAmount(1);
+        setTimeOfDay('morning');
         toast.success('Rutina añadida con éxito.');
       } else {
         toast.error(res?.error || 'Error al añadir rutina.');
@@ -134,6 +157,7 @@ export function useDailyChecklist() {
   return {
     templates,
     completedIds,
+    userHabits,
     isLoading,
     isEditOpen,
     setIsEditOpen,
@@ -141,6 +165,12 @@ export function useDailyChecklist() {
     setNewTitle,
     newIcon,
     setNewIcon,
+    timeOfDay,
+    setTimeOfDay,
+    linkedHabitId,
+    setLinkedHabitId,
+    habitIncrementAmount,
+    setHabitIncrementAmount,
     isPending,
     mounted,
     iconsList,

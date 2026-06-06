@@ -44,6 +44,7 @@ export default function MoodLogger({ onSaved, existingEntry }: MoodLoggerProps) 
   const haptic = useHaptic();
   const [moodScore, setMoodScore] = useState<number>(existingEntry?.mood_score ?? 0);
   const [selectedFactors, setSelectedFactors] = useState<string[]>(existingEntry?.impact_factors ?? []);
+  const [isDailySummary, setIsDailySummary] = useState<boolean>(false);
   const [isPending, startTransition] = useTransition();
 
   const hasSelectedMood = moodScore > 0;
@@ -67,14 +68,14 @@ export default function MoodLogger({ onSaved, existingEntry }: MoodLoggerProps) 
   const handleSave = useCallback(() => {
     startTransition(async () => {
       try {
-        await saveMoodEntry(moodScore, selectedFactors);
+        await saveMoodEntry(moodScore, selectedFactors, undefined, isDailySummary);
         toast.success('Estado de ánimo guardado');
         onSaved?.();
       } catch {
         toast.error('Error al guardar. Inténtalo de nuevo.');
       }
     });
-  }, [moodScore, selectedFactors, onSaved]);
+  }, [moodScore, selectedFactors, isDailySummary, onSaved]);
 
   /* ── Render ───────────────────────────────────────────────── */
 
@@ -180,7 +181,7 @@ export default function MoodLogger({ onSaved, existingEntry }: MoodLoggerProps) 
         </div>
       </motion.div>
 
-      {/* ─ Phase 2 · Impact Factors ────────────────────────── */}
+      {/* ─ Phase 2 · Impact Factors & Type Selector ────────── */}
       <AnimatePresence>
         {hasSelectedMood && (
           <motion.div
@@ -188,14 +189,14 @@ export default function MoodLogger({ onSaved, existingEntry }: MoodLoggerProps) 
             animate={{ opacity: 1, y: 0, height: 'auto' }}
             exit={{ opacity: 0, y: 20, height: 0 }}
             transition={{ duration: 0.45, ease: [0.4, 0, 0.2, 1] }}
-            className="overflow-hidden"
+            className="overflow-hidden space-y-4"
           >
-            <div className="rounded-[2rem] bg-white/60 backdrop-blur-xl border border-white/80 shadow-lg p-6">
+            <div className="rounded-[2rem] bg-white border border-slate-200 shadow-md p-6">
               <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-4">
                 ¿Qué influyó?
               </p>
 
-              <div className="flex flex-wrap gap-2.5">
+              <div className="flex flex-wrap gap-2.5 mb-6">
                 {IMPACT_FACTORS.map((factor) => {
                   const isSelected = selectedFactors.includes(factor);
                   return (
@@ -231,6 +232,26 @@ export default function MoodLogger({ onSaved, existingEntry }: MoodLoggerProps) 
                     </motion.button>
                   );
                 })}
+              </div>
+
+              <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-3 pt-2 border-t border-slate-100">
+                ¿Tipo de Registro?
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsDailySummary(false)}
+                  className={`py-2.5 px-3 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 min-h-[44px] ${!isDailySummary ? 'bg-slate-900 text-white border-slate-900 shadow-sm' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+                >
+                  ⚡ Registro puntual
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsDailySummary(true)}
+                  className={`py-2.5 px-3 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 min-h-[44px] ${isDailySummary ? 'bg-slate-900 text-white border-slate-900 shadow-sm' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+                >
+                  🌅 Balance del día
+                </button>
               </div>
             </div>
           </motion.div>

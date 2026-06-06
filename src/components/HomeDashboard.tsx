@@ -2,6 +2,7 @@
 
 import { AnimatePresence, motion } from 'framer-motion';
 import { useMemo, useState } from 'react';
+import dynamic from 'next/dynamic';
 import Hero3D from '@/components/Hero3D';
 
 import ChatInput from '@/components/ChatInput';
@@ -9,9 +10,10 @@ import { useDashboard } from '@/hooks/useDashboard';
 import DashboardHeader from '@/components/DashboardHeader';
 import DashboardMain from '@/components/DashboardMain';
 import FloatingChatButton from '@/components/FloatingChatButton';
-import AchievementsModal from '@/components/AchievementsModal';
-import AchievementUnlockedModal from '@/components/AchievementUnlockedModal';
-import WeeklyReportModal from '@/components/WeeklyReportModal';
+
+const AchievementsModal = dynamic(() => import('@/components/AchievementsModal'), { ssr: false });
+const AchievementUnlockedModal = dynamic(() => import('@/components/AchievementUnlockedModal'), { ssr: false });
+const WeeklyReportModal = dynamic(() => import('@/components/WeeklyReportModal'), { ssr: false });
 import type { DailyLog } from '@/lib/schema';
 
 const fallbackLog: DailyLog = {
@@ -99,7 +101,7 @@ export default function HomeDashboard() {
 
   return (
     <div
-      className={`relative flex flex-col flex-1 pb-32 min-h-0 overflow-y-auto custom-scrollbar ${theme.background} ${theme.text}`}
+      className={`relative flex flex-col flex-1 pb-32 md:pb-6 min-h-0 overflow-y-auto md:overflow-hidden custom-scrollbar ${theme.background} ${theme.text}`}
     >
       <div className={`absolute inset-0 bg-gradient-to-br ${theme.accent}`} />
       <div className="absolute inset-0 opacity-25 [background-image:radial-gradient(rgba(255,255,255,0.65)_1px,transparent_1px)] [background-size:22px_22px]" />
@@ -138,13 +140,22 @@ export default function HomeDashboard() {
 
       <AnimatePresence>
         {isChatOpen ? (
-          <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <>
+            {/* Soft backdrop on mobile only to prevent other interactions */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsChatOpen(false)}
+              className="fixed inset-0 z-[140] bg-slate-900/10 backdrop-blur-xs md:hidden"
+            />
+            
             <motion.aside
-              className="w-full max-w-2xl overflow-hidden"
-              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              className="fixed bottom-[calc(env(safe-area-inset-bottom)+5.5rem)] md:bottom-24 right-4 md:right-8 z-[150] w-[calc(100vw-2rem)] sm:w-[440px] max-w-full overflow-hidden"
+              initial={{ scale: 0.9, opacity: 0, y: 50 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.95, opacity: 0, y: 20 }}
-              transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+              exit={{ scale: 0.9, opacity: 0, y: 50 }}
+              transition={{ type: 'spring', stiffness: 320, damping: 24 }}
             >
               <ChatInput
                 momentum={momentum}
@@ -154,7 +165,7 @@ export default function HomeDashboard() {
                 }}
               />
             </motion.aside>
-          </div>
+          </>
         ) : null}
       </AnimatePresence>
       <WeeklyReportModal />
