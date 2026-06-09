@@ -1,18 +1,29 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
+import React, { useMemo, useState, useEffect } from 'react';
 import { getDietTemplates, saveDietTemplate, getRecipes, deleteDietTemplate } from '@/app/nutrition/actions';
 import { type DietTemplate, type Recipe, type MealItem } from '@/lib/schema';
 import toast from '@/lib/toast';
-import { Plus, Trash2, Save, ChevronRight, BookOpen, Utensils, Award } from 'lucide-react';
+import { BookOpen, ChevronDown, ChevronRight, Copy, Plus, Save, Search, Sun, Trash2, Utensils, X } from 'lucide-react';
 import { triggerVibration } from '@/lib/haptics';
+import BottomSheet from '@/components/BottomSheet';
+import RecipeDrawer from '@/components/RecipeDrawer';
 
 export default function DailyTemplateBuilder() {
   const [templates, setTemplates] = useState<DietTemplate[]>([]);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<DietTemplate | null>(null);
+  const [expandedTemplateGroups, setExpandedTemplateGroups] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(false);
+
+  // Bottom Sheet state for recipe picker
+  const [recipePickerOpen, setRecipePickerOpen] = useState(false);
+  const [activeMealId, setActiveMealId] = useState<string | null>(null);
+  const [recipeSearch, setRecipeSearch] = useState('');
+
+  // Recipe Drawer state for deep linking
+  const [recipeDrawerOpen, setRecipeDrawerOpen] = useState(false);
+  const [viewingRecipe, setViewingRecipe] = useState<Recipe | null>(null);
 
   // Load templates and recipes
   const loadAll = async () => {
@@ -22,7 +33,7 @@ export default function DailyTemplateBuilder() {
       setTemplates(fetchedTemplates);
       const fetchedRecipes = await getRecipes();
       setRecipes(fetchedRecipes);
-      
+
       if (fetchedTemplates.length > 0 && !selectedTemplate) {
         setSelectedTemplate(fetchedTemplates[0]);
       }
@@ -41,6 +52,7 @@ export default function DailyTemplateBuilder() {
   const handleCreateNew = () => {
     triggerVibration('light');
     const newTemp: DietTemplate = {
+      parent_template_id: null,
       name: 'Nueva Plantilla Diaria',
       target_kcal: 2000,
       target_protein: 150,
@@ -53,6 +65,37 @@ export default function DailyTemplateBuilder() {
       ]
     };
     setSelectedTemplate(newTemp);
+  };
+
+  const handleCreateVariation = async () => {
+    if (!selectedTemplate?.id) {
+      toast.error('Guarda el Día Base antes de crear una variación.');
+      return;
+    }
+
+    triggerVibration('light');
+    const rootParentId = selectedTemplate.parent_template_id ?? selectedTemplate.id;
+    const now = Date.now();
+    const variation: DietTemplate = {
+      ...selectedTemplate,
+      id: undefined,
+      parent_template_id: rootParentId,
+      name: `${selectedTemplate.name} - Copia`,
+      meals: selectedTemplate.meals.map((meal, index) => ({
+        ...meal,
+        id: `${meal.id}-v${now}-${index}`,
+      })),
+    };
+
+    const res = await saveDietTemplate(variation);
+    if (res.success && res.data) {
+      toast.success('Variación creada. Renómbrala y ajusta solo lo necesario.');
+      setSelectedTemplate(res.data);
+      setExpandedTemplateGroups((current) => ({ ...current, [rootParentId]: true }));
+      await loadAll();
+    } else {
+      toast.error(res.error || 'No se pudo crear la variación');
+    }
   };
 
   const handleDelete = async (id?: string) => {
@@ -72,7 +115,7 @@ export default function DailyTemplateBuilder() {
   const handleSave = async () => {
     if (!selectedTemplate) return;
     triggerVibration('light');
-    
+
     // Auto-recalculate parent targets from sum of meals
     const totalKcal = selectedTemplate.meals.reduce((sum, m) => sum + (m.target_kcal || 0), 0);
     const totalProtein = selectedTemplate.meals.reduce((sum, m) => sum + (m.target_protein || 0), 0);
@@ -133,10 +176,29 @@ export default function DailyTemplateBuilder() {
     setSelectedTemplate({ ...selectedTemplate, meals: updatedMeals });
   };
 
-  // Helper to assign a recipe to a meal slot
-  const assignRecipeToMeal = (recipe: Recipe, mealId: string) => {
+  // ── Interactive Recipe Assignment (Pillar 2) ─────────────────────────────
+
+  const openRecipePicker = (mealId: string) => {
     triggerVibration('light');
+    setActiveMealId(mealId);
+    setRecipeSearch('');
+    setRecipePickerOpen(true);
+  };
+
+  const assignRecipeToMeal = (recipe: Recipe) => {
+    triggerVibration('light');
+    if (!selectedTemplate || !activeMealId) return;
+    applyRecipeToMeal(recipe, activeMealId);
+    setRecipePickerOpen(false);
+    setActiveMealId(null);
+  };
+
+  const applyRecipeToMeal = (recipe: Recipe, mealId: string) => {
     if (!selectedTemplate) return;
+
+    const meal = selectedTemplate.meals.find(m => m.id === mealId);
+    if (!meal) return;
+
     const updatedMeals = selectedTemplate.meals.map((m) => {
       if (m.id === mealId) {
         return {
@@ -151,62 +213,225 @@ export default function DailyTemplateBuilder() {
       }
       return m;
     });
+
     setSelectedTemplate({ ...selectedTemplate, meals: updatedMeals });
-    toast.success(`Receta "${recipe.name}" asignada a la comida.`);
+    toast.success(`"${recipe.name}" → ${meal.name}`);
   };
 
+  const handleRecipeDrop = (event: React.DragEvent, mealId: string) => {
+    event.preventDefault();
+    const payload = event.dataTransfer.getData('application/json');
+    if (!payload) return;
+
+    try {
+      const recipe = JSON.parse(payload) as Recipe;
+      if (recipe?.name) {
+        applyRecipeToMeal(recipe, mealId);
+      }
+    } catch (error) {
+      console.error('Invalid recipe drop payload:', error);
+    }
+  };
+
+  const clearRecipeFromMeal = (mealId: string) => {
+    triggerVibration('light');
+    if (!selectedTemplate) return;
+
+    const updatedMeals = selectedTemplate.meals.map((m) => {
+      if (m.id === mealId) {
+        const { recipe_id, ...rest } = m;
+        return {
+          ...rest,
+          text: '',
+          target_kcal: 0,
+          target_protein: 0,
+          target_carbs: 0,
+          target_fats: 0,
+        };
+      }
+      return m;
+    });
+
+    setSelectedTemplate({ ...selectedTemplate, meals: updatedMeals });
+  };
+
+  const openRecipeDrawer = (recipeId: string) => {
+    const recipe = recipes.find(r => r.id === recipeId);
+    if (recipe) {
+      setViewingRecipe(recipe);
+      setRecipeDrawerOpen(true);
+    }
+  };
+
+  // Filter recipes for the picker
+  const filteredRecipes = recipes.filter((r) =>
+    r.name.toLowerCase().includes(recipeSearch.toLowerCase())
+  );
+
+  const templateGroups = useMemo(() => {
+    const templatesById = new Map(templates.map((template) => [template.id, template]));
+    const roots = templates.filter(
+      (template) => !template.parent_template_id || !templatesById.has(template.parent_template_id)
+    );
+
+    return roots.map((root) => ({
+      root,
+      variations: templates.filter((template) => template.parent_template_id === root.id),
+    }));
+  }, [templates]);
+
+  const selectedParent = selectedTemplate?.parent_template_id
+    ? templates.find((template) => template.id === selectedTemplate.parent_template_id)
+    : null;
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch select-none">
-      
+    <div className="grid grid-cols-1 gap-5 lg:grid-cols-[320px_minmax(0,1fr)] select-none">
+
       {/* Columna Izquierda: Lista de Plantillas Diarias */}
-      <div className="lg:col-span-3 flex flex-col gap-4 bg-white border border-slate-200 p-4 rounded-3xl h-fit">
+      <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm h-fit">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">Plantillas</h3>
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
+              Librería
+            </p>
+            <h3 className="mt-1 flex items-center gap-2 text-sm font-black text-slate-900">
+              <Sun className="h-4 w-4 text-amber-500" />
+              Días Base
+            </h3>
+          </div>
           <button
             type="button"
             onClick={handleCreateNew}
-            className="w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold shadow-sm transition hover:scale-105 active:scale-95"
+            className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-900 text-white shadow-sm transition hover:bg-slate-800 active:scale-95"
+            title="Nuevo Día Base"
           >
-            +
+            <Plus className="h-4 w-4" />
           </button>
         </div>
 
-        <div className="space-y-2 max-h-60 lg:max-h-[500px] overflow-y-auto pr-1 custom-scrollbar">
-          {templates.map((temp) => (
-            <button
-              key={temp.id}
-              onClick={() => setSelectedTemplate(temp)}
-              className={`w-full text-left p-3.5 rounded-2xl border transition flex items-center justify-between ${
-                selectedTemplate?.id === temp.id
-                  ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
-                  : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
-              }`}
-            >
-              <span className="text-xs font-black truncate max-w-[130px]">{temp.name}</span>
-              <span className={`text-[10px] font-bold ${selectedTemplate?.id === temp.id ? 'text-slate-300' : 'text-slate-400'}`}>
-                {temp.target_kcal} kcal
-              </span>
-            </button>
-          ))}
+        <div className="max-h-[620px] space-y-2 overflow-y-auto pr-1 custom-scrollbar">
+          {templateGroups.map(({ root, variations }) => {
+            const rootId = root.id || root.name;
+            const isExpanded = expandedTemplateGroups[rootId] ?? true;
+            const rootSelected = selectedTemplate?.id === root.id;
+
+            return (
+              <div key={rootId} className="space-y-1.5">
+                <div className="grid grid-cols-[28px_minmax(0,1fr)] gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setExpandedTemplateGroups((current) => ({ ...current, [rootId]: !isExpanded }))
+                    }
+                    className="flex h-full min-h-[52px] items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-400 transition hover:bg-white"
+                    title={isExpanded ? 'Contraer variaciones' : 'Expandir variaciones'}
+                  >
+                    {variations.length > 0 ? (
+                      isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />
+                    ) : (
+                      <Sun className="h-3.5 w-3.5" />
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTemplate(root)}
+                    className={`min-w-0 rounded-xl border p-3 text-left transition ${
+                      rootSelected
+                        ? 'border-slate-900 bg-slate-900 text-white shadow-sm'
+                        : 'border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-300 hover:bg-white'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="truncate text-xs font-black">{root.name}</span>
+                      <span className={`shrink-0 rounded-md px-1.5 py-0.5 text-[9px] font-black ${
+                        rootSelected ? 'bg-white text-slate-900' : 'bg-white text-slate-500 border border-slate-200'
+                      }`}>
+                        DÍA
+                      </span>
+                    </div>
+                    <p className={`mt-1 text-[10px] font-bold ${rootSelected ? 'text-slate-300' : 'text-slate-400'}`}>
+                      {root.target_kcal} kcal · {root.meals.length} comidas · {variations.length} variaciones
+                    </p>
+                  </button>
+                </div>
+
+                {isExpanded && variations.length > 0 && (
+                  <div className="ml-8 space-y-1.5 border-l border-slate-200 pl-2">
+                    {variations.map((variation, index) => {
+                      const isSelected = selectedTemplate?.id === variation.id;
+                      return (
+                        <button
+                          key={variation.id}
+                          type="button"
+                          onClick={() => setSelectedTemplate(variation)}
+                          className={`w-full min-w-0 rounded-xl border p-3 text-left transition ${
+                            isSelected
+                              ? 'border-amber-400 bg-amber-50 text-slate-900 shadow-sm'
+                              : 'border-slate-200 bg-white text-slate-700 hover:border-amber-200 hover:bg-amber-50/50'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="truncate text-xs font-black">{variation.name}</span>
+                            <span className="shrink-0 rounded-md border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[9px] font-black text-amber-700">
+                              V{index + 2}
+                            </span>
+                          </div>
+                          <p className="mt-1 text-[10px] font-bold text-slate-400">
+                            Modificado · {variation.target_kcal} kcal
+                          </p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
 
       {/* Editor Central: Esqueleto del Día */}
-      <div className="lg:col-span-5 bg-white border border-slate-200 p-5 rounded-3xl flex flex-col gap-5">
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm flex flex-col gap-5">
         {selectedTemplate ? (
           <>
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <input
-                type="text"
-                value={selectedTemplate.name}
-                onChange={(e) => setSelectedTemplate({ ...selectedTemplate, name: e.target.value })}
-                className="text-lg font-black text-slate-800 outline-none border-b border-transparent focus:border-slate-300 bg-transparent flex-1 mr-4"
-              />
-              <div className="flex gap-2">
+            <div className="flex flex-col gap-3 border-b border-slate-100 pb-3 md:flex-row md:items-start md:justify-between">
+              <div className="min-w-0 flex-1">
+                <div className="mb-1 flex flex-wrap items-center gap-2">
+                  <span className="rounded-md bg-slate-100 px-2 py-1 text-[9px] font-black uppercase tracking-[0.12em] text-slate-500">
+                    Día Base
+                  </span>
+                  {selectedTemplate.parent_template_id && (
+                    <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[9px] font-black uppercase tracking-[0.12em] text-amber-700">
+                      V2 · Modificado
+                    </span>
+                  )}
+                  {selectedParent && (
+                    <span className="truncate rounded-md border border-slate-200 bg-white px-2 py-1 text-[9px] font-bold text-slate-500">
+                      Hereda de {selectedParent.name}
+                    </span>
+                  )}
+                </div>
+                <input
+                  type="text"
+                  value={selectedTemplate.name}
+                  onChange={(e) => setSelectedTemplate({ ...selectedTemplate, name: e.target.value })}
+                  className="w-full bg-transparent text-xl font-black text-slate-900 outline-none border-b border-transparent focus:border-slate-300"
+                />
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={handleCreateVariation}
+                  disabled={!selectedTemplate.id}
+                  className="inline-flex min-h-[40px] items-center justify-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 text-xs font-black text-amber-800 transition hover:bg-amber-100 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Copy className="h-4 w-4" />
+                  Crear Variación
+                </button>
                 <button
                   type="button"
                   onClick={handleSave}
-                  className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-4 py-2.5 rounded-full flex items-center gap-1.5 transition active:scale-95 shadow-sm min-h-[40px]"
+                  className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-1.5 transition active:scale-95 shadow-sm min-h-[40px]"
                 >
                   <Save className="w-3.5 h-3.5" /> Guardar
                 </button>
@@ -214,7 +439,7 @@ export default function DailyTemplateBuilder() {
                   <button
                     type="button"
                     onClick={() => handleDelete(selectedTemplate.id)}
-                    className="p-2.5 border border-red-200 text-red-500 rounded-full hover:bg-red-50 transition min-h-[40px] min-w-[40px] flex items-center justify-center"
+                    className="p-2.5 border border-red-200 text-red-500 rounded-xl hover:bg-red-50 transition min-h-[40px] min-w-[40px] flex items-center justify-center"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -224,78 +449,125 @@ export default function DailyTemplateBuilder() {
 
             {/* List of Meal Slots (Esqueleto del día) */}
             <div className="space-y-4 max-h-[450px] overflow-y-auto pr-1 custom-scrollbar">
-              {selectedTemplate.meals.map((meal) => (
-                <div key={meal.id} className="p-4 border border-slate-200 rounded-2xl bg-slate-50 flex flex-col gap-3">
-                  <div className="flex justify-between items-center">
-                    <input
-                      type="text"
-                      value={meal.name}
-                      onChange={(e) => updateMealField(meal.id, 'name', e.target.value)}
-                      className="font-black text-slate-800 text-xs tracking-wider uppercase bg-transparent outline-none max-w-[120px]"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => removeMealSlot(meal.id)}
-                      className="text-red-400 hover:text-red-600 text-xs font-bold"
-                    >
-                      Remover
-                    </button>
-                  </div>
+              {selectedTemplate.meals.map((meal) => {
+                const assignedRecipe = meal.recipe_id
+                  ? recipes.find(r => r.id === meal.recipe_id)
+                  : null;
 
-                  <input
-                    type="text"
-                    placeholder="Descripción de comida o receta asignada..."
-                    value={meal.text}
-                    onChange={(e) => updateMealField(meal.id, 'text', e.target.value)}
-                    className="w-full bg-white px-3 py-2 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 outline-none focus:ring-1 focus:ring-slate-400 min-h-[38px]"
-                  />
+                return (
+                  <div
+                    key={meal.id}
+                    onDragOver={(event) => event.preventDefault()}
+                    onDrop={(event) => handleRecipeDrop(event, meal.id)}
+                    className="p-4 border border-slate-200 rounded-xl bg-slate-50 flex flex-col gap-3 transition hover:border-emerald-200"
+                  >
+                    {/* Meal Header with [+ Añadir] button */}
+                    <div className="flex justify-between items-center">
+                      <input
+                        type="text"
+                        value={meal.name}
+                        onChange={(e) => updateMealField(meal.id, 'name', e.target.value)}
+                        className="font-black text-slate-800 text-xs tracking-wider uppercase bg-transparent outline-none max-w-[120px]"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeMealSlot(meal.id)}
+                        className="text-red-400 hover:text-red-600 text-xs font-bold"
+                      >
+                        Remover
+                      </button>
+                    </div>
 
-                  {/* Target Macros inputs */}
-                  <div className="grid grid-cols-4 gap-2">
-                    <div>
-                      <label className="text-[8px] font-black uppercase text-slate-400">kcal</label>
-                      <input
-                        type="number"
-                        value={meal.target_kcal}
-                        onChange={(e) => updateMealField(meal.id, 'target_kcal', Number(e.target.value))}
-                        className="w-full bg-white border border-slate-200 rounded-lg p-1.5 text-xs text-center font-bold text-slate-700"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[8px] font-black uppercase text-slate-400">P (g)</label>
-                      <input
-                        type="number"
-                        value={meal.target_protein}
-                        onChange={(e) => updateMealField(meal.id, 'target_protein', Number(e.target.value))}
-                        className="w-full bg-white border border-slate-200 rounded-lg p-1.5 text-xs text-center font-bold text-slate-700"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[8px] font-black uppercase text-slate-400">C (g)</label>
-                      <input
-                        type="number"
-                        value={meal.target_carbs}
-                        onChange={(e) => updateMealField(meal.id, 'target_carbs', Number(e.target.value))}
-                        className="w-full bg-white border border-slate-200 rounded-lg p-1.5 text-xs text-center font-bold text-slate-700"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[8px] font-black uppercase text-slate-400">G (g)</label>
-                      <input
-                        type="number"
-                        value={meal.target_fats}
-                        onChange={(e) => updateMealField(meal.id, 'target_fats', Number(e.target.value))}
-                        className="w-full bg-white border border-slate-200 rounded-lg p-1.5 text-xs text-center font-bold text-slate-700"
-                      />
+                    {/* Interactive Recipe Assignment Area */}
+                    {assignedRecipe ? (
+                      <div className="flex items-center gap-3">
+                        {/* Clickable recipe chip */}
+                        <button
+                          type="button"
+                          onClick={() => openRecipeDrawer(assignedRecipe.id!)}
+                          className="flex-1 text-left bg-white border border-emerald-200 hover:border-emerald-300 px-4 py-3 rounded-2xl transition group"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-xs font-black text-slate-800 flex items-center gap-2">
+                                <BookOpen className="w-3.5 h-3.5 text-emerald-500" />
+                                {assignedRecipe.name}
+                              </p>
+                              <p className="text-[10px] text-slate-400 font-bold mt-0.5">
+                                🔥 {Math.round(assignedRecipe.total_kcal)} kcal • P:{Math.round(assignedRecipe.total_protein)}g • C:{Math.round(assignedRecipe.total_carbs)}g • G:{Math.round(assignedRecipe.total_fats)}g
+                              </p>
+                            </div>
+                            <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-100 group-hover:bg-emerald-100 transition">
+                              Ver Receta →
+                            </span>
+                          </div>
+                        </button>
+                        {/* Clear button */}
+                        <button
+                          type="button"
+                          onClick={() => clearRecipeFromMeal(meal.id)}
+                          className="p-2 text-slate-300 hover:text-red-500 transition"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => openRecipePicker(meal.id)}
+                        className="w-full py-3 border-2 border-dashed border-slate-200 hover:border-emerald-300 text-slate-400 hover:text-emerald-600 rounded-2xl flex items-center justify-center gap-2 font-bold text-xs transition-all active:scale-[0.99] bg-white/50"
+                      >
+                        <Plus size={16} /> Añadir receta a {meal.name}
+                      </button>
+                    )}
+
+                    {/* Target Macros inputs */}
+                    <div className="grid grid-cols-4 gap-2">
+                      <div>
+                        <label className="text-[8px] font-black uppercase text-slate-400">kcal</label>
+                        <input
+                          type="number"
+                          value={meal.target_kcal}
+                          onChange={(e) => updateMealField(meal.id, 'target_kcal', Number(e.target.value))}
+                          className="w-full bg-white border border-slate-200 rounded-lg p-1.5 text-xs text-center font-bold text-slate-700"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[8px] font-black uppercase text-slate-400">P (g)</label>
+                        <input
+                          type="number"
+                          value={meal.target_protein}
+                          onChange={(e) => updateMealField(meal.id, 'target_protein', Number(e.target.value))}
+                          className="w-full bg-white border border-slate-200 rounded-lg p-1.5 text-xs text-center font-bold text-slate-700"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[8px] font-black uppercase text-slate-400">C (g)</label>
+                        <input
+                          type="number"
+                          value={meal.target_carbs}
+                          onChange={(e) => updateMealField(meal.id, 'target_carbs', Number(e.target.value))}
+                          className="w-full bg-white border border-slate-200 rounded-lg p-1.5 text-xs text-center font-bold text-slate-700"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[8px] font-black uppercase text-slate-400">G (g)</label>
+                        <input
+                          type="number"
+                          value={meal.target_fats}
+                          onChange={(e) => updateMealField(meal.id, 'target_fats', Number(e.target.value))}
+                          className="w-full bg-white border border-slate-200 rounded-lg p-1.5 text-xs text-center font-bold text-slate-700"
+                        />
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
 
               <button
                 type="button"
                 onClick={addMealSlot}
-                className="w-full py-4 border border-dashed border-slate-300 hover:border-slate-400 text-slate-400 hover:text-slate-600 rounded-2xl flex items-center justify-center font-bold text-xs gap-1 transition-all active:scale-[0.99]"
+                className="w-full py-4 border border-dashed border-slate-300 hover:border-slate-400 text-slate-400 hover:text-slate-600 rounded-xl flex items-center justify-center font-bold text-xs gap-1 transition-all active:scale-[0.99]"
               >
                 <Plus size={16} /> Agregar comida
               </button>
@@ -309,53 +581,84 @@ export default function DailyTemplateBuilder() {
         )}
       </div>
 
-      {/* Columna Derecha: Recetario (Asignador rápido) */}
-      <div className="lg:col-span-4 bg-white border border-slate-200 p-5 rounded-3xl flex flex-col gap-4">
-        <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-100 pb-3">
-          <BookOpen className="w-4 h-4 text-emerald-500" /> Recetas Disponibles
-        </h3>
+      {/* ═══════════════════════════════════════════════════════════ */}
+      {/* Bottom Sheet: Recipe Picker (Pillar 2)                     */}
+      {/* ═══════════════════════════════════════════════════════════ */}
+      <BottomSheet
+        isOpen={recipePickerOpen}
+        onClose={() => { setRecipePickerOpen(false); setActiveMealId(null); }}
+        title="Seleccionar Receta"
+      >
+        {/* Search Bar */}
+        <div className="relative mb-4">
+          <input
+            type="text"
+            placeholder="Buscar receta por nombre..."
+            value={recipeSearch}
+            onChange={(e) => setRecipeSearch(e.target.value)}
+            className="w-full pl-10 pr-4 py-3 text-xs bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-emerald-500 outline-none font-bold text-slate-700"
+            autoFocus
+          />
+          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+        </div>
 
-        <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1 custom-scrollbar">
-          {recipes.length === 0 ? (
-            <p className="text-xs font-bold text-slate-400 text-center py-10">
-              No tienes recetas creadas todavía.
-            </p>
+        {/* Recipe List */}
+        <div className="space-y-3">
+          {filteredRecipes.length === 0 ? (
+            <div className="text-center py-12">
+              <BookOpen className="w-10 h-10 text-slate-200 mx-auto mb-3" />
+              <p className="text-xs font-bold text-slate-400">
+                {recipes.length === 0
+                  ? 'No tienes recetas creadas. Ve al Recetario para crear una.'
+                  : 'No se encontraron recetas con ese nombre.'}
+              </p>
+            </div>
           ) : (
-            recipes.map((recipe) => (
-              <div
+            filteredRecipes.map((recipe) => (
+              <button
                 key={recipe.id}
-                className="p-3.5 border border-slate-150 rounded-2xl bg-slate-50 hover:bg-slate-100/60 transition flex flex-col gap-2.5"
+                type="button"
+                onClick={() => assignRecipeToMeal(recipe)}
+                draggable
+                onDragStart={(event) => {
+                  event.dataTransfer.setData('application/json', JSON.stringify(recipe));
+                  event.dataTransfer.effectAllowed = 'copy';
+                }}
+                className="w-full text-left p-4 border border-slate-150 rounded-2xl bg-white hover:bg-emerald-50 hover:border-emerald-200 transition flex flex-col gap-2 group"
               >
-                <div>
-                  <h4 className="text-xs font-black text-slate-800">{recipe.name}</h4>
-                  <div className="flex gap-2 mt-1 text-[9px] font-bold text-slate-400">
-                    <span>🔥 {Math.round(recipe.total_kcal)} kcal</span>
-                    <span>P: {Math.round(recipe.total_protein)}g</span>
-                    <span>C: {Math.round(recipe.total_carbs)}g</span>
-                    <span>G: {Math.round(recipe.total_fats)}g</span>
-                  </div>
+                <div className="flex justify-between items-start">
+                  <h4 className="text-xs font-black text-slate-800 group-hover:text-emerald-700 transition">
+                    {recipe.name}
+                  </h4>
+                  <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100 group-hover:bg-emerald-100 transition">
+                    Asignar →
+                  </span>
                 </div>
-
-                {selectedTemplate && selectedTemplate.meals.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 border-t border-slate-200/50 pt-2">
-                    <span className="text-[8px] font-extrabold uppercase text-slate-450 self-center mr-1">Asignar:</span>
-                    {selectedTemplate.meals.map((m) => (
-                      <button
-                        key={m.id}
-                        type="button"
-                        onClick={() => assignRecipeToMeal(recipe, m.id)}
-                        className="bg-white hover:bg-slate-100 text-slate-650 hover:text-slate-850 px-2 py-1 border border-slate-200 rounded-lg text-[9px] font-black tracking-tight transition"
-                      >
-                        {m.name}
-                      </button>
-                    ))}
-                  </div>
+                <div className="flex gap-2 text-[9px] font-bold text-slate-400">
+                  <span>🔥 {Math.round(recipe.total_kcal)} kcal</span>
+                  <span>P: {Math.round(recipe.total_protein)}g</span>
+                  <span>C: {Math.round(recipe.total_carbs)}g</span>
+                  <span>G: {Math.round(recipe.total_fats)}g</span>
+                </div>
+                {recipe.instructions && recipe.instructions.trim().length > 0 && (
+                  <p className="text-[10px] text-slate-400 font-semibold line-clamp-2">
+                    {recipe.instructions.substring(0, 100)}...
+                  </p>
                 )}
-              </div>
+              </button>
             ))
           )}
         </div>
-      </div>
+      </BottomSheet>
+
+      {/* ═══════════════════════════════════════════════════════════ */}
+      {/* Recipe Drawer: Deep Linking (Pillar 2)                      */}
+      {/* ═══════════════════════════════════════════════════════════ */}
+      <RecipeDrawer
+        isOpen={recipeDrawerOpen}
+        onClose={() => { setRecipeDrawerOpen(false); setViewingRecipe(null); }}
+        recipe={viewingRecipe}
+      />
 
     </div>
   );

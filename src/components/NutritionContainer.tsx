@@ -2,16 +2,27 @@
 
 import React from 'react';
 import Link from 'next/link';
-import DietEmptyState from './DietEmptyState';
 import DietCalendarView from './DietCalendarView';
 import RecipeLibrary from './RecipeLibrary';
 import DailyTemplateBuilder from './DailyTemplateBuilder';
-import ProgramBuilder from './ProgramBuilder';
-import TodayAnalysis from './TodayAnalysis';
-import { useNutritionPlan } from '@/hooks/useNutritionPlan';
-import { BookOpen, Calendar, PieChart, Utensils, RotateCw } from 'lucide-react';
+import WeeklyPlanBuilder from './WeeklyPlanBuilder';
+import { useNutritionPlan, type NutritionTab } from '@/hooks/useNutritionPlan';
+import { BookOpen, Calendar, ClipboardList, Sun } from 'lucide-react';
 
-export default function NutritionContainer() {
+const nutritionTabs: Array<{
+  id: NutritionTab;
+  step: string;
+  label: string;
+  caption: string;
+  icon: React.ComponentType<{ className?: string }>;
+}> = [
+  { id: 'recipes', step: '1', label: 'Recetario', caption: 'Platos', icon: BookOpen },
+  { id: 'days', step: '2', label: 'Días Base', caption: 'Plantillas', icon: Sun },
+  { id: 'programs', step: '3', label: 'Planes Semanales', caption: '7 días', icon: ClipboardList },
+  { id: 'calendar', step: '4', label: 'Calendario (Paciente)', caption: 'Mes', icon: Calendar },
+];
+
+export default function NutritionContainer({ initialTab }: { initialTab?: NutritionTab }) {
   const {
     activeTab,
     setActiveTab,
@@ -23,13 +34,8 @@ export default function NutritionContainer() {
     overrides,
     activeProgram,
     activeProgramDays,
-    realLog,
-    dailyWaterTarget,
-    isGeneratingAi,
-    todayTemplate,
     loadData,
-    handleAiGenerate,
-  } = useNutritionPlan();
+  } = useNutritionPlan(initialTab);
 
   if (loading) {
     return (
@@ -59,149 +65,79 @@ export default function NutritionContainer() {
     );
   }
 
-  const hasAnyData = templates.length > 0;
-
   return (
-    <div className="space-y-6">
-      {/* Cabecera general */}
-      <div className="rounded-[1.75rem] border border-slate-200/80 bg-white p-6 shadow-sm">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+    <div className="space-y-5">
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div>
-            <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-500">
-              Nutrición de Precisión
+            <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">
+              Nutrition Hub Pro
             </div>
-            <h2 className="mt-1 text-2xl font-black tracking-tight text-slate-800 sm:text-3xl">
-              Gestor Nutricional Clínico
+            <h2 className="mt-1 text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">
+              Arquitectura Matryoshka Nutricional
             </h2>
+            <p className="mt-1 text-xs font-semibold text-slate-500">
+              Construye de menor a mayor complejidad: receta, día base, semana y mes del paciente.
+            </p>
           </div>
           <Link
             href="/"
-            className="inline-flex h-11 items-center justify-center rounded-full border border-slate-200 bg-white px-5 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 active:scale-95"
+            className="inline-flex h-10 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-xs font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 active:scale-95"
           >
             Volver al Inicio
           </Link>
         </div>
 
-        {hasAnyData && (
-          <div className="mt-6 flex border-b border-slate-100 overflow-x-auto whitespace-nowrap scrollbar-none gap-6">
-            
-            {/* Recetario Tab */}
-            <button
-              type="button"
-              onClick={() => setActiveTab('recipes')}
-              className={`pb-3 text-xs sm:text-sm font-black transition-all relative px-2 flex items-center gap-1.5 ${
-                activeTab === 'recipes' ? 'text-slate-850' : 'text-slate-400 hover:text-slate-650'
-              }`}
-            >
-              <BookOpen className="w-4 h-4" />
-              Recetario
-              {activeTab === 'recipes' && (
-                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-slate-850 rounded-full" />
-              )}
-            </button>
-
-            {/* Mis Días Tab */}
-            <button
-              type="button"
-              onClick={() => setActiveTab('days')}
-              className={`pb-3 text-xs sm:text-sm font-black transition-all relative px-2 flex items-center gap-1.5 ${
-                activeTab === 'days' ? 'text-slate-850' : 'text-slate-400 hover:text-slate-650'
-              }`}
-            >
-              <Utensils className="w-4 h-4" />
-              Mis Días
-              {activeTab === 'days' && (
-                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-slate-850 rounded-full" />
-              )}
-            </button>
-
-            {/* Programas Tab */}
-            <button
-              type="button"
-              onClick={() => setActiveTab('programs')}
-              className={`pb-3 text-xs sm:text-sm font-black transition-all relative px-2 flex items-center gap-1.5 ${
-                activeTab === 'programs' ? 'text-slate-850' : 'text-slate-400 hover:text-slate-650'
-              }`}
-            >
-              <RotateCw className="w-4 h-4" />
-              Programas
-              {activeTab === 'programs' && (
-                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-slate-850 rounded-full" />
-              )}
-            </button>
-
-            {/* Calendario Tab */}
-            <button
-              type="button"
-              onClick={() => setActiveTab('calendar')}
-              className={`pb-3 text-xs sm:text-sm font-black transition-all relative px-2 flex items-center gap-1.5 ${
-                activeTab === 'calendar' ? 'text-slate-850' : 'text-slate-400 hover:text-slate-650'
-              }`}
-            >
-              <Calendar className="w-4 h-4" />
-              Calendario
-              {activeTab === 'calendar' && (
-                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-slate-850 rounded-full" />
-              )}
-            </button>
-
-            {/* Análisis de Hoy Tab */}
-            <button
-              type="button"
-              onClick={() => setActiveTab('analysis')}
-              className={`pb-3 text-xs sm:text-sm font-black transition-all relative px-2 flex items-center gap-1.5 ${
-                activeTab === 'analysis' ? 'text-slate-850' : 'text-slate-400 hover:text-slate-650'
-              }`}
-            >
-              <PieChart className="w-4 h-4" />
-              Análisis de Hoy
-              {activeTab === 'analysis' && (
-                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-slate-850 rounded-full" />
-              )}
-            </button>
-
+        <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
+          {nutritionTabs.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex min-h-[68px] items-center gap-3 rounded-xl border px-3 py-3 text-left transition ${
+                  isActive
+                    ? 'border-slate-900 bg-slate-900 text-white shadow-sm'
+                    : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300 hover:bg-white'
+                }`}
+              >
+                <span
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[11px] font-black ${
+                    isActive ? 'bg-white text-slate-900' : 'bg-white text-slate-500 border border-slate-200'
+                  }`}
+                >
+                  {tab.step}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-center gap-1.5 text-sm font-black">
+                    <Icon className="h-4 w-4" />
+                    <span className="truncate">{tab.label}</span>
+                  </span>
+                  <span className={`mt-0.5 block text-[10px] font-bold uppercase tracking-[0.14em] ${isActive ? 'text-slate-300' : 'text-slate-400'}`}>
+                    {tab.caption}
+                  </span>
+                </span>
+              </button>
+            );
+          })}
           </div>
-        )}
       </div>
 
-      {/* Renders Principales */}
-      {!hasAnyData ? (
-        <DietEmptyState
-          onManualCreate={() => {}}
-          onAiGenerate={handleAiGenerate}
-          isLoadingAi={isGeneratingAi}
+      {activeTab === 'recipes' && <RecipeLibrary />}
+      {activeTab === 'days' && <DailyTemplateBuilder />}
+      {activeTab === 'programs' && <WeeklyPlanBuilder />}
+      {activeTab === 'calendar' && (
+        <DietCalendarView
+          templates={templates}
+          calendar={calendar}
+          recipes={recipes}
+          overrides={overrides}
+          activeProgram={activeProgram}
+          activeProgramDays={activeProgramDays}
+          onUpdate={loadData}
         />
-      ) : (
-        <div>
-          {activeTab === 'recipes' && (
-            <RecipeLibrary />
-          )}
-          {activeTab === 'days' && (
-            <DailyTemplateBuilder />
-          )}
-          {activeTab === 'programs' && (
-            <ProgramBuilder />
-          )}
-          {activeTab === 'calendar' && (
-            <DietCalendarView
-              templates={templates}
-              calendar={calendar}
-              recipes={recipes}
-              overrides={overrides}
-              activeProgram={activeProgram}
-              activeProgramDays={activeProgramDays}
-              onUpdate={loadData}
-            />
-          )}
-          {activeTab === 'analysis' && (
-            <TodayAnalysis
-              realLog={realLog}
-              dietPlan={todayTemplate}
-              dailyWaterTarget={dailyWaterTarget}
-              onUpdate={loadData}
-            />
-          )}
-        </div>
       )}
     </div>
   );

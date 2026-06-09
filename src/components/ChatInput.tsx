@@ -101,7 +101,7 @@ export default function ChatInput({ onUpdate, momentum, onClose }: ChatInputProp
     <>
       <CloseDayModal closeDayFeedback={closeDayFeedback} onClose={handleCloseDayModalClose} />
 
-      <div className="flex h-[550px] w-full flex-col overflow-hidden rounded-[1.25rem] border border-white/70 bg-white/82 shadow-[0_18px_70px_rgba(15,23,42,0.2)] backdrop-blur-2xl sm:rounded-[1.75rem]">
+      <div className="flex h-full w-full flex-col overflow-hidden rounded-[2rem] border border-slate-200/60 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.06)]">
         
         {/* ── Header bar ── */}
         <div className="border-b border-slate-200/80 px-3 py-2.5 sm:px-4 flex items-center justify-between shrink-0 gap-2">

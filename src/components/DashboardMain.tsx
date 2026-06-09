@@ -3,6 +3,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { motion, AnimatePresence, type HTMLMotionProps } from 'framer-motion';
 import dynamic from 'next/dynamic';
+import Link from 'next/link';
 import XRayOverlay from './XRayOverlay';
 import CircularProgressRing from './CircularProgressRing';
 import { type DailyLog } from '@/lib/schema';
@@ -198,6 +199,10 @@ export default function DashboardMain({
 
   const [isInsightsOpen, setIsInsightsOpen] = useState(false);
 
+  // Keep for future use but suppress unused warning
+  void isInsightsOpen;
+  void setIsInsightsOpen;
+
   return (
     <section className="relative flex flex-1 flex-col px-4 pb-4 md:pb-6">
       <div className="relative z-10 w-full max-w-2xl mx-auto flex flex-col gap-4 pt-1">
@@ -205,7 +210,7 @@ export default function DashboardMain({
         <PushNotificationManager />
 
         {/* ══ HERO: Avatar Section ══════════════════════════════════════════ */}
-        <div className="flex flex-col items-center text-center pt-1">
+        <div className="bg-slate-50 border border-slate-200 rounded-3xl shadow-sm p-6 flex flex-col items-center text-center">
 
           {/* Status dot */}
           <div className="flex items-center gap-2 mb-2">
@@ -220,7 +225,7 @@ export default function DashboardMain({
             layoutId="avatar-card"
             onClick={() => { triggerVibration('light'); setExpandedCard('avatar'); }}
             whileTap={{ scale: 0.97 }}
-            className={`relative w-36 h-36 sm:w-44 sm:h-44 rounded-[2rem] overflow-hidden bg-white/80 backdrop-blur-xl cursor-pointer ${avatar.aura} transition-shadow duration-700`}
+            className={`relative w-36 h-36 sm:w-44 sm:h-44 rounded-[2rem] overflow-hidden bg-white border border-slate-100 cursor-pointer ${avatar.aura} transition-shadow duration-700 shadow-sm`}
           >
             <img
               src={avatar.url}
@@ -260,75 +265,69 @@ export default function DashboardMain({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             
             {/* Bento Card 1: Inercia & Mini Stats */}
-            <BentoCard
-              onClick={() => { triggerVibration('light'); setExpandedCard('avatar'); }}
-              className="col-span-1 sm:col-span-2 bg-white border border-slate-200/80 shadow-xs"
-            >
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Estado Vital</span>
-                  <h3 className="text-xl font-black text-slate-900 mt-0.5">Inercia & Métricas</h3>
+            <Link href="/history" className="col-span-1 sm:col-span-2">
+              <BentoCard
+                className="col-span-1 sm:col-span-2 bg-white border border-slate-200/80 shadow-xs"
+              >
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Estado Vital</span>
+                    <h3 className="text-xl font-black text-slate-900 mt-0.5">Inercia & Métricas</h3>
+                  </div>
+                  <span className="bg-slate-100 text-slate-800 text-xs px-2.5 py-1 rounded-lg font-bold flex items-center gap-1">
+                    Ver Historial →
+                  </span>
                 </div>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    triggerVibration('light');
-                    setIsInsightsOpen(true);
-                  }}
-                  className="bg-slate-100 text-slate-800 text-xs px-2.5 py-1 rounded-lg font-bold hover:bg-slate-200 transition-colors"
-                >
-                  Ver Análisis Profundo
-                </button>
-              </div>
-              
-              <div className="grid grid-cols-3 gap-3 mb-4">
-                <div className="flex flex-col items-center py-3 rounded-2xl bg-slate-50 border border-slate-150">
-                  <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest">Energía</span>
-                  <span className="text-xl font-black text-slate-808 mt-1">{energyLevel}<span className="text-xs text-slate-400 font-bold">/5</span></span>
-                </div>
-                <div className="flex flex-col items-center py-3 rounded-2xl bg-slate-50 border border-slate-150">
-                  <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest">Inercia</span>
-                  <span className="text-xl font-black text-slate-808 mt-1">{normalizedMomentum}<span className="text-xs text-slate-400 font-bold">%</span></span>
-                </div>
-                <div className="flex flex-col items-center py-3 rounded-2xl bg-slate-50 border border-slate-150">
-                  <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest">Claridad</span>
-                  <span className="text-xl font-black text-slate-808 mt-1">{mentalClarity}<span className="text-xs text-slate-400 font-bold">/5</span></span>
-                </div>
-              </div>
 
-              <div className="bg-sky-50 rounded-2xl border border-sky-100 p-4">
-                <span className="bg-sky-100 text-sky-700 text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md inline-block mb-1.5 font-bold">Coach Inteligente</span>
-                <p className="text-xs text-slate-700 font-semibold leading-relaxed line-clamp-2">{insightText}</p>
-              </div>
-            </BentoCard>
+                <div className="grid grid-cols-3 gap-3 mb-4">
+                  <div className="flex flex-col items-center py-3 rounded-2xl bg-slate-50 border border-slate-150">
+                    <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest">Energía</span>
+                    <span className="text-xl font-black text-slate-800 mt-1">{energyLevel}<span className="text-xs text-slate-400 font-bold">/5</span></span>
+                  </div>
+                  <div className="flex flex-col items-center py-3 rounded-2xl bg-slate-50 border border-slate-150">
+                    <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest">Inercia</span>
+                    <span className="text-xl font-black text-slate-800 mt-1">{normalizedMomentum}<span className="text-xs text-slate-400 font-bold">%</span></span>
+                  </div>
+                  <div className="flex flex-col items-center py-3 rounded-2xl bg-slate-50 border border-slate-150">
+                    <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest">Claridad</span>
+                    <span className="text-xl font-black text-slate-800 mt-1">{mentalClarity}<span className="text-xs text-slate-400 font-bold">/5</span></span>
+                  </div>
+                </div>
+
+                <div className="bg-sky-50 rounded-2xl border border-sky-100 p-4">
+                  <span className="bg-sky-100 text-sky-700 text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md inline-block mb-1.5 font-bold">Coach Inteligente</span>
+                  <p className="text-xs text-slate-700 font-semibold leading-relaxed line-clamp-2">{insightText}</p>
+                </div>
+              </BentoCard>
+            </Link>
 
             {/* Bento Card 2: Nutrición */}
-            <BentoCard
-              onClick={() => { triggerVibration('light'); setExpandedCard('nutrition'); }}
-              className="bg-white border border-slate-200/80 shadow-xs"
-            >
-              <div className="flex justify-between items-start mb-3">
-                <div>
-                  <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Alimentación</span>
-                  <h3 className="text-lg font-black text-slate-900 mt-0.5">Nutrición</h3>
+            <Link href="/nutrition" onClick={() => triggerVibration('light')}>
+              <BentoCard
+                className="bg-white border border-slate-200/80 shadow-xs"
+              >
+                <div className="flex justify-between items-start mb-3">
+                  <div>
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Alimentación</span>
+                    <h3 className="text-lg font-black text-slate-900 mt-0.5">Nutrición</h3>
+                  </div>
+                  <span className="text-xl">🍎</span>
                 </div>
-                <span className="text-xl">🍎</span>
-              </div>
-              <div className="mt-2">
-                <p className="text-3xl font-black text-rose-500 tracking-tighter">
-                  {displayLog.total_kcal} <span className="text-sm font-bold text-slate-400">kcal</span>
-                </p>
-                <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-wider">
-                  Objetivo: {dietTargets?.kcal ?? 2000} kcal
-                </p>
-              </div>
-              <div className="flex gap-1.5 mt-4 text-[9px] text-slate-550 font-bold">
-                <span className="bg-rose-50 text-rose-600 px-1.5 py-0.5 rounded">P: {displayLog.protein_g}g</span>
-                <span className="bg-sky-50 text-sky-600 px-1.5 py-0.5 rounded">C: {displayLog.carbs_g}g</span>
-                <span className="bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded">G: {displayLog.fats_g}g</span>
-              </div>
-            </BentoCard>
+                <div className="mt-2">
+                  <p className="text-3xl font-black text-rose-500 tracking-tighter">
+                    {displayLog.total_kcal} <span className="text-sm font-bold text-slate-400">kcal</span>
+                  </p>
+                  <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-wider">
+                    Objetivo: {dietTargets?.kcal ?? 2000} kcal
+                  </p>
+                </div>
+                <div className="flex gap-1.5 mt-4 text-[9px] text-slate-500 font-bold">
+                  <span className="bg-rose-50 text-rose-600 px-1.5 py-0.5 rounded">P: {displayLog.protein_g}g</span>
+                  <span className="bg-sky-50 text-sky-600 px-1.5 py-0.5 rounded">C: {displayLog.carbs_g}g</span>
+                  <span className="bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded">G: {displayLog.fats_g}g</span>
+                </div>
+              </BentoCard>
+            </Link>
 
             {/* Bento Card 3: Hidratación */}
             <BentoCard
@@ -358,30 +357,31 @@ export default function DashboardMain({
               </div>
             </BentoCard>
 
-            {/* Bento Card 4: Hábitos & Racha */}
-            <BentoCard
-              onClick={() => { triggerVibration('light'); setExpandedCard('habits'); }}
-              className="bg-white border border-slate-200/80 shadow-xs"
-            >
-              <div className="flex justify-between items-start mb-3">
-                <div>
-                  <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Hábitos</span>
-                  <h3 className="text-lg font-black text-slate-900 mt-0.5">Rutinas</h3>
+            {/* Bento Card 4: Rutinas Diarias */}
+            <Link href="/routines" onClick={() => triggerVibration('light')}>
+              <BentoCard
+                className="bg-white border border-slate-200/80 shadow-xs"
+              >
+                <div className="flex justify-between items-start mb-3">
+                  <div>
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Rutinas</span>
+                    <h3 className="text-lg font-black text-slate-900 mt-0.5">Rutinas Diarias</h3>
+                  </div>
+                  <span className="text-xl">🔥</span>
                 </div>
-                <span className="text-xl">🔥</span>
-              </div>
-              <div className="mt-2">
-                <p className="text-3xl font-black text-orange-500 tracking-tighter">
-                  {streak} <span className="text-sm font-bold text-slate-400">días</span>
+                <div className="mt-2">
+                  <p className="text-3xl font-black text-orange-500 tracking-tighter">
+                    {completedHabitsCount} <span className="text-sm font-bold text-slate-400">/ hoy</span>
+                  </p>
+                  <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-wider">
+                    Racha activa: {streak} días
+                  </p>
+                </div>
+                <p className="text-xs text-slate-500 mt-4 font-semibold">
+                  Toca para ver todas las rutinas →
                 </p>
-                <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-wider">
-                  Racha activa de hábitos
-                </p>
-              </div>
-              <p className="text-xs text-slate-550 mt-4 font-semibold">
-                {completedHabitsCount} hábitos registrados hoy
-              </p>
-            </BentoCard>
+              </BentoCard>
+            </Link>
 
             {/* Bento Card 5: Ánimo */}
             <BentoCard

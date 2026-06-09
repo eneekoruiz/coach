@@ -14,8 +14,10 @@ import {
 } from '@/app/nutrition/actions';
 import toast from '@/lib/toast';
 
-export function useNutritionPlan() {
-  const [activeTab, setActiveTab] = useState<'recipes' | 'days' | 'programs' | 'calendar' | 'analysis'>('calendar');
+export type NutritionTab = 'recipes' | 'days' | 'programs' | 'calendar';
+
+export function useNutritionPlan(initialTab?: NutritionTab) {
+  const [activeTab, setActiveTab] = useState<NutritionTab>(initialTab || 'recipes');
   const [loading, setLoading] = useState(true);
   const [authRequired, setAuthRequired] = useState(false);
   const [templates, setTemplates] = useState<DietTemplate[]>([]);
@@ -70,6 +72,13 @@ export function useNutritionPlan() {
       isMounted.current = false;
     };
   }, []);
+
+  // Update active tab when initialTab changes (deep linking)
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
 
   const loadData = useCallback(async () => {
     try {

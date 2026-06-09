@@ -13,6 +13,7 @@ export const mealItemSchema = z.object({
 
 export const dietTemplateSchema = z.object({
   id: z.string().uuid().optional(),
+  parent_template_id: z.string().uuid().nullable().optional(),
   name: z.string().min(1).max(100),
   target_kcal: z.number().min(500).max(10000),
   target_protein: z.number().min(0).max(500),
@@ -51,6 +52,7 @@ export const recipeSchema = z.object({
   id: z.string().uuid().optional(),
   name: z.string().min(1).max(100),
   ingredients_json: z.array(ingredientItemSchema).default([]),
+  instructions: z.string().default(''),
   total_kcal: z.number().min(0),
   total_protein: z.number().min(0),
   total_carbs: z.number().min(0),
@@ -87,6 +89,34 @@ export type Recipe = z.infer<typeof recipeSchema>;
 export type DietProgram = z.infer<typeof dietProgramSchema>;
 export type DietProgramDay = z.infer<typeof dietProgramDaySchema>;
 export type DailyDietOverride = z.infer<typeof dailyDietOverrideSchema>;
+
+// ── Task 94: Relational UX Types ─────────────────────────────────────────────
+
+export const dailyTemplateRecipeSchema = z.object({
+  id: z.string().uuid().optional(),
+  daily_template_id: z.string().uuid(),
+  recipe_id: z.string().uuid(),
+  meal_type: z.enum(['Desayuno', 'Almuerzo', 'Cena', 'Snacks', 'Brunch', 'Merienda', 'Post-Entreno', 'Cena Libre', 'Comida Extra']),
+});
+
+export const weeklyPlanSchema = z.object({
+  id: z.string().uuid().optional(),
+  user_id: z.string().uuid().optional(),
+  name: z.string().min(1).max(100),
+  is_active: z.boolean().default(false),
+});
+
+export const weeklyPlanDaySchema = z.object({
+  id: z.string().uuid().optional(),
+  user_id: z.string().uuid().optional(),
+  weekly_plan_id: z.string().uuid(),
+  day_of_week: z.number().int().min(1).max(7),
+  template_id: z.string().uuid(),
+});
+
+export type DailyTemplateRecipe = z.infer<typeof dailyTemplateRecipeSchema>;
+export type WeeklyPlan = z.infer<typeof weeklyPlanSchema>;
+export type WeeklyPlanDay = z.infer<typeof weeklyPlanDaySchema>;
 
 export const dailyLogSchema = z
   .object({

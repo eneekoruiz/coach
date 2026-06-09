@@ -141,7 +141,7 @@ export default function HomeDashboard() {
       <AnimatePresence>
         {isChatOpen ? (
           <>
-            {/* Soft backdrop on mobile only to prevent other interactions */}
+            {/* Soft backdrop on mobile only */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -149,21 +149,45 @@ export default function HomeDashboard() {
               onClick={() => setIsChatOpen(false)}
               className="fixed inset-0 z-[140] bg-slate-900/10 backdrop-blur-xs md:hidden"
             />
-            
+
+            {/* Desktop: Side Panel (full height, slides from right) */}
             <motion.aside
-              className="fixed bottom-[calc(env(safe-area-inset-bottom)+5.5rem)] md:bottom-24 right-4 md:right-8 z-[150] w-[calc(100vw-2rem)] sm:w-[440px] max-w-full overflow-hidden"
-              initial={{ scale: 0.9, opacity: 0, y: 50 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 50 }}
-              transition={{ type: 'spring', stiffness: 320, damping: 24 }}
+              className="hidden md:flex fixed top-0 right-0 bottom-0 z-[150] w-[480px] max-w-[90vw] flex-col bg-white/95 backdrop-blur-2xl border-l border-slate-200/60 shadow-2xl"
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
             >
-              <ChatInput
-                momentum={momentum}
-                onClose={() => setIsChatOpen(false)}
-                onUpdate={async () => {
-                  await reload();
-                }}
-              />
+              <div className="flex-1 p-4 overflow-hidden">
+                <ChatInput
+                  momentum={momentum}
+                  onClose={() => setIsChatOpen(false)}
+                  onUpdate={async () => {
+                    await reload();
+                  }}
+                />
+              </div>
+            </motion.aside>
+
+            {/* Mobile: Bottom Sheet */}
+            <motion.aside
+              className="flex md:hidden fixed bottom-0 left-0 right-0 z-[150] flex-col bg-white/95 backdrop-blur-2xl border-t border-slate-200/60 rounded-t-[2rem] shadow-2xl"
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+            >
+              {/* Drag handle */}
+              <div className="mx-auto w-12 h-1.5 bg-slate-200 rounded-full my-3 shrink-0" />
+              <div className="flex-1 px-4 pb-4 overflow-hidden" style={{ height: '70vh' }}>
+                <ChatInput
+                  momentum={momentum}
+                  onClose={() => setIsChatOpen(false)}
+                  onUpdate={async () => {
+                    await reload();
+                  }}
+                />
+              </div>
             </motion.aside>
           </>
         ) : null}

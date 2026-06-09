@@ -114,6 +114,7 @@ export async function saveDietTemplate(template: DietTemplate): Promise<{ succes
 
     const templateData = {
       user_id: user.id,
+      parent_template_id: parsed.data.parent_template_id ?? null,
       name: parsed.data.name,
       target_kcal: parsed.data.target_kcal,
       target_protein: parsed.data.target_protein,
@@ -124,21 +125,34 @@ export async function saveDietTemplate(template: DietTemplate): Promise<{ succes
 
     let result;
     try {
-      if (parsed.data.id) {
-        result = await supabase
+      const persistTemplate = async (data: typeof templateData | Omit<typeof templateData, 'parent_template_id'>) => {
+        if (parsed.data.id) {
+          return supabase
+            .from('diet_templates')
+            .update(data)
+            .eq('id', parsed.data.id)
+            .eq('user_id', user.id)
+            .select('*')
+            .single();
+        }
+
+        return supabase
           .from('diet_templates')
-          .update(templateData)
-          .eq('id', parsed.data.id)
-          .eq('user_id', user.id)
+          .insert(data)
           .select('*')
           .single();
-      } else {
-        result = await supabase
-          .from('diet_templates')
-          .insert(templateData)
-          .select('*')
-          .single();
+      };
+
+      result = await persistTemplate(templateData);
+
+      if (
+        result.error &&
+        result.error.message?.toLowerCase().includes('parent_template_id')
+      ) {
+        const { parent_template_id: _parentTemplateId, ...legacyTemplateData } = templateData;
+        result = await persistTemplate(legacyTemplateData);
       }
+
       if (result.error) {
         throw result.error;
       }
@@ -147,7 +161,11 @@ export async function saveDietTemplate(template: DietTemplate): Promise<{ succes
       return { success: false, error: dbError.message || 'Error en la base de datos.' };
     }
 
-    const responseParsed = dietTemplateSchema.safeParse(result.data);
+    const responseData = parsed.data.parent_template_id && !result.data.parent_template_id
+      ? { ...result.data, parent_template_id: parsed.data.parent_template_id }
+      : result.data;
+
+    const responseParsed = dietTemplateSchema.safeParse(responseData);
     if (!responseParsed.success) {
        return { success: false, error: 'Error al parsear la respuesta del servidor.' };
     }
@@ -457,7 +475,7 @@ export async function importDailyLogsBulk(
 }
 
 // ── Recipe Actions ──────────────────────────────────────────────────────────
-import { recipeSchema, type Recipe, type DietProgram, type DailyDietOverride, dietProgramSchema, dailyDietOverrideSchema } from '@/lib/schema';
+import { recipeSchema, type Recipe, type DietProgram, type DailyDietOverride, dietProgramSchema, dailyDietOverrideSchema, weeklyPlanSchema, weeklyPlanDaySchema, type WeeklyPlan, type WeeklyPlanDay } from '@/lib/schema';
 
 export async function getRecipes(): Promise<Recipe[]> {
   try {
@@ -478,13 +496,14 @@ export async function getRecipes(): Promise<Recipe[]> {
 
     return (data || []).map(row => {
       // Parse ingredients_json if it comes as a string or keep if it is already parsed object
-      const ingredients = typeof row.ingredients_json === 'string' 
-        ? JSON.parse(row.ingredients_json) 
+      const ingredients = typeof row.ingredients_json === 'string'
+        ? JSON.parse(row.ingredients_json)
         : row.ingredients_json;
       return {
         id: row.id,
         name: row.name,
         ingredients_json: ingredients,
+        instructions: row.instructions || '',
         total_kcal: row.total_kcal,
         total_protein: row.total_protein,
         total_carbs: row.total_carbs,
@@ -512,6 +531,7 @@ export async function saveRecipe(recipe: Recipe): Promise<{ success: boolean; da
       user_id: user.id,
       name: parsed.data.name,
       ingredients_json: parsed.data.ingredients_json,
+      instructions: parsed.data.instructions || '',
       total_kcal: parsed.data.total_kcal,
       total_protein: parsed.data.total_protein,
       total_carbs: parsed.data.total_carbs,
@@ -542,9 +562,10 @@ export async function saveRecipe(recipe: Recipe): Promise<{ success: boolean; da
       data: {
         id: result.data.id,
         name: result.data.name,
-        ingredients_json: typeof result.data.ingredients_json === 'string' 
-          ? JSON.parse(result.data.ingredients_json) 
+        ingredients_json: typeof result.data.ingredients_json === 'string'
+          ? JSON.parse(result.data.ingredients_json)
           : result.data.ingredients_json,
+        instructions: result.data.instructions || '',
         total_kcal: result.data.total_kcal,
         total_protein: result.data.total_protein,
         total_carbs: result.data.total_carbs,
@@ -972,4 +993,313 @@ export async function generateHealthInsights(
   }
 }
 
+// ── Task 94: Weekly Plan Actions ─────────────────────────────────────────────
 
+export async function getWeeklyPlans(): Promise<WeeklyPlan[]> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return [];
+
+    const { data, error } = await supabase
+      .from('weekly_plans')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      console.warn(`[Supabase Fetch Warning] weekly_plans: ${error.message}`);
+      return [];
+    }
+
+    return (data || []).map(row => ({
+      id: row.id,
+      name: row.name,
+      is_active: row.is_active,
+    }));
+  } catch (err) {
+    console.error('getWeeklyPlans error:', err);
+    return [];
+  }
+}
+
+export async function getWeeklyPlanDetails(planId: string): Promise<{
+  plan: WeeklyPlan | null;
+  days: Array<{ day_of_week: number; template_id: string }>;
+}> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { plan: null, days: [] };
+
+    const { data: planData, error: planError } = await supabase
+      .from('weekly_plans')
+      .select('*')
+      .eq('id', planId)
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (planError || !planData) return { plan: null, days: [] };
+
+    const { data: daysData, error: daysError } = await supabase
+      .from('weekly_plan_days')
+      .select('day_of_week, template_id')
+      .eq('weekly_plan_id', planId)
+      .order('day_of_week', { ascending: true });
+
+    if (daysError) {
+      console.warn(`[Supabase] weekly_plan_days fetch: ${daysError.message}`);
+    }
+
+    return {
+      plan: { id: planData.id, name: planData.name, is_active: planData.is_active },
+      days: daysData || [],
+    };
+  } catch (err) {
+    console.error('getWeeklyPlanDetails error:', err);
+    return { plan: null, days: [] };
+  }
+}
+
+export async function saveWeeklyPlan(
+  plan: WeeklyPlan,
+  days: Array<{ day_of_week: number; template_id: string }>
+): Promise<{ success: boolean; data?: { id: string }; error?: string }> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { success: false, error: 'Usuario no autenticado.' };
+
+    const parsed = weeklyPlanSchema.safeParse(plan);
+    if (!parsed.success) {
+      return { success: false, error: 'Estructura de plan semanal inválida.' };
+    }
+
+    // If activating this plan, deactivate others
+    if (parsed.data.is_active) {
+      await supabase
+        .from('weekly_plans')
+        .update({ is_active: false })
+        .eq('user_id', user.id);
+    }
+
+    const planData = {
+      user_id: user.id,
+      name: parsed.data.name,
+      is_active: parsed.data.is_active,
+    };
+
+    let pId: string;
+    if (parsed.data.id) {
+      const { data, error } = await supabase
+        .from('weekly_plans')
+        .update(planData)
+        .eq('id', parsed.data.id)
+        .eq('user_id', user.id)
+        .select('id')
+        .single();
+      if (error) throw error;
+      pId = data.id;
+    } else {
+      const { data, error } = await supabase
+        .from('weekly_plans')
+        .insert(planData)
+        .select('id')
+        .single();
+      if (error) throw error;
+      pId = data.id;
+    }
+
+    // Clear old days and insert new ones
+    await supabase.from('weekly_plan_days').delete().eq('weekly_plan_id', pId);
+
+    if (days && days.length > 0) {
+      const daysToInsert = days.map(d => ({
+        user_id: user.id,
+        weekly_plan_id: pId,
+        day_of_week: d.day_of_week,
+        template_id: d.template_id,
+      }));
+
+      const { error: daysError } = await supabase
+        .from('weekly_plan_days')
+        .insert(daysToInsert);
+
+      if (daysError) throw daysError;
+    }
+
+    return { success: true, data: { id: pId } };
+  } catch (err) {
+    console.error('saveWeeklyPlan error:', err);
+    return { success: false, error: err instanceof Error ? err.message : 'Error inesperado.' };
+  }
+}
+
+export async function deleteWeeklyPlan(planId: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { success: false, error: 'Usuario no autenticado.' };
+
+    const { error } = await supabase
+      .from('weekly_plans')
+      .delete()
+      .eq('id', planId)
+      .eq('user_id', user.id);
+
+    if (error) {
+      console.error('Error deleting weekly plan:', error.message);
+      return { success: false, error: 'Error al eliminar en base de datos.' };
+    }
+
+    return { success: true };
+  } catch (err) {
+    console.error('deleteWeeklyPlan error:', err);
+    return { success: false, error: err instanceof Error ? err.message : 'Error inesperado.' };
+  }
+}
+
+// ── Task 94: Calendar Projection Actions ─────────────────────────────────────
+
+export async function projectWeeklyPlanToCalendar(
+  weeklyPlanId: string,
+  startDate: string,
+  weeksCount: number
+): Promise<{ success: boolean; daysProjected?: number; error?: string }> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { success: false, error: 'Usuario no autenticado.' };
+
+    const start = new Date(startDate + 'T00:00:00');
+    if (Number.isNaN(start.getTime())) {
+      return { success: false, error: 'Fecha de inicio inválida.' };
+    }
+    if (start.getDay() !== 1) {
+      return { success: false, error: 'Elige un lunes como fecha de inicio.' };
+    }
+
+    const safeWeeksCount = Math.min(52, Math.max(1, Math.floor(weeksCount)));
+    const formatLocalDate = (date: Date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+
+    // Fetch the weekly plan days mapping
+    const { data: planDays, error: planDaysError } = await supabase
+      .from('weekly_plan_days')
+      .select('day_of_week, template_id')
+      .eq('weekly_plan_id', weeklyPlanId)
+      .eq('user_id', user.id);
+
+    if (planDaysError || !planDays || planDays.length === 0) {
+      return { success: false, error: 'No se encontraron días en el plan semanal.' };
+    }
+
+    const planDaysMap = new Map<number, string>();
+    planDays.forEach(d => planDaysMap.set(d.day_of_week, d.template_id));
+
+    // Calculate all dates to project
+    const rowsToInsert: Array<{
+      user_id: string;
+      date: string;
+      weekly_plan_id: string;
+      template_id: string;
+      day_of_week: number;
+    }> = [];
+
+    for (let week = 0; week < safeWeeksCount; week++) {
+      for (let dow = 1; dow <= 7; dow++) {
+        const templateId = planDaysMap.get(dow);
+        if (!templateId) continue;
+
+        const currentDate = new Date(start);
+        currentDate.setDate(currentDate.getDate() + (week * 7) + (dow - 1));
+        const dateStr = formatLocalDate(currentDate);
+
+        rowsToInsert.push({
+          user_id: user.id,
+          date: dateStr,
+          weekly_plan_id: weeklyPlanId,
+          template_id: templateId,
+          day_of_week: dow,
+        });
+      }
+    }
+
+    if (rowsToInsert.length === 0) {
+      return { success: false, error: 'No hay días para proyectar.' };
+    }
+
+    // Upsert into user_diet_calendar (for UI compatibility) AND insert into projections table
+    const calendarRows = rowsToInsert.map(r => ({
+      user_id: r.user_id,
+      date: r.date,
+      template_id: r.template_id,
+    }));
+
+    const { error: calendarError } = await supabase
+      .from('user_diet_calendar')
+      .upsert(calendarRows, { onConflict: 'user_id,date' });
+
+    if (calendarError) {
+      console.error('Error upserting calendar:', calendarError.message);
+      return { success: false, error: `Error en calendario: ${calendarError.message}` };
+    }
+
+    // Also insert into projections table for tracking
+    const { error: projectionError } = await supabase
+      .from('user_diet_calendar_projections')
+      .upsert(rowsToInsert, { onConflict: 'user_id,date' });
+
+    if (projectionError) {
+      console.error('Error upserting projections:', projectionError.message);
+      // Non-fatal: calendar is the source of truth for UI
+    }
+
+    return { success: true, daysProjected: rowsToInsert.length };
+  } catch (err) {
+    console.error('projectWeeklyPlanToCalendar error:', err);
+    return { success: false, error: err instanceof Error ? err.message : 'Error inesperado al proyectar.' };
+  }
+}
+
+export async function getActiveWeeklyPlan(): Promise<{
+  plan: WeeklyPlan | null;
+  days: Array<{ day_of_week: number; template_id: string }>;
+}> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { plan: null, days: [] };
+
+    const { data: planData, error: planError } = await supabase
+      .from('weekly_plans')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('is_active', true)
+      .maybeSingle();
+
+    if (planError || !planData) return { plan: null, days: [] };
+
+    const { data: daysData, error: daysError } = await supabase
+      .from('weekly_plan_days')
+      .select('day_of_week, template_id')
+      .eq('weekly_plan_id', planData.id)
+      .order('day_of_week', { ascending: true });
+
+    if (daysError) {
+      console.warn(`[Supabase] active weekly_plan_days: ${daysError.message}`);
+    }
+
+    return {
+      plan: { id: planData.id, name: planData.name, is_active: planData.is_active },
+      days: daysData || [],
+    };
+  } catch (err) {
+    console.error('getActiveWeeklyPlan error:', err);
+    return { plan: null, days: [] };
+  }
+}
