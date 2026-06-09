@@ -17,36 +17,36 @@ export const AVATAR_CONFIG: Record<
 > = {
   happy: {
     url: 'https://api.dicebear.com/7.x/adventurer/svg?seed=lion&backgroundColor=b6e3f4',
-    label: 'León Radiante (Óptimo)',
-    subLabel: '¡Tu Bio-Avatar está en su mejor momento! 🦁🌟',
+    label: 'Óptimo',
+    subLabel: 'Sistema estable y con alta disponibilidad fisiológica',
     aura: 'shadow-[0_0_80px_rgba(16,185,129,0.35)]',
     statusColor: 'bg-emerald-500',
   },
   thirsty: {
     url: 'https://api.dicebear.com/7.x/adventurer/svg?seed=camel&backgroundColor=dbeafe',
-    label: 'Camello Sediento',
-    subLabel: '¡Necesito hidratación urgente! 🐫💧',
+    label: 'Hidratación pendiente',
+    subLabel: 'La siguiente acción de mayor impacto es beber agua',
     aura: 'shadow-[0_0_80px_rgba(59,130,246,0.4)]',
     statusColor: 'bg-blue-500',
   },
   tired: {
     url: 'https://api.dicebear.com/7.x/adventurer/svg?seed=koala&backgroundColor=fef9c3',
-    label: 'Koala Fatigado',
-    subLabel: 'Desbalance o toxinas hoy. A descansar 🐨😴',
+    label: 'Recuperación',
+    subLabel: 'El sistema recomienda bajar fricción y cerrar básicos',
     aura: 'shadow-[0_0_80px_rgba(234,179,8,0.35)]',
     statusColor: 'bg-amber-500',
   },
   critical: {
     url: 'https://api.dicebear.com/7.x/adventurer/svg?seed=panda&backgroundColor=fee2e2',
-    label: 'Panda en Crisis',
-    subLabel: '¡SOS! Inercia baja, necesito hábitos 🐼🆘',
+    label: 'Atención',
+    subLabel: 'Prioriza una acción simple antes de añadir complejidad',
     aura: 'shadow-[0_0_80px_rgba(239,68,68,0.4)]',
     statusColor: 'bg-rose-500',
   },
   neutral: {
     url: 'https://api.dicebear.com/7.x/adventurer/svg?seed=wolf&backgroundColor=f1f5f9',
-    label: 'Lobo Estable',
-    subLabel: 'Vas por buen camino, mantente firme 🐺💪',
+    label: 'Estable',
+    subLabel: 'Ritmo correcto. Mantén la siguiente acción visible',
     aura: 'shadow-[0_0_60px_rgba(148,163,184,0.3)]',
     statusColor: 'bg-slate-400',
   },
@@ -65,7 +65,6 @@ interface UseDashboardStateProps {
     carbs: number;
     fats: number;
   };
-  streak: number;
   dailyWaterTarget: number;
 }
 
@@ -73,7 +72,6 @@ export function useDashboardState({
   momentum,
   displayLog,
   dietTargets,
-  streak,
   dailyWaterTarget,
 }: UseDashboardStateProps) {
   const normalizedMomentum = clampMomentum(momentum);
@@ -95,7 +93,6 @@ export function useDashboardState({
     const targetKcal = dietTargets?.kcal ?? 2000;
     const realKcal = displayLog.total_kcal ?? 0;
     const nutritionDelta = Math.abs(realKcal - targetKcal);
-    const currentStreak = streak;
     const waterPct = dailyWaterTarget > 0 ? waterMl / dailyWaterTarget : 0;
 
     let nextState: AvatarState = 'neutral';
@@ -106,7 +103,7 @@ export function useDashboardState({
       nextState = 'thirsty';
     } else if (nutritionDelta > 800 || (displayLog.toxinas && displayLog.toxinas.length > 0)) {
       nextState = 'tired';
-    } else if (currentStreak >= 3 && nutritionDelta <= 300 && inertia >= 70) {
+    } else if (nutritionDelta <= 300 && inertia >= 70 && waterPct >= 0.75) {
       nextState = 'happy';
     } else {
       nextState = 'neutral';
@@ -118,7 +115,6 @@ export function useDashboardState({
     displayLog.total_kcal,
     displayLog.toxinas,
     dietTargets?.kcal,
-    streak,
     waterMl,
     dailyWaterTarget,
   ]);

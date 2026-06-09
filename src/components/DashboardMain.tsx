@@ -1,20 +1,23 @@
 'use client';
 
-import React, { useMemo, useState, useEffect } from 'react';
-import { motion, AnimatePresence, type HTMLMotionProps } from 'framer-motion';
-import dynamic from 'next/dynamic';
+import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import XRayOverlay from './XRayOverlay';
-import CircularProgressRing from './CircularProgressRing';
+import { motion, type Variants } from 'framer-motion';
+import {
+  Battery,
+  Brain,
+  CheckCircle2,
+  Droplets,
+  Loader2,
+  MessageCircle,
+  Moon,
+  Utensils,
+  Zap,
+} from 'lucide-react';
 import { type DailyLog } from '@/lib/schema';
-import toast from '@/lib/toast';
-import PushNotificationManager from './PushNotificationManager';
 import { triggerVibration } from '@/lib/haptics';
-import { useDashboardState, type AvatarState, AVATAR_CONFIG } from '@/hooks/useDashboardState';
-
-const NutritionContainer = dynamic(() => import('./NutritionContainer'), { ssr: false });
-const HabitTracker = dynamic(() => import('./HabitTracker'), { ssr: false });
-const HealthInsightsDashboard = dynamic(() => import('./HealthInsightsDashboard'), { ssr: false });
+import { useDashboardState } from '@/hooks/useDashboardState';
+import { useTimeContext } from '@/hooks/useTimeContext';
 
 interface DashboardTheme {
   background: string;
@@ -24,14 +27,13 @@ interface DashboardTheme {
   subtext: string;
 }
 
+type AvatarMotionState = 'idle' | 'success' | 'action';
+
 type DashboardMainProps = {
-  isXRayMode: boolean;
-  setRayXModeFromGesture?: (v: boolean) => void;
   isLoading: boolean;
   theme: DashboardTheme;
   displayLog: DailyLog;
   momentum: number;
-  streak: number;
   energyLevel: number;
   mentalClarity: number;
   insightText: string;
@@ -43,149 +45,83 @@ type DashboardMainProps = {
     carbs: number;
     fats: number;
   };
-  updateWaterSettings: (target: number, glass: number) => Promise<boolean>;
   addWaterIntake: () => Promise<void>;
+  pendingSyncCount: number;
   onChatOpen?: () => void;
 };
 
-interface BentoCardProps extends HTMLMotionProps<"div"> {}
+const avatarVariants: Variants = {
+  idle: {
+    y: [0, -4, 0],
+    scale: [1, 1.015, 1],
+    transition: {
+      duration: 4,
+      repeat: Infinity,
+      ease: 'easeInOut',
+    },
+  },
+  success: {
+    y: [0, -10, 0],
+    scale: [1, 1.08, 1],
+    transition: {
+      duration: 0.55,
+      ease: 'easeOut',
+    },
+  },
+  action: {
+    rotate: [0, -2, 2, 0],
+    scale: [1, 1.05, 1],
+    transition: {
+      duration: 0.45,
+      ease: 'easeOut',
+    },
+  },
+};
 
-function BentoCard({ children, className = '', layoutId, ...props }: BentoCardProps) {
-  return (
-    <motion.div
-      layoutId={layoutId}
-      className={`bg-white/80 backdrop-blur-2xl rounded-3xl shadow-[0_12px_40px_rgba(0,0,0,0.02),0_1px_2px_rgba(0,0,0,0.01)] p-4 sm:p-5 overflow-hidden flex flex-col relative transition-all duration-300 hover:shadow-[0_20px_50px_rgba(0,0,0,0.05)] cursor-pointer select-none ${className}`}
-      {...props}
-    >
-      {children}
-    </motion.div>
-  );
+function clampPercent(value: number, max: number) {
+  if (max <= 0) return 0;
+  return Math.min(100, Math.max(0, Math.round((value / max) * 100)));
 }
 
-// ── Water Glass sub-component ───────────────────────────────────────────────
-function WaterGlass({
-  amount,
-  max,
-  defaultGlass,
-  addWater,
-  updateSettings,
+function MetricTile({
+  label,
+  value,
+  icon,
 }: {
-  amount: number;
-  max: number;
-  defaultGlass: number;
-  addWater: () => Promise<void>;
-  updateSettings: (target: number, glass: number) => Promise<boolean>;
+  label: string;
+  value: string;
+  icon: React.ReactNode;
 }) {
-  const [isOpen, setIsOpen] = React.useState(false);
-  const [targetInput, setTargetInput] = React.useState(max);
-  const [glassInput, setGlassInput] = React.useState(defaultGlass);
-  const [isSaving, setIsSaving] = React.useState(false);
-  const [isLogging, setIsLogging] = React.useState(false);
-
-  React.useEffect(() => {
-    setTargetInput(max);
-    setGlassInput(defaultGlass);
-  }, [max, defaultGlass]);
-
-  const percentage = Math.min(100, Math.max(0, (amount / max) * 100));
-  const isGoalReached = amount >= max;
-
   return (
-    <div className="flex flex-col items-center justify-center w-full h-full relative z-10">
-      {isGoalReached && (
-        <span className="absolute top-0 bg-sky-100 text-sky-600 text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full shadow-sm tracking-widest z-20">
-          ¡Meta lograda!
-        </span>
-      )}
-
-      <motion.div
-        whileTap={{ scale: 0.95 }}
-        onClick={() => { triggerVibration('light'); setIsOpen((prev) => !prev); }}
-        className="cursor-pointer relative w-20 h-28 border-[5px] border-slate-100 rounded-b-2xl rounded-t-lg overflow-hidden bg-white shadow-inner flex items-end mt-4 group"
-      >
-        <motion.div
-          className="w-full bg-cyan-400"
-          initial={{ height: '0%' }}
-          animate={{ height: `${percentage}%` }}
-          transition={{ type: 'spring', stiffness: 45, damping: 13 }}
-        />
-        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity bg-black/5">
-          <span className="text-xl font-black text-slate-800 drop-shadow-md">+</span>
-        </div>
-      </motion.div>
-
-      <div className="mt-4 text-center">
-        <p className="text-3xl font-black text-slate-800 tracking-tighter">
-          {amount} <span className="text-sm font-semibold text-slate-400 uppercase tracking-widest">ml</span>
-        </p>
-        <p className="text-[10px] font-bold text-cyan-500 uppercase tracking-wider mt-0.5">
-          {percentage.toFixed(0)}% de tu meta
-        </p>
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-xl bg-slate-50 text-slate-600">
+        {icon}
       </div>
-
-      {isOpen && (
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 w-[90%] max-w-[14rem] rounded-3xl border border-slate-100 bg-white/95 backdrop-blur-xl p-4 shadow-2xl animate-fade-in flex flex-col gap-3">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-            <span className="text-[11px] font-black text-slate-800 uppercase tracking-wider">Ajustes Agua</span>
-            <button type="button" onClick={() => setIsOpen(false)} className="text-slate-400 hover:text-slate-650 text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full bg-slate-50">✕</button>
-          </div>
-          <button
-            type="button"
-            disabled={isLogging}
-            onClick={async () => { triggerVibration('success'); setIsLogging(true); try { await addWater(); setIsOpen(false); } finally { setIsLogging(false); } }}
-            className="w-full py-2.5 rounded-2xl bg-cyan-500 hover:bg-cyan-400 text-white text-sm font-black shadow-sm transition active:scale-95 flex items-center justify-center gap-1.5"
-          >
-            {isLogging ? '...' : `Beber +${defaultGlass}ml`}
-          </button>
-          <div className="space-y-3 border-t border-slate-100 pt-3">
-            <div>
-              <label className="block text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Meta Diaria (ml)</label>
-              <input type="number" value={targetInput || ''} onChange={(e) => setTargetInput(Number(e.target.value))} className="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-xl text-slate-700 font-bold focus:ring-2 focus:ring-cyan-500 outline-none" />
-            </div>
-            <button
-              type="button"
-              disabled={isSaving}
-              onClick={async () => {
-                if (targetInput < 500 || targetInput > 10000) { toast.error('La meta debe estar entre 500 y 10000 ml.'); return; }
-                setIsSaving(true);
-                const success = await updateSettings(targetInput, glassInput);
-                setIsSaving(false);
-                if (success) { toast.success('¡Ajustes guardados!'); setIsOpen(false); } else { toast.error('Error al guardar.'); }
-              }}
-              className="w-full py-2 rounded-xl bg-slate-100 text-slate-600 text-xs font-bold transition active:scale-95"
-            >
-              {isSaving ? 'Guardando...' : 'Guardar'}
-            </button>
-          </div>
-        </div>
-      )}
+      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">{label}</p>
+      <p className="mt-1 text-xl font-black tracking-tight text-slate-900">{value}</p>
     </div>
   );
 }
 
-// ── Main Component ──────────────────────────────────────────────────────────
 export default function DashboardMain({
-  isXRayMode,
-  setRayXModeFromGesture,
   isLoading,
-  theme,
   displayLog,
   momentum,
-  streak,
   energyLevel,
   mentalClarity,
   insightText,
   dailyWaterTarget,
   defaultGlassSize,
   dietTargets,
-  updateWaterSettings,
   addWaterIntake,
+  pendingSyncCount,
   onChatOpen,
 }: DashboardMainProps) {
+  const timeContext = useTimeContext();
+  const [avatarMotion, setAvatarMotion] = useState<AvatarMotionState>('idle');
+  const [waterBusy, setWaterBusy] = useState(false);
   const {
     normalizedMomentum,
-    expandedCard,
-    setExpandedCard,
     waterMl,
     completedHabitsCount,
     avatar,
@@ -193,320 +129,233 @@ export default function DashboardMain({
     momentum,
     displayLog,
     dietTargets,
-    streak,
     dailyWaterTarget,
   });
 
-  const [isInsightsOpen, setIsInsightsOpen] = useState(false);
+  useEffect(() => {
+    if (avatarMotion === 'idle') return;
+    const timeout = window.setTimeout(() => setAvatarMotion('idle'), 700);
+    return () => window.clearTimeout(timeout);
+  }, [avatarMotion]);
 
-  // Keep for future use but suppress unused warning
-  void isInsightsOpen;
-  void setIsInsightsOpen;
+  const waterPercent = clampPercent(waterMl, dailyWaterTarget);
+  const kcalPercent = clampPercent(displayLog.total_kcal ?? 0, dietTargets.kcal);
+
+  const primaryAction = useMemo(() => {
+    if (timeContext.block === 'morning') {
+      return displayLog.metricas?.accion_manana || 'Completa la primera rutina y registra el desayuno.';
+    }
+    if (timeContext.block === 'afternoon') {
+      return `Hidratación al ${waterPercent}%. Mantén el ritmo antes de la merienda.`;
+    }
+    return `Cierre del día: ${completedHabitsCount} acciones registradas. Añade sueño o ánimo final.`;
+  }, [completedHabitsCount, displayLog.metricas?.accion_manana, timeContext.block, waterPercent]);
+
+  const handleWater = async () => {
+    triggerVibration('success');
+    setAvatarMotion('action');
+    setWaterBusy(true);
+    try {
+      await addWaterIntake();
+      setAvatarMotion('success');
+    } finally {
+      setWaterBusy(false);
+    }
+  };
+
+  const handleCoach = () => {
+    triggerVibration('light');
+    setAvatarMotion('success');
+    onChatOpen?.();
+  };
+
+  const handleNightLog = () => {
+    triggerVibration('medium');
+    setAvatarMotion('success');
+    onChatOpen?.();
+  };
 
   return (
-    <section className="relative flex flex-1 flex-col px-4 pb-4 md:pb-6">
-      <div className="relative z-10 w-full max-w-2xl mx-auto flex flex-col gap-4 pt-1">
-
-        <PushNotificationManager />
-
-        {/* ══ HERO: Avatar Section ══════════════════════════════════════════ */}
-        <div className="bg-slate-50 border border-slate-200 rounded-3xl shadow-sm p-6 flex flex-col items-center text-center">
-
-          {/* Status dot */}
-          <div className="flex items-center gap-2 mb-2">
-            <span className={`w-2.5 h-2.5 rounded-full ${avatar.statusColor} shadow-sm animate-pulse`} />
-            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
-              {avatar.subLabel}
-            </span>
+    <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col justify-center gap-5 py-5">
+      <section className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
+        <div className="flex flex-col items-center text-center">
+          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
+            {isLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5 text-emerald-600" />}
+            {timeContext.greeting} · {timeContext.label}
           </div>
 
-          {/* Avatar image with reactive aura */}
           <motion.div
-            layoutId="avatar-card"
-            onClick={() => { triggerVibration('light'); setExpandedCard('avatar'); }}
-            whileTap={{ scale: 0.97 }}
-            className={`relative w-36 h-36 sm:w-44 sm:h-44 rounded-[2rem] overflow-hidden bg-white border border-slate-100 cursor-pointer ${avatar.aura} transition-shadow duration-700 shadow-sm`}
+            variants={avatarVariants}
+            animate={avatarMotion}
+            className={`relative flex h-48 w-48 items-center justify-center overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm sm:h-56 sm:w-56 ${avatar.aura}`}
           >
             <img
               src={avatar.url}
               alt="Bio-Avatar"
-              className="w-full h-full object-cover transition-all duration-700"
+              className="h-full w-full object-cover"
               loading="eager"
-              onError={(e) => { (e.target as HTMLImageElement).src = '/default-avatar.png'; }}
+              onError={(event) => {
+                (event.target as HTMLImageElement).src = '/default-avatar.png';
+              }}
             />
-            {/* Subtle inner ring */}
-            <div className="absolute inset-0 rounded-[2rem] ring-1 ring-white/30" />
+            <motion.div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 rounded-[2rem] border border-white/60"
+              animate={avatarMotion === 'success' ? { opacity: [0, 1, 0], scale: [0.94, 1.05, 1.12] } : { opacity: 0 }}
+              transition={{ duration: 0.55 }}
+            />
           </motion.div>
 
-          {/* State label */}
-          <div className="mt-3">
-            <h2 className="text-3xl sm:text-4xl font-black text-slate-800 tracking-tighter leading-none">
+          <div className="mt-5">
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
+              BioAvatar State Machine
+            </p>
+            <h1 className="mt-1 text-4xl font-black tracking-tight text-slate-900 sm:text-5xl">
               {avatar.label}
-            </h2>
-            <p className="text-sm font-semibold text-slate-400 mt-0.5 tracking-tight">
-              {normalizedMomentum}% de inercia
+            </h1>
+            <p className="mx-auto mt-2 max-w-md text-sm font-semibold leading-6 text-slate-500">
+              {avatar.subLabel}
             </p>
           </div>
 
-          {/* CTA Chat Button */}
-          <motion.button
-            whileTap={{ scale: 0.96 }}
-            onClick={() => { triggerVibration('light'); onChatOpen?.(); }}
-            className="mt-3.5 inline-flex items-center gap-2.5 px-6 py-3 rounded-[1.5rem] bg-slate-900 text-white text-sm font-black shadow-lg hover:bg-slate-800 transition-colors group"
-          >
-            <span className="text-xl group-hover:scale-110 transition-transform">🐶</span>
-            <span>Hablar con mi Coach</span>
-          </motion.button>
-        </div>
-
-        {/* ══ COLUMNA DERECHA: Bento Grid ═══════════════════════════════════ */}
-        <div className="lg:col-span-7 flex flex-col gap-6 justify-center lg:overflow-y-auto lg:h-full pr-1 custom-scrollbar">
-          
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            
-            {/* Bento Card 1: Inercia & Mini Stats */}
-            <Link href="/history" className="col-span-1 sm:col-span-2">
-              <BentoCard
-                className="col-span-1 sm:col-span-2 bg-white border border-slate-200/80 shadow-xs"
-              >
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Estado Vital</span>
-                    <h3 className="text-xl font-black text-slate-900 mt-0.5">Inercia & Métricas</h3>
-                  </div>
-                  <span className="bg-slate-100 text-slate-800 text-xs px-2.5 py-1 rounded-lg font-bold flex items-center gap-1">
-                    Ver Historial →
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-3 gap-3 mb-4">
-                  <div className="flex flex-col items-center py-3 rounded-2xl bg-slate-50 border border-slate-150">
-                    <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest">Energía</span>
-                    <span className="text-xl font-black text-slate-800 mt-1">{energyLevel}<span className="text-xs text-slate-400 font-bold">/5</span></span>
-                  </div>
-                  <div className="flex flex-col items-center py-3 rounded-2xl bg-slate-50 border border-slate-150">
-                    <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest">Inercia</span>
-                    <span className="text-xl font-black text-slate-800 mt-1">{normalizedMomentum}<span className="text-xs text-slate-400 font-bold">%</span></span>
-                  </div>
-                  <div className="flex flex-col items-center py-3 rounded-2xl bg-slate-50 border border-slate-150">
-                    <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest">Claridad</span>
-                    <span className="text-xl font-black text-slate-800 mt-1">{mentalClarity}<span className="text-xs text-slate-400 font-bold">/5</span></span>
-                  </div>
-                </div>
-
-                <div className="bg-sky-50 rounded-2xl border border-sky-100 p-4">
-                  <span className="bg-sky-100 text-sky-700 text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md inline-block mb-1.5 font-bold">Coach Inteligente</span>
-                  <p className="text-xs text-slate-700 font-semibold leading-relaxed line-clamp-2">{insightText}</p>
-                </div>
-              </BentoCard>
-            </Link>
-
-            {/* Bento Card 2: Nutrición */}
-            <Link href="/nutrition" onClick={() => triggerVibration('light')}>
-              <BentoCard
-                className="bg-white border border-slate-200/80 shadow-xs"
-              >
-                <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Alimentación</span>
-                    <h3 className="text-lg font-black text-slate-900 mt-0.5">Nutrición</h3>
-                  </div>
-                  <span className="text-xl">🍎</span>
-                </div>
-                <div className="mt-2">
-                  <p className="text-3xl font-black text-rose-500 tracking-tighter">
-                    {displayLog.total_kcal} <span className="text-sm font-bold text-slate-400">kcal</span>
-                  </p>
-                  <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-wider">
-                    Objetivo: {dietTargets?.kcal ?? 2000} kcal
-                  </p>
-                </div>
-                <div className="flex gap-1.5 mt-4 text-[9px] text-slate-500 font-bold">
-                  <span className="bg-rose-50 text-rose-600 px-1.5 py-0.5 rounded">P: {displayLog.protein_g}g</span>
-                  <span className="bg-sky-50 text-sky-600 px-1.5 py-0.5 rounded">C: {displayLog.carbs_g}g</span>
-                  <span className="bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded">G: {displayLog.fats_g}g</span>
-                </div>
-              </BentoCard>
-            </Link>
-
-            {/* Bento Card 3: Hidratación */}
-            <BentoCard
-              onClick={() => { triggerVibration('light'); setExpandedCard('water'); }}
-              className="bg-white border border-slate-200/80 shadow-xs"
+          <div className="mt-6 grid w-full max-w-lg grid-cols-2 gap-3 sm:grid-cols-3">
+            <motion.button
+              type="button"
+              whileTap={{ scale: 0.96 }}
+              onClick={handleWater}
+              disabled={waterBusy}
+              className="inline-flex h-14 items-center justify-center gap-2 rounded-2xl bg-cyan-500 px-4 text-sm font-black text-white shadow-sm transition hover:bg-cyan-400 disabled:opacity-70"
             >
-              <div className="flex justify-between items-start mb-3">
-                <div>
-                  <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Hidratación</span>
-                  <h3 className="text-lg font-black text-slate-900 mt-0.5">Agua</h3>
-                </div>
-                <span className="text-xl">💧</span>
-              </div>
-              <div className="mt-2">
-                <p className="text-3xl font-black text-cyan-500 tracking-tighter">
-                  {waterMl} <span className="text-sm font-bold text-slate-400">ml</span>
-                </p>
-                <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-wider">
-                  Meta: {dailyWaterTarget} ml
-                </p>
-              </div>
-              <div className="w-full bg-slate-100 h-1.5 rounded-full mt-4 overflow-hidden">
-                <div 
-                  className="bg-cyan-500 h-full rounded-full transition-all duration-500" 
-                  style={{ width: `${Math.min(100, (waterMl / (dailyWaterTarget || 2000)) * 100)}%` }}
-                />
-              </div>
-            </BentoCard>
+              {waterBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Droplets className="h-4 w-4" />}
+              +{defaultGlassSize}ml
+            </motion.button>
 
-            {/* Bento Card 4: Rutinas Diarias */}
-            <Link href="/routines" onClick={() => triggerVibration('light')}>
-              <BentoCard
-                className="bg-white border border-slate-200/80 shadow-xs"
-              >
-                <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Rutinas</span>
-                    <h3 className="text-lg font-black text-slate-900 mt-0.5">Rutinas Diarias</h3>
-                  </div>
-                  <span className="text-xl">🔥</span>
-                </div>
-                <div className="mt-2">
-                  <p className="text-3xl font-black text-orange-500 tracking-tighter">
-                    {completedHabitsCount} <span className="text-sm font-bold text-slate-400">/ hoy</span>
-                  </p>
-                  <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-wider">
-                    Racha activa: {streak} días
-                  </p>
-                </div>
-                <p className="text-xs text-slate-500 mt-4 font-semibold">
-                  Toca para ver todas las rutinas →
-                </p>
-              </BentoCard>
-            </Link>
-
-            {/* Bento Card 5: Ánimo */}
-            <BentoCard
-              onClick={() => { triggerVibration('light'); onChatOpen?.(); }}
-              className="bg-white border border-slate-200/80 shadow-xs"
+            <motion.button
+              type="button"
+              whileTap={{ scale: 0.96 }}
+              onClick={handleCoach}
+              className="inline-flex h-14 items-center justify-center gap-2 rounded-2xl bg-slate-900 px-4 text-sm font-black text-white shadow-sm transition hover:bg-slate-800"
             >
-              <div className="flex justify-between items-start mb-3">
-                <div>
-                  <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Salud Mental</span>
-                  <h3 className="text-lg font-black text-slate-900 mt-0.5">Bitácora</h3>
-                </div>
-                <span className="text-xl">🧠</span>
-              </div>
-              <p className="text-xs text-slate-600 leading-relaxed mt-2 font-medium">
-                ¿Quieres registrar retrospectivamente cómo te sientes o planificar hábitos con la IA?
-              </p>
-              <span className="text-emerald-500 text-xs font-bold mt-4 inline-flex items-center gap-1">
-                Consultar al Coach →
-              </span>
-            </BentoCard>
+              <MessageCircle className="h-4 w-4" />
+              Coach
+            </motion.button>
 
+            {timeContext.block === 'night' ? (
+              <motion.button
+                type="button"
+                whileTap={{ scale: 0.96 }}
+                onClick={handleNightLog}
+                className="col-span-2 inline-flex h-14 items-center justify-center gap-2 rounded-2xl border border-violet-200 bg-violet-50 px-4 text-sm font-black text-violet-700 transition hover:bg-violet-100 sm:col-span-1"
+              >
+                <Moon className="h-4 w-4" />
+                Sueño/Ánimo
+              </motion.button>
+            ) : (
+              <Link
+                href="/nutrition"
+                onClick={() => {
+                  triggerVibration('light');
+                  setAvatarMotion('success');
+                }}
+                className="col-span-2 inline-flex h-14 items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 text-sm font-black text-emerald-700 transition hover:bg-emerald-100 sm:col-span-1"
+              >
+                <Utensils className="h-4 w-4" />
+                {timeContext.mealFocus}
+              </Link>
+            )}
           </div>
 
-          <XRayOverlay
-            isXRayMode={isXRayMode}
-            theme={theme}
-            displayLog={displayLog}
-            momentum={momentum}
-            onClose={() => setRayXModeFromGesture?.(false)}
-          />
+          {pendingSyncCount > 0 && (
+            <p className="mt-3 text-[10px] font-bold text-amber-600">
+              {pendingSyncCount} acción en cola. Se sincronizará al recuperar conexión.
+            </p>
+          )}
+        </div>
+      </section>
+
+      <section className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
+            Foco proactivo
+          </p>
+          <h2 className="mt-2 text-2xl font-black tracking-tight text-slate-900">
+            {timeContext.priority}
+          </h2>
+          <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">{primaryAction}</p>
+          <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
+              Siguiente comida
+            </p>
+            <p className="mt-1 text-lg font-black text-slate-900">{timeContext.mealFocus}</p>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
+            Coach contextual
+          </p>
+          <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">
+            {insightText || timeContext.coachPrompt}
+          </p>
+          <button
+            type="button"
+            onClick={timeContext.block === 'night' ? handleNightLog : handleCoach}
+            className="mt-5 inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 px-4 text-sm font-black text-white transition hover:bg-slate-800 active:scale-95"
+          >
+            {timeContext.block === 'night' ? <Moon className="h-4 w-4" /> : <MessageCircle className="h-4 w-4" />}
+            {timeContext.block === 'night' ? 'Registrar Sueño/Ánimo final' : 'Abrir Coach'}
+          </button>
+        </div>
+      </section>
+
+      <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <MetricTile
+          label="Agua"
+          value={`${waterMl}ml`}
+          icon={<Droplets className="h-4 w-4 text-cyan-600" />}
+        />
+        <MetricTile
+          label="Nutrición"
+          value={`${kcalPercent}%`}
+          icon={<Utensils className="h-4 w-4 text-emerald-600" />}
+        />
+        <MetricTile
+          label="Energía"
+          value={`${energyLevel}/5`}
+          icon={<Battery className="h-4 w-4 text-amber-600" />}
+        />
+        <MetricTile
+          label="Claridad"
+          value={`${mentalClarity}/5`}
+          icon={<Brain className="h-4 w-4 text-sky-600" />}
+        />
+      </section>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Hidratación</p>
+            <p className="text-xs font-black text-cyan-600">{waterPercent}%</p>
+          </div>
+          <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
+            <div className="h-full rounded-full bg-cyan-500 transition-all duration-500" style={{ width: `${waterPercent}%` }} />
+          </div>
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Inercia</p>
+            <p className="text-xs font-black text-slate-900">{normalizedMomentum}%</p>
+          </div>
+          <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
+            <div className="h-full rounded-full bg-slate-900 transition-all duration-500" style={{ width: `${normalizedMomentum}%` }} />
+          </div>
         </div>
       </div>
 
-      {/* ══ MORPHING DETAIL MODALS ══════════════════════════════════════════ */}
-      <AnimatePresence>
-        {expandedCard === 'avatar' && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
-            <motion.div
-              layoutId="avatar-card"
-              className="bg-white border border-slate-200 rounded-[2.5rem] shadow-2xl p-8 max-w-md w-full max-h-[90vh] overflow-y-auto relative flex flex-col items-center text-center"
-              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-            >
-              <button onClick={() => setExpandedCard(null)} className="absolute top-6 right-6 w-10 h-10 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center font-bold text-slate-600 transition-colors z-30 shadow-sm">✕</button>
-              <div className={`relative w-[200px] h-[200px] overflow-hidden rounded-[2.5rem] bg-white mb-6 mt-4 ${avatar.aura}`}>
-                <img src={avatar.url} alt="Bio-Avatar" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = '/default-avatar.png'; }} />
-              </div>
-              <h3 className="text-3xl font-black text-slate-800 tracking-tight">{avatar.label}</h3>
-              <p className="text-sm text-slate-500 mt-1 font-semibold">{avatar.subLabel}</p>
-              <div className="mt-6 bg-white rounded-2xl border border-sky-100 p-6 text-left w-full shadow-sm">
-                <span className="bg-sky-100 text-sky-700 text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg block mb-2 font-bold w-fit">Coach IA</span>
-                <p className="text-sm text-slate-700 font-semibold leading-relaxed">{insightText}</p>
-              </div>
-            </motion.div>
-          </div>
-        )}
-
-        {expandedCard === 'nutrition' && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
-            <motion.div
-              layoutId="nutrition-modal"
-              className="bg-white border border-slate-200 rounded-[2.5rem] shadow-2xl p-6 sm:p-10 max-w-4xl w-full max-h-[90vh] overflow-y-auto relative flex flex-col"
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-            >
-              <button onClick={() => setExpandedCard(null)} className="absolute top-6 right-6 w-10 h-10 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center font-bold text-slate-600 transition-colors z-30 shadow-sm">✕</button>
-              <div className="flex justify-between items-end mb-6">
-                <div>
-                  <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-extrabold mb-1">Nutrición</p>
-                  <h2 className="text-3xl font-black text-slate-800 tracking-tighter leading-none">Macros</h2>
-                </div>
-                <p className="text-2xl font-black text-rose-500 tracking-tighter">{displayLog.total_kcal}<span className="text-sm text-slate-400 font-bold ml-1">/ {dietTargets?.kcal ?? 2000} kcal</span></p>
-              </div>
-              <div className="grid grid-cols-4 gap-2 sm:gap-4 mb-8 bg-slate-50 border border-slate-150 p-6 rounded-3xl">
-                <CircularProgressRing value={displayLog.total_kcal} max={dietTargets?.kcal ?? 2000} label="Calorías" unit="kcal" colorClass="stroke-rose-500" icon={<svg className="w-5 h-5 text-rose-500" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.362 5.214A8.252 8.252 0 0 1 12 21 8.25 8.25 0 0 1 6.038 7.047 8.287 8.287 0 0 0 9 9.601a8.983 8.983 0 0 1 3.361-6.867 8.21 8.21 0 0 0 3 2.48Z" /></svg>} />
-                <CircularProgressRing value={displayLog.protein_g} max={dietTargets?.protein ?? 150} label="Proteína" unit="g" colorClass="stroke-emerald-500" icon={<svg className="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" /></svg>} />
-                <CircularProgressRing value={displayLog.carbs_g} max={dietTargets?.carbs ?? 200} label="Carbos" unit="g" colorClass="stroke-cyan-500" icon={<svg className="w-5 h-5 text-cyan-500" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 8.25v-1.5m0 1.5c-1.355 0-2.697.056-4.024.166C6.845 8.342 6 9.3 6 10.428v4.293c0 1.128.845 2.086 1.976 2.112 2.654.062 5.394.062 8.048 0 1.131-.026 1.976-1.084 1.976-2.212v-4.293c0-1.128-.845-2.086-1.976-2.112A48.243 48.243 0 0 0 12 8.25Z" /></svg>} />
-                <CircularProgressRing value={displayLog.fats_g} max={dietTargets?.fats ?? 70} label="Grasa" unit="g" colorClass="stroke-amber-500" icon={<svg className="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>} />
-              </div>
-              <div className="mt-2 border-t border-slate-150 pt-6">
-                <NutritionContainer />
-              </div>
-            </motion.div>
-          </div>
-        )}
-
-        {expandedCard === 'water' && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
-            <motion.div
-              className="bg-white border border-slate-200 rounded-[2.5rem] shadow-2xl p-8 max-w-xl w-full max-h-[90vh] overflow-y-auto relative flex flex-col items-center"
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-            >
-              <button onClick={() => setExpandedCard(null)} className="absolute top-6 right-6 w-10 h-10 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center font-bold text-slate-650 transition-colors z-30 shadow-sm">✕</button>
-              <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-extrabold mb-1">Hidratación</p>
-              <h2 className="text-3xl font-black text-slate-800 tracking-tighter mb-8 font-bold">Seguimiento de Agua</h2>
-              <div className="w-full max-w-xs aspect-square flex items-center justify-center py-4">
-                <WaterGlass amount={waterMl} max={dailyWaterTarget} defaultGlass={defaultGlassSize} addWater={addWaterIntake} updateSettings={updateWaterSettings} />
-              </div>
-            </motion.div>
-          </div>
-        )}
-
-        {expandedCard === 'habits' && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
-            <motion.div
-              className="bg-white border border-slate-200 rounded-[2.5rem] shadow-2xl p-6 sm:p-10 max-w-4xl w-full max-h-[90vh] overflow-y-auto relative flex flex-col"
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-            >
-              <button onClick={() => setExpandedCard(null)} className="absolute top-6 right-6 w-10 h-10 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center font-bold text-slate-650 transition-colors z-30 shadow-sm">✕</button>
-              <div className="mt-2">
-                <HabitTracker />
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      <HealthInsightsDashboard isOpen={isInsightsOpen} onClose={() => setIsInsightsOpen(false)} />
-    </section>
+      <div className="flex items-center justify-center gap-2 text-xs font-bold text-slate-400">
+        <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+        Inicio sin histórico: solo estado del día actual.
+      </div>
+    </main>
   );
 }

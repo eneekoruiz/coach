@@ -1,8 +1,15 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { dailyLogSchema, type DailyLog } from '@/lib/schema';
-import { calculatePerfectDayStreak } from '@/services/calculateStreaks';
 import { getNormalizedDate } from '@/lib/date-utils';
+import {
+  enqueueDashboardMutation,
+  listDashboardMutations,
+  readDashboardCacheSync,
+  removeDashboardMutation,
+  writeDashboardSnapshot,
+  type DashboardSnapshot,
+} from '@/lib/local-dashboard-store';
 
 const fallbackLog: DailyLog = {
   comidas: [],
@@ -27,24 +34,128 @@ const fallbackLog: DailyLog = {
   },
 };
 
+const defaultDietTargets = {
+  kcal: 2000,
+  protein: 150,
+  carbs: 200,
+  fats: 70,
+};
+
+function waterFromLog(log: DailyLog | null) {
+  return Number(log?.water_ml ?? log?.hidratacion_ml ?? 0);
+}
+
+function createTodayInsight(log: DailyLog | null, dailyWaterTarget: number) {
+  if (!log) return 'HUD preparado. Registra una acción para activar el seguimiento de hoy.';
+
+  const water = waterFromLog(log);
+  const waterPct = dailyWaterTarget > 0 ? water / dailyWaterTarget : 0;
+
+  if (waterPct < 0.35) return 'Ahora: prioriza hidratación. Un toque suma agua y sincroniza en segundo plano.';
+  if ((log.total_kcal ?? 0) <= 0) return 'Ahora: registra la primera comida para calibrar el día.';
+  if (log.metricas?.accion_manana) return log.metricas.accion_manana;
+  return 'Hoy va en marcha. Mantén el foco en la siguiente acción simple.';
+}
+
 export function useDashboard() {
-  const [isLoading, setIsLoading] = useState(true);
-  const [lastLog, setLastLog] = useState<DailyLog | null>(null);
-  const [momentum, setMomentum] = useState(100);
-  const [streak, setStreak] = useState(0);
-  const [insightText, setInsightText] = useState('Registrando tu comportamiento...');
-  const [dailyWaterTarget, setDailyWaterTarget] = useState(2000);
-  const [defaultGlassSize, setDefaultGlassSize] = useState(250);
-  const [dietTargets, setDietTargets] = useState({
-    kcal: 2000,
-    protein: 150,
-    carbs: 200,
-    fats: 70,
-  });
-  const [hasLoggedToday, setHasLoggedToday] = useState(false);
-  const [shields, setShields] = useState(2);
-  const [dailyLogs, setDailyLogs] = useState<any[]>([]);
-  const [newUnlockedAch, setNewUnlockedAch] = useState<any | null>(null);
+  const cachedSnapshot = useMemo(() => readDashboardCacheSync(), []);
+
+  const [isLoading, setIsLoading] = useState(!cachedSnapshot);
+  const [lastLog, setLastLog] = useState<DailyLog | null>(cachedSnapshot?.lastLog ?? fallbackLog);
+  const [momentum, setMomentum] = useState(cachedSnapshot?.momentum ?? 100);
+  const [insightText, setInsightText] = useState(
+    cachedSnapshot?.insightText ?? 'HUD local listo. Sincronizando en segundo plano...'
+  );
+  const [dailyWaterTarget, setDailyWaterTarget] = useState(cachedSnapshot?.dailyWaterTarget ?? 2000);
+  const [defaultGlassSize, setDefaultGlassSize] = useState(cachedSnapshot?.defaultGlassSize ?? 250);
+  const [dietTargets, setDietTargets] = useState(cachedSnapshot?.dietTargets ?? defaultDietTargets);
+  const [hasLoggedToday, setHasLoggedToday] = useState(cachedSnapshot?.hasLoggedToday ?? false);
+  const [pendingSyncCount, setPendingSyncCount] = useState(0);
+
+  const persistSnapshot = useCallback(async (snapshot: Omit<DashboardSnapshot, 'updatedAt'>) => {
+    await writeDashboardSnapshot({
+      ...snapshot,
+      updatedAt: new Date().toISOString(),
+    });
+  }, []);
+
+  const syncWaterDelta = useCallback(async (delta: number, date: string) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Usuario no autenticado.');
+
+    const { data: habits } = await supabase
+      .from('user_habits')
+      .select('id, name')
+      .eq('user_id', user.id);
+
+    let waterHabit = habits?.find((habit) => {
+      const name = String(habit.name || '').toLowerCase();
+      return name.includes('agua') || name.includes('hidratacion');
+    });
+
+    if (!waterHabit) {
+      const { data: createdHabit, error: createError } = await supabase
+        .from('user_habits')
+        .insert({
+          user_id: user.id,
+          name: 'Agua',
+          type: 'positive',
+          is_custom: true,
+          tolerance_threshold: 0,
+          current_streak: 0,
+          longest_streak: 0,
+          shields: 0,
+        })
+        .select('id, name')
+        .single();
+
+      if (createError) throw createError;
+      waterHabit = createdHabit;
+    }
+
+    if (!waterHabit) throw new Error('No se pudo preparar el hábito de agua.');
+
+    const session = await supabase.auth.getSession();
+    const token = session.data.session?.access_token;
+    if (!token) throw new Error('Sesión no disponible.');
+
+    const response = await fetch('/api/habits/update-today', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        habit_id: waterHabit.id,
+        delta,
+        date,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error('No se pudo sincronizar el agua.');
+    }
+  }, []);
+
+  const flushQueuedMutations = useCallback(async () => {
+    const queued = await listDashboardMutations();
+    setPendingSyncCount(queued.length);
+
+    for (const mutation of queued) {
+      try {
+        if (mutation.type === 'add_water') {
+          await syncWaterDelta(mutation.payload.delta, mutation.payload.date);
+        }
+        await removeDashboardMutation(mutation.id);
+      } catch {
+        const remaining = await listDashboardMutations();
+        setPendingSyncCount(remaining.length);
+        return;
+      }
+    }
+
+    setPendingSyncCount(0);
+  }, [syncWaterDelta]);
 
   const loadDashboard = useCallback(async () => {
     try {
@@ -52,180 +163,112 @@ export function useDashboard() {
       const accessToken = sessionData.session?.access_token;
 
       if (!accessToken) {
-        setLastLog(null);
-        setMomentum(100);
-        setInsightText('Por favor, inicia sesión para activar el seguimiento.');
+        setInsightText('Inicia sesión para activar el HUD.');
         setIsLoading(false);
         return;
       }
 
-      // Load user water settings from auth metadata
       const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const metadata = user.user_metadata || {};
-        setDailyWaterTarget(Number(metadata.daily_water_target_ml ?? 2000));
-        setDefaultGlassSize(Number(metadata.default_glass_size_ml ?? 250));
-
-        // Fetch active diet targets
-        const { data: dietData } = await supabase
-          .from('user_diet_plans')
-          .select('target_kcal, target_protein, target_carbs, target_fats')
-          .eq('user_id', user.id)
-          .maybeSingle();
-
-        if (dietData) {
-          setDietTargets({
-            kcal: Number(dietData.target_kcal ?? 2000),
-            protein: Number(dietData.target_protein ?? 150),
-            carbs: Number(dietData.target_carbs ?? 200),
-            fats: Number(dietData.target_fats ?? 70),
-          });
-        }
-      }
-
-      const { data: records, error } = await supabase
-        .from('daily_logs')
-        .select('health_momentum, ai_data, date, saved_by_shield')
-        .order('date', { ascending: false })
-        .limit(45);
-
-      if (error) {
-        throw error;
-      }
-
-      setDailyLogs(records || []);
-
-      let userShields = 2;
-      if (user) {
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('shields_available')
-          .eq('id', user.id)
-          .maybeSingle();
-        if (profileData) {
-          userShields = profileData.shields_available;
-        }
-      }
-      setShields(userShields);
-
-      // Midnight Reset logic: Only load today's logged activities for lastLog
       const todayStr = getNormalizedDate(new Date());
-      const todayRecord = records?.find((r) => r.date === todayStr);
-      setHasLoggedToday(!!todayRecord);
+      let nextWaterTarget = 2000;
+      let nextGlassSize = 250;
+      let nextDietTargets = defaultDietTargets;
 
-      if (todayRecord) {
-        const validated = dailyLogSchema.safeParse(todayRecord.ai_data);
-        setLastLog(validated.success ? validated.data : fallbackLog);
-      } else {
-        // It's a new day, show a fresh, clean log template
-        setLastLog(fallbackLog);
+      if (!user) {
+        setInsightText('Inicia sesión para activar el HUD.');
+        setIsLoading(false);
+        return;
       }
 
-      const latestRecord = records?.[0];
-      setMomentum(typeof latestRecord?.health_momentum === 'number' ? latestRecord.health_momentum : 100);
+      const metadata = user.user_metadata || {};
+      nextWaterTarget = Number(metadata.daily_water_target_ml ?? 2000);
+      nextGlassSize = Number(metadata.default_glass_size_ml ?? 250);
+      setDailyWaterTarget(nextWaterTarget);
+      setDefaultGlassSize(nextGlassSize);
 
-      // Compute streak of perfect days
-      const currentStreak = calculatePerfectDayStreak(
-        (records ?? []).map((r) => ({
-          date: r.date,
-          health_momentum: Number(r.health_momentum ?? 100),
-        }))
-      );
-      setStreak(currentStreak);
+      const { data: dietData } = await supabase
+        .from('user_diet_plans')
+        .select('target_kcal, target_protein, target_carbs, target_fats')
+        .eq('user_id', user.id)
+        .maybeSingle();
 
-      const logsList: DailyLog[] = (records ?? []).map((r) => {
-        const validated = dailyLogSchema.safeParse(r.ai_data);
-        return validated.success ? validated.data : fallbackLog;
+      if (dietData) {
+        nextDietTargets = {
+          kcal: Number(dietData.target_kcal ?? 2000),
+          protein: Number(dietData.target_protein ?? 150),
+          carbs: Number(dietData.target_carbs ?? 200),
+          fats: Number(dietData.target_fats ?? 70),
+        };
+        setDietTargets(nextDietTargets);
+      }
+
+      await flushQueuedMutations();
+      const remainingQueue = await listDashboardMutations();
+
+      const { data: todayRecord, error } = await supabase
+        .from('daily_logs')
+        .select('health_momentum, ai_data, date')
+        .eq('user_id', user.id)
+        .eq('date', todayStr)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      const validated = todayRecord?.ai_data
+        ? dailyLogSchema.safeParse(todayRecord.ai_data)
+        : null;
+
+      let nextLog = validated?.success ? validated.data : fallbackLog;
+
+      if (remainingQueue.length > 0) {
+        const cachedWater = waterFromLog(readDashboardCacheSync()?.lastLog ?? null);
+        const remoteWater = waterFromLog(nextLog);
+        const resolvedWater = Math.max(cachedWater, remoteWater);
+        nextLog = {
+          ...nextLog,
+          water_ml: resolvedWater,
+          hidratacion_ml: resolvedWater,
+        };
+      }
+
+      const nextMomentum = typeof todayRecord?.health_momentum === 'number'
+        ? todayRecord.health_momentum
+        : 100;
+      const nextInsight = createTodayInsight(nextLog, nextWaterTarget);
+
+      setLastLog(nextLog);
+      setHasLoggedToday(Boolean(todayRecord));
+      setMomentum(nextMomentum);
+      setInsightText(nextInsight);
+      await persistSnapshot({
+        lastLog: nextLog,
+        momentum: nextMomentum,
+        insightText: nextInsight,
+        dailyWaterTarget: nextWaterTarget,
+        defaultGlassSize: nextGlassSize,
+        dietTargets: nextDietTargets,
+        hasLoggedToday: Boolean(todayRecord),
       });
-
-      // Generate Insight Text
-      if (logsList.length >= 3) {
-        const userWaterTarget = user ? Number(user.user_metadata?.daily_water_target_ml ?? 2000) : 2000;
-        const waterMetDays = logsList.filter((log) => (log.water_ml ?? log.hidratacion_ml ?? 0) >= userWaterTarget).length;
-        const totalLogsCount = logsList.length;
-        
-        const momentums = (records ?? []).map((r) => Number(r.health_momentum || 100)).reverse();
-        const oldestMomentum = momentums[0] ?? 100;
-        const newestMomentum = momentums[momentums.length - 1] ?? 100;
-        const trend = newestMomentum - oldestMomentum;
-
-        if (trend < -5) {
-          setInsightText(`Tu inercia fisiológica ha caído ${Math.abs(trend)} puntos esta semana. Necesitas descansar, hidratarte y comer balanceado.`);
-        } else if (waterMetDays >= 4) {
-          setInsightText(`¡Excelente trabajo! Has cumplido tu meta de agua en ${waterMetDays} de los últimos ${totalLogsCount} días registrados. ¡Sigue así!`);
-        } else if (trend > 5) {
-          setInsightText(`¡Excelente inercia! Tu salud metabólica subió ${trend} puntos en los últimos días. ¡Sigue así!`);
-        } else {
-          setInsightText(`Hidratación: meta alcanzada ${waterMetDays}/${totalLogsCount} días. Mantente constante para subir tu inercia de salud.`);
-        }
-      } else {
-        setInsightText('Registra al menos 3 días para activar tus recomendaciones de inercia y hábitos.');
-      }
-
-      if (user) {
-        try {
-          const { data: unlockedData } = await supabase
-            .from('user_achievements')
-            .select('achievement_id');
-          
-          const unlockedIds = new Set(unlockedData?.map((ua) => ua.achievement_id) || []);
-          const newlyUnlocked: string[] = [];
-
-          const unlock = async (id: string) => {
-            const { error: insertErr } = await supabase
-              .from('user_achievements')
-              .insert({ user_id: user.id, achievement_id: id });
-            if (!insertErr) {
-              newlyUnlocked.push(id);
-            }
-          };
-
-          if (!unlockedIds.has('streak_3') && currentStreak >= 3) {
-            await unlock('streak_3');
-          }
-          if (!unlockedIds.has('streak_7') && currentStreak >= 7) {
-            await unlock('streak_7');
-          }
-          const maxWater = records?.reduce((max, r) => {
-            const water = Number(r.ai_data?.water_ml ?? r.ai_data?.hidratacion_ml ?? 0);
-            return water > max ? water : max;
-          }, 0) ?? 0;
-          if (!unlockedIds.has('hydration_master') && maxWater >= 3000) {
-            await unlock('hydration_master');
-          }
-          const currentMomentumVal = typeof latestRecord?.health_momentum === 'number' ? latestRecord.health_momentum : 100;
-          if (!unlockedIds.has('momentum_hero') && currentMomentumVal >= 120) {
-            await unlock('momentum_hero');
-          }
-          if (!unlockedIds.has('close_day_first') && records && records.length >= 1) {
-            await unlock('close_day_first');
-          }
-
-          if (newlyUnlocked.length > 0) {
-            const { data: achDetails } = await supabase
-              .from('achievements')
-              .select('*')
-              .eq('id', newlyUnlocked[0])
-              .single();
-            if (achDetails) {
-              setNewUnlockedAch(achDetails);
-            }
-          }
-        } catch (achErr) {
-          console.warn('Error checking achievements:', achErr);
-        }
-      }
-
       setIsLoading(false);
-    } catch {
-      setLastLog(null);
-      setMomentum(100);
-      setInsightText('Error al cargar datos del servidor.');
+    } catch (error) {
+      console.warn('Dashboard sync failed; serving local HUD cache.', error);
       setIsLoading(false);
     }
-  }, []);
+  }, [flushQueuedMutations, persistSnapshot]);
 
   const updateWaterSettings = useCallback(async (target: number, glass: number) => {
+    setDailyWaterTarget(target);
+    setDefaultGlassSize(glass);
+    await persistSnapshot({
+      lastLog,
+      momentum,
+      insightText,
+      dailyWaterTarget: target,
+      defaultGlassSize: glass,
+      dietTargets,
+      hasLoggedToday,
+    });
+
     try {
       const { error } = await supabase.auth.updateUser({
         data: {
@@ -234,103 +277,82 @@ export function useDashboard() {
         },
       });
       if (error) throw error;
-      setDailyWaterTarget(target);
-      setDefaultGlassSize(glass);
       return true;
     } catch (err) {
       console.error('Error updating user settings:', err);
       return false;
     }
-  }, []);
+  }, [dietTargets, hasLoggedToday, insightText, lastLog, momentum, persistSnapshot]);
 
   const addWaterIntake = useCallback(async () => {
+    const todayStr = getNormalizedDate(new Date());
+    const baseLog = lastLog ?? fallbackLog;
+    const nextWater = waterFromLog(baseLog) + defaultGlassSize;
+    const nextLog: DailyLog = {
+      ...baseLog,
+      water_ml: nextWater,
+      hidratacion_ml: nextWater,
+      habits_count: {
+        ...(baseLog.habits_count || {}),
+        agua: nextWater,
+      },
+    };
+    const nextInsight = createTodayInsight(nextLog, dailyWaterTarget);
+
+    setLastLog(nextLog);
+    setInsightText(nextInsight);
+    await persistSnapshot({
+      lastLog: nextLog,
+      momentum,
+      insightText: nextInsight,
+      dailyWaterTarget,
+      defaultGlassSize,
+      dietTargets,
+      hasLoggedToday: true,
+    });
+
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const todayStr = getNormalizedDate(new Date());
-
-      const { data: todayLog } = await supabase
-        .from('daily_logs')
-        .select('id, ai_data, habit_tracking')
-        .eq('user_id', user.id)
-        .eq('date', todayStr)
-        .maybeSingle();
-
-      const { data: habits } = await supabase
-        .from('user_habits')
-        .select('id, name')
-        .eq('user_id', user.id);
-
-      let waterHabit = habits?.find(h => {
-        const name = h.name.toLowerCase();
-        return name.includes('agua') || name.includes('hidratacion');
-      });
-
-      if (!waterHabit) {
-        const { data: newHabit, error: createError } = await supabase
-          .from('user_habits')
-          .insert({
-            user_id: user.id,
-            name: 'Agua',
-            type: 'positive',
-            is_custom: true,
-            tolerance_threshold: 0,
-            current_streak: 0,
-            longest_streak: 0,
-            shields: 0,
-          })
-          .select('*')
-          .single();
-        if (createError) throw createError;
-        if (!newHabit) throw new Error('Failed to auto-create water habit.');
-        waterHabit = newHabit;
-      }
-
-      if (!waterHabit) {
-        throw new Error('No se encontró ni se pudo crear un hábito de Agua.');
-      }
-
-      let currentWater = 0;
-      if (todayLog && todayLog.ai_data) {
-        const aiData = todayLog.ai_data as any;
-        currentWater = Number(aiData.water_ml ?? aiData.hidratacion_ml ?? 0);
-      }
-      const newWater = currentWater + defaultGlassSize;
-
-      const session = await supabase.auth.getSession();
-      const res = await fetch('/api/habits/update-today', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.data.session?.access_token}`,
+      await syncWaterDelta(defaultGlassSize, todayStr);
+      await flushQueuedMutations();
+    } catch {
+      await enqueueDashboardMutation({
+        type: 'add_water',
+        payload: {
+          delta: defaultGlassSize,
+          date: todayStr,
         },
-        body: JSON.stringify({
-          habit_id: waterHabit.id,
-          amount: newWater,
-        }),
       });
-
-      if (!res.ok) {
-        throw new Error('Error al registrar agua en el servidor.');
-      }
-
-      await loadDashboard();
-    } catch (err) {
-      console.error(err);
-      throw err;
+      const queued = await listDashboardMutations();
+      setPendingSyncCount(queued.length);
     }
-  }, [defaultGlassSize, loadDashboard]);
+  }, [
+    dailyWaterTarget,
+    defaultGlassSize,
+    dietTargets,
+    flushQueuedMutations,
+    hasLoggedToday,
+    lastLog,
+    momentum,
+    persistSnapshot,
+    syncWaterDelta,
+  ]);
 
   useEffect(() => {
     void loadDashboard();
   }, [loadDashboard]);
 
+  useEffect(() => {
+    const onOnline = () => {
+      void flushQueuedMutations().then(() => loadDashboard());
+    };
+    window.addEventListener('online', onOnline);
+    return () => window.removeEventListener('online', onOnline);
+  }, [flushQueuedMutations, loadDashboard]);
+
   return {
     isLoading,
     lastLog,
     momentum,
-    streak,
     insightText,
     dailyWaterTarget,
     defaultGlassSize,
@@ -339,9 +361,6 @@ export function useDashboard() {
     addWaterIntake,
     reload: loadDashboard,
     hasLoggedToday,
-    shields,
-    dailyLogs,
-    newUnlockedAch,
-    setNewUnlockedAch,
+    pendingSyncCount,
   };
 }
