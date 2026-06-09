@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X } from 'lucide-react';
+import { Sparkles, CheckCircle2, AlertTriangle, Lightbulb } from 'lucide-react';
 import { formatSpanishDate, formatShortHeader } from '@/lib/date-utils';
 import { type DailyLog } from '@/lib/schema';
 
@@ -19,7 +19,7 @@ interface HistoryDetailModalProps {
   onClose: () => void;
 }
 
-const Sparkles = (props: React.SVGProps<SVGSVGElement>) => (
+const SparklesIcon = (props: React.SVGProps<SVGSVGElement>) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true" {...props}>
     <path d="M12 2l1.5 4L18 8l-4.5 2L12 14l-1.5-4L6 8l4.5-2L12 2z" />
   </svg>
@@ -42,6 +42,13 @@ export default function HistoryDetailModal({ log, onClose }: HistoryDetailModalP
 
   if (!mounted) return null;
 
+  // Check if there are no errors
+  const isNoError = !summary?.error_clave || 
+                    summary.error_clave.toLowerCase().trim() === 'ok' || 
+                    summary.error_clave.toLowerCase().trim() === 'null' || 
+                    summary.error_clave.toLowerCase().trim() === 'ninguno' || 
+                    summary.error_clave.toLowerCase().trim() === 'sin errores';
+
   return createPortal(
     <AnimatePresence>
       <div className="fixed inset-0 z-[150] flex items-end justify-center pointer-events-none">
@@ -51,7 +58,7 @@ export default function HistoryDetailModal({ log, onClose }: HistoryDetailModalP
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={onClose}
-          className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm pointer-events-auto"
+          className="fixed inset-0 bg-slate-950/40 backdrop-blur-sm pointer-events-auto"
         />
 
         {/* Snap Drawer */}
@@ -82,25 +89,25 @@ export default function HistoryDetailModal({ log, onClose }: HistoryDetailModalP
               }
             }
           }}
-          className="relative w-full max-w-lg bg-white dark:bg-slate-900 rounded-t-[2.5rem] border-t border-slate-200/80 dark:border-slate-800/80 shadow-[0_-10px_40px_rgba(0,0,0,0.06)] z-10 flex flex-col pointer-events-auto select-none overflow-hidden"
+          className="relative w-full max-w-lg bg-slate-50 rounded-t-[2.5rem] border-t border-slate-200 shadow-[0_-10px_40px_rgba(0,0,0,0.06)] z-10 flex flex-col pointer-events-auto select-none overflow-hidden"
         >
           {/* Top Pull Bar & Drag Handle */}
           <div 
             onClick={() => setSnapIndex(prev => prev === 0 ? 1 : 0)}
             className="w-full pt-4 pb-2 flex justify-center cursor-row-resize shrink-0"
           >
-            <div className="w-12 h-1.5 bg-slate-250 dark:bg-slate-700 rounded-full" />
+            <div className="w-12 h-1.5 bg-slate-250 rounded-full" />
           </div>
 
           {/* Header */}
-          <div className="flex items-center justify-between px-6 pb-4 border-b border-slate-100 dark:border-slate-800/60 shrink-0">
+          <div className="flex items-center justify-between px-6 pb-4 border-b border-slate-200 shrink-0">
             <div>
-              <p className="text-[10px] uppercase tracking-[0.2em] text-slate-450 font-bold mb-0.5">Historial Diario</p>
-              <h3 className="text-xl font-black text-slate-950 dark:text-white tracking-tight">{formatSpanishDate(log.date)}</h3>
+              <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-bold mb-0.5">Historial Diario</p>
+              <h3 className="text-xl font-black text-slate-950 tracking-tight">{formatSpanishDate(log.date)}</h3>
             </div>
             <button
               onClick={onClose}
-              className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center text-slate-500 font-bold transition-colors"
+              className="w-8 h-8 rounded-full bg-white border border-slate-200 hover:bg-slate-50 flex items-center justify-center text-slate-500 font-bold transition-colors"
             >
               ✕
             </button>
@@ -109,7 +116,7 @@ export default function HistoryDetailModal({ log, onClose }: HistoryDetailModalP
           {/* Scrollable Content */}
           <div className="flex-1 overflow-y-auto custom-scrollbar px-6 py-5 space-y-5">
             {/* Avatar Image Card */}
-            <div className="overflow-hidden rounded-3xl border border-slate-200/60 dark:border-slate-800/80 bg-slate-50 dark:bg-slate-950">
+            <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
               <div className="relative">
                 <div className="aspect-[16/10] w-full bg-gradient-to-b from-slate-100 to-slate-200">
                   {imgSrc ? (
@@ -121,30 +128,30 @@ export default function HistoryDetailModal({ log, onClose }: HistoryDetailModalP
                     />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center bg-[radial-gradient(circle_at_center,_rgba(255,255,255,0.95),_rgba(226,232,240,0.92))]">
-                      <Sparkles className="h-10 w-10 text-slate-400" />
+                      <SparklesIcon className="h-10 w-10 text-slate-400" />
                     </div>
                   )}
                 </div>
 
                 <div className="absolute inset-x-0 top-0 flex flex-col gap-2 p-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="rounded-full border border-white/60 bg-white/85 dark:bg-slate-900/80 px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-200 shadow-sm backdrop-blur-md">
+                  <div className="rounded-full border border-slate-250 bg-white/90 px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm backdrop-blur-md">
                     {formatShortHeader(log.date)}
                   </div>
-                  <div className="rounded-full bg-slate-950 dark:bg-white dark:text-slate-950 px-3 py-1.5 text-xs font-semibold text-white shadow-lg">
+                  <div className="rounded-full bg-slate-950 px-3 py-1.5 text-xs font-semibold text-white shadow-lg">
                     {log.health_momentum}% Inercia
                   </div>
                 </div>
               </div>
 
-              <div className="p-4 space-y-3 bg-white dark:bg-slate-905 border-t border-slate-100 dark:border-slate-800">
+              <div className="p-4 space-y-3 bg-white border-t border-slate-100">
                 <div className="grid gap-2 sm:grid-cols-2">
                   <div>
-                    <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-bold">Inercia Fisiológica</p>
-                    <p className="mt-1 text-sm font-semibold text-slate-850 dark:text-slate-250">{log.health_momentum}%</p>
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-slate-450 font-bold">Inercia Fisiológica</p>
+                    <p className="mt-1 text-sm font-semibold text-slate-800">{log.health_momentum}%</p>
                   </div>
                   <div>
-                    <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-bold">Recomendación</p>
-                    <p className="mt-1 text-sm text-slate-700 dark:text-slate-350 line-clamp-2">{summary?.accion_manana ?? '—'}</p>
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-slate-450 font-bold">Recomendación</p>
+                    <p className="mt-1 text-sm text-slate-700 line-clamp-2">{summary?.accion_manana ?? '—'}</p>
                   </div>
                 </div>
               </div>
@@ -153,19 +160,19 @@ export default function HistoryDetailModal({ log, onClose }: HistoryDetailModalP
             {/* Detail sections */}
             {summary ? (
               <div className="space-y-3 pb-8">
-                <div className="rounded-2xl border border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-800/20 p-4 shadow-sm">
-                  <p className="text-[10px] uppercase tracking-[0.22em] text-slate-405 font-bold">Acción de mañana</p>
-                  <p className="mt-2 text-sm leading-relaxed text-slate-750 dark:text-slate-200">{summary.accion_manana}</p>
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <p className="text-[10px] uppercase tracking-[0.22em] text-slate-450 font-bold">Acción de mañana</p>
+                  <p className="mt-2 text-sm leading-relaxed text-slate-800">{summary.accion_manana}</p>
                 </div>
 
-                <div className="rounded-2xl border border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-800/20 p-4 shadow-sm">
-                  <p className="text-[10px] uppercase tracking-[0.22em] text-slate-455 font-bold">Aciertos</p>
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <p className="text-[10px] uppercase tracking-[0.22em] text-slate-450 font-bold">Aciertos</p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     {summary.aciertos.length > 0 ? (
                       summary.aciertos.map((item: string) => (
                         <span
                           key={item}
-                          className="rounded-full border border-emerald-200 bg-emerald-50 dark:bg-emerald-950/30 px-3 py-1 text-xs font-bold text-emerald-900 dark:text-emerald-305"
+                          className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-900"
                         >
                           {item}
                         </span>
@@ -176,13 +183,35 @@ export default function HistoryDetailModal({ log, onClose }: HistoryDetailModalP
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-800/20 p-4 shadow-sm">
-                  <p className="text-[10px] uppercase tracking-[0.22em] text-slate-455 font-bold">Error clave</p>
-                  <p className="mt-2 text-sm leading-relaxed text-slate-750 dark:text-slate-200">{summary.error_clave}</p>
-                </div>
+                {/* Error clave Alert Card */}
+                {isNoError ? (
+                  <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm flex items-start gap-3">
+                    <div className="p-2 bg-emerald-50 text-emerald-600 rounded-xl flex-shrink-0">
+                      <CheckCircle2 className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] uppercase tracking-[0.22em] text-slate-450 font-bold">Estado de Salud</p>
+                      <p className="mt-1.5 text-sm font-semibold text-slate-900">
+                        No se detectaron errores ni desviaciones hoy.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm flex items-start gap-3">
+                    <div className="p-2 bg-rose-50 text-rose-650 rounded-xl flex-shrink-0">
+                      <AlertTriangle className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] uppercase tracking-[0.22em] text-slate-450 font-bold">Error clave</p>
+                      <p className="mt-1.5 text-sm font-semibold text-rose-700 leading-relaxed">
+                        {summary.error_clave}
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
-              <p className="text-sm leading-6 text-slate-500 dark:text-slate-450 pb-8">
+              <p className="text-sm leading-6 text-slate-500 pb-8">
                 El resumen estructurado de este día no pudo validarse, pero la imagen histórica sigue disponible.
               </p>
             )}

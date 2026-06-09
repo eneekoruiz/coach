@@ -29,6 +29,18 @@ export default function MoodContainer() {
     loadData();
   }, [loadData]);
 
+  const getDynamicMoodLabel = () => {
+    const now = new Date();
+    const days = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+    const months = [
+      'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+      'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'
+    ];
+    const dayName = days[now.getDay()];
+    const capitalizedDay = dayName.charAt(0).toUpperCase() + dayName.slice(1);
+    return `Registrar ánimo para hoy, ${capitalizedDay} ${now.getDate()} de ${months[now.getMonth()]}`;
+  };
+
   return (
     <div className="space-y-8">
       {/* Top CTA Button / Logger Card */}
@@ -39,7 +51,7 @@ export default function MoodContainer() {
             className="w-full max-w-md mx-auto py-6 px-8 rounded-[2rem] border border-white/60 bg-white/70 shadow-lg backdrop-blur-xl flex flex-col items-center gap-2 transition hover:bg-white/80 active:scale-[0.98] group"
           >
             <span className="text-4xl animate-pulse group-hover:scale-110 transition duration-300">💝</span>
-            <span className="text-lg font-bold text-slate-800">Registrar cómo me siento AHORA</span>
+            <span className="text-lg font-bold text-slate-800">{getDynamicMoodLabel()}</span>
             <span className="text-xs text-slate-400">Guarda un registro rápido de tu estado mental actual</span>
           </button>
         ) : (

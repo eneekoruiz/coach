@@ -72,14 +72,17 @@ export default function Sidebar() {
   return (
     <aside className="hidden md:flex flex-col w-20 lg:w-64 bg-white border-r border-slate-100 shadow-sm h-full overflow-y-auto z-40">
       <div className="flex-1 flex flex-col pt-8 pb-6 px-4 lg:px-6 gap-4">
-        <div className="flex items-center justify-center lg:justify-start px-2 mb-8">
+        <Link
+          href="/profile"
+          className="flex items-center justify-center lg:justify-start px-2 mb-8 hover:opacity-80 transition-opacity cursor-pointer"
+        >
           <div className="w-10 h-10 rounded-xl bg-slate-900 flex items-center justify-center text-white font-black text-xl shadow-md">
             B
           </div>
           <span className="hidden lg:block ml-3 font-black text-xl text-slate-800 tracking-tight">
             BioAvatar
           </span>
-        </div>
+        </Link>
 
         <nav className="flex flex-col gap-2">
           {tabs.map((tab) => {

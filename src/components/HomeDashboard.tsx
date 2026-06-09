@@ -101,7 +101,7 @@ export default function HomeDashboard() {
 
   return (
     <div
-      className={`relative flex flex-col flex-1 pb-32 md:pb-6 min-h-0 overflow-y-auto md:overflow-hidden custom-scrollbar ${theme.background} ${theme.text}`}
+      className={`relative flex flex-col flex-1 pb-6 min-h-0 h-[calc(100dvh-5.5rem)] md:h-full overflow-hidden ${theme.background} ${theme.text}`}
     >
       <div className={`absolute inset-0 bg-gradient-to-br ${theme.accent}`} />
       <div className="absolute inset-0 opacity-25 [background-image:radial-gradient(rgba(255,255,255,0.65)_1px,transparent_1px)] [background-size:22px_22px]" />

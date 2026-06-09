@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check, Loader2 } from 'lucide-react';
+import { Check, Loader2, ArrowLeft } from 'lucide-react';
 import { saveMoodEntry } from '@/app/mood/actions';
 import toast from '@/lib/toast';
 import { useHaptic } from '@/hooks/useHaptic';
@@ -42,6 +42,7 @@ const DOT_RING: Record<number, string> = {
 
 export default function MoodLogger({ onSaved, existingEntry }: MoodLoggerProps) {
   const haptic = useHaptic();
+  const [step, setStep] = useState<'type' | 'log'>('type');
   const [moodScore, setMoodScore] = useState<number>(existingEntry?.mood_score ?? 0);
   const [selectedFactors, setSelectedFactors] = useState<string[]>(existingEntry?.impact_factors ?? []);
   const [isDailySummary, setIsDailySummary] = useState<boolean>(false);
@@ -77,10 +78,84 @@ export default function MoodLogger({ onSaved, existingEntry }: MoodLoggerProps) 
     });
   }, [moodScore, selectedFactors, isDailySummary, onSaved]);
 
+  const getConfirmationDateString = () => {
+    const now = new Date();
+    const days = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+    const months = [
+      'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+      'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'
+    ];
+    const dayName = days[now.getDay()];
+    const capitalizedDay = dayName.charAt(0).toUpperCase() + dayName.slice(1);
+    return `${capitalizedDay}, ${now.getDate()} de ${months[now.getMonth()]} de ${now.getFullYear()}`;
+  };
+
   /* ── Render ───────────────────────────────────────────────── */
+
+  if (step === 'type') {
+    return (
+      <div className="w-full max-w-md mx-auto bg-white border border-slate-200 p-6 rounded-[2.5rem] shadow-sm space-y-6 select-none">
+        <div className="text-center space-y-1">
+          <span className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider">Confirmar fecha de registro</span>
+          <h3 className="text-lg font-black text-slate-800 capitalize">{getConfirmationDateString()}</h3>
+        </div>
+
+        <div className="border-t border-slate-100 pt-4 space-y-4">
+          <p className="text-xs font-bold uppercase tracking-widest text-slate-500 text-center">
+            Selecciona el tipo de registro:
+          </p>
+
+          <div className="flex flex-col gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                haptic.light();
+                setIsDailySummary(false);
+                setStep('log');
+              }}
+              className="w-full py-4 px-6 rounded-2xl border border-slate-200 bg-white text-left hover:bg-slate-50 transition active:scale-[0.98] group flex items-start gap-4 shadow-sm"
+            >
+              <span className="text-3xl p-2 bg-sky-50 rounded-xl group-hover:scale-110 transition duration-300">⚡</span>
+              <div>
+                <h4 className="text-sm font-black text-slate-800">Registro Puntual de este momento</h4>
+                <p className="text-xs text-slate-400 font-semibold mt-0.5">Captura cómo te sientes en este instante preciso.</p>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                haptic.light();
+                setIsDailySummary(true);
+                setStep('log');
+              }}
+              className="w-full py-4 px-6 rounded-2xl border border-slate-200 bg-white text-left hover:bg-slate-50 transition active:scale-[0.98] group flex items-start gap-4 shadow-sm"
+            >
+              <span className="text-3xl p-2 bg-amber-50 rounded-xl group-hover:scale-110 transition duration-300">🌅</span>
+              <div>
+                <h4 className="text-sm font-black text-slate-800">Balance General del Día</h4>
+                <p className="text-xs text-slate-400 font-semibold mt-0.5">Reflexiona y evalúa el promedio emocional de toda tu jornada.</p>
+              </div>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full max-w-md mx-auto flex flex-col gap-5">
+      {/* Back button to return to type step */}
+      <button
+        onClick={() => {
+          haptic.light();
+          setStep('type');
+        }}
+        className="self-start text-xs font-bold text-slate-500 hover:text-slate-800 flex items-center gap-1.5"
+      >
+        <ArrowLeft size={14} />
+        Volver a selección de tipo ({isDailySummary ? 'Balance General' : 'Registro Puntual'})
+      </button>
 
       {/* ─ Phase 1 · Emotional Slider Card ─────────────────── */}
       <motion.div

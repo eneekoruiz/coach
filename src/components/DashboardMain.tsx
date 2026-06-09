@@ -199,16 +199,18 @@ export default function DashboardMain({
   const [isInsightsOpen, setIsInsightsOpen] = useState(false);
 
   return (
-    <section className="relative flex flex-1 flex-col px-4 md:px-6 pb-24 lg:pb-2 overflow-x-hidden lg:overflow-hidden lg:h-[calc(100vh-120px)]">
-      <PushNotificationManager />
+    <section className="relative flex flex-1 flex-col px-4 pb-4 md:pb-6">
+      <div className="relative z-10 w-full max-w-2xl mx-auto flex flex-col gap-4 pt-1">
 
-      <div className="relative z-10 w-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 pt-2 lg:h-full lg:items-stretch">
-        {/* ══ COLUMNA IZQUIERDA: BioAvatar ══════════════════════════════════ */}
-        <div className="lg:col-span-5 flex flex-col items-center justify-center py-6 lg:py-4 lg:justify-center h-full shrink-0">
+        <PushNotificationManager />
+
+        {/* ══ HERO: Avatar Section ══════════════════════════════════════════ */}
+        <div className="flex flex-col items-center text-center pt-1">
+
           {/* Status dot */}
-          <div className="flex items-center gap-2 mb-4">
+          <div className="flex items-center gap-2 mb-2">
             <span className={`w-2.5 h-2.5 rounded-full ${avatar.statusColor} shadow-sm animate-pulse`} />
-            <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-550">
+            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
               {avatar.subLabel}
             </span>
           </div>
@@ -217,9 +219,8 @@ export default function DashboardMain({
           <motion.div
             layoutId="avatar-card"
             onClick={() => { triggerVibration('light'); setExpandedCard('avatar'); }}
-            whileTap={{ scale: 0.95 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 10 }}
-            className={`relative w-48 h-48 sm:w-56 sm:h-56 lg:w-64 lg:h-64 rounded-[2.5rem] overflow-hidden bg-white cursor-pointer ${avatar.aura} border border-slate-100 transition-shadow duration-700`}
+            whileTap={{ scale: 0.97 }}
+            className={`relative w-36 h-36 sm:w-44 sm:h-44 rounded-[2rem] overflow-hidden bg-white/80 backdrop-blur-xl cursor-pointer ${avatar.aura} transition-shadow duration-700`}
           >
             <img
               src={avatar.url}
@@ -229,15 +230,15 @@ export default function DashboardMain({
               onError={(e) => { (e.target as HTMLImageElement).src = '/default-avatar.png'; }}
             />
             {/* Subtle inner ring */}
-            <div className="absolute inset-0 rounded-[2.5rem] ring-1 ring-white/30" />
+            <div className="absolute inset-0 rounded-[2rem] ring-1 ring-white/30" />
           </motion.div>
 
           {/* State label */}
-          <div className="mt-6 text-center">
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 tracking-tighter leading-none">
+          <div className="mt-3">
+            <h2 className="text-3xl sm:text-4xl font-black text-slate-800 tracking-tighter leading-none">
               {avatar.label}
             </h2>
-            <p className="text-base sm:text-lg font-semibold text-slate-400 mt-2 tracking-tight">
+            <p className="text-sm font-semibold text-slate-400 mt-0.5 tracking-tight">
               {normalizedMomentum}% de inercia
             </p>
           </div>
@@ -246,9 +247,9 @@ export default function DashboardMain({
           <motion.button
             whileTap={{ scale: 0.96 }}
             onClick={() => { triggerVibration('light'); onChatOpen?.(); }}
-            className="mt-6 inline-flex items-center gap-3 px-8 py-4 rounded-[2rem] bg-slate-900 text-white text-base font-black shadow-2xl hover:bg-slate-800 transition-colors group"
+            className="mt-3.5 inline-flex items-center gap-2.5 px-6 py-3 rounded-[1.5rem] bg-slate-900 text-white text-sm font-black shadow-lg hover:bg-slate-800 transition-colors group"
           >
-            <span className="text-2xl group-hover:scale-110 transition-transform">🐶</span>
+            <span className="text-xl group-hover:scale-110 transition-transform">🐶</span>
             <span>Hablar con mi Coach</span>
           </motion.button>
         </div>

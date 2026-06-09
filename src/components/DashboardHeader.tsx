@@ -37,15 +37,8 @@ export default function DashboardHeader({
         <span>{momentum}%</span>
       </div>
 
-      {/* Right: Settings Link */}
-      <Link
-        href="/profile"
-        onClick={() => triggerVibration('light')}
-        className="p-2 rounded-full bg-white hover:bg-slate-100 text-slate-700 transition-all border border-slate-200/50 shadow-sm active:scale-95"
-        aria-label="Perfil y Ajustes"
-      >
-        <Settings className="w-5 h-5" />
-      </Link>
+      {/* Right: Spacer to center the Momentum Pill */}
+      <div className="w-9 h-9" />
     </header>
   );
 }
