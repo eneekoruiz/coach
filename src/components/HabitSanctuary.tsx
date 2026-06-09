@@ -1,0 +1,249 @@
+'use client';
+
+import React, { useMemo, useState } from 'react';
+import { motion } from 'framer-motion';
+import { Activity, Flame, Plus, ShieldCheck, Sparkles, Trophy } from 'lucide-react';
+import HabitCreateModal from './HabitCreateModal';
+import HabitTrackerCard from './HabitTrackerCard';
+import { useHabits } from '@/hooks/useHabits';
+import { computeHabitOutcome } from '@/lib/habits';
+
+interface ProgressRingProps {
+  value: number;
+  size?: number;
+  stroke?: number;
+  label: string;
+  sublabel: string;
+}
+
+function ProgressRing({ value, size = 236, stroke = 18, label, sublabel }: ProgressRingProps) {
+  const radius = (size - stroke) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (Math.max(0, Math.min(100, value)) / 100) * circumference;
+
+  return (
+    <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
+      <svg className="-rotate-90" width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden="true">
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={stroke}
+          className="text-slate-100"
+        />
+        <motion.circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          initial={{ strokeDashoffset: circumference }}
+          animate={{ strokeDashoffset: offset }}
+          transition={{ type: 'spring', stiffness: 70, damping: 20 }}
+          className="text-emerald-500"
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+        <span className="text-6xl font-black tracking-tight text-slate-950">{Math.round(value)}%</span>
+        <span className="mt-1 text-xs font-black uppercase tracking-[0.28em] text-slate-400">{label}</span>
+        <span className="mt-2 max-w-36 text-xs font-semibold leading-5 text-slate-500">{sublabel}</span>
+      </div>
+    </div>
+  );
+}
+
+export default function HabitSanctuary() {
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const {
+    habits,
+    values,
+    recentLogs,
+    loading,
+    authRequired,
+    errorMessage,
+    savingMap,
+    saveHabit,
+    saveHabitValue,
+    createHabitQuick,
+    updateHabitValue,
+  } = useHabits();
+
+  const sanctuaryStats = useMemo(() => {
+    const total = habits.length;
+    const completed = habits.filter((habit) => {
+      const outcome = computeHabitOutcome(habit, values[habit.id] ?? 0);
+      return outcome === 'perfect' || outcome === 'yellow';
+    }).length;
+    const topStreakHabit = habits.reduce<(typeof habits)[number] | null>((top, habit) => {
+      if (!top) return habit;
+      return (habit.current_streak ?? 0) > (top.current_streak ?? 0) ? habit : top;
+    }, null);
+    const shieldCount = habits.reduce((sum, habit) => sum + (habit.shields ?? 0), 0);
+    const longestStreak = habits.reduce((max, habit) => Math.max(max, habit.longest_streak ?? 0), 0);
+
+    return {
+      total,
+      completed,
+      progress: total > 0 ? (completed / total) * 100 : 0,
+      shieldCount,
+      longestStreak,
+      topStreakHabit,
+      topStreak: topStreakHabit?.current_streak ?? 0,
+    };
+  }, [habits, values]);
+
+  if (authRequired) {
+    return (
+      <div className="flex h-full items-center justify-center bg-slate-50 p-6 text-center">
+        <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+          <p className="text-sm font-bold text-slate-600">Inicia sesión para ver tus hábitos.</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <main className="flex h-[100dvh] min-h-0 flex-1 flex-col overflow-hidden bg-slate-50 text-slate-950">
+      <header className="shrink-0 border-b border-slate-200 bg-white px-4 py-4 sm:px-6 lg:px-8">
+        <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.34em] text-slate-400">Habit Sanctuary</p>
+            <h1 className="mt-1 text-3xl font-black tracking-tight text-slate-950">Hábitos</h1>
+            <p className="mt-1 text-sm font-semibold text-slate-500">
+              Rachas, protección y consistencia de largo plazo.
+            </p>
+          </div>
+          <div className="grid grid-cols-3 gap-2 sm:flex sm:items-center">
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+              <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                <ShieldCheck className="h-4 w-4 text-emerald-500" />
+                Escudos
+              </div>
+              <p className="mt-1 text-2xl font-black text-slate-950">{sanctuaryStats.shieldCount}</p>
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+              <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                <Flame className="h-4 w-4 text-orange-500" />
+                Racha
+              </div>
+              <p className="mt-1 text-2xl font-black text-slate-950">{sanctuaryStats.topStreak}</p>
+            </div>
+            <button
+              onClick={() => setIsCreateOpen(true)}
+              className="inline-flex min-h-[60px] items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-xs font-black uppercase tracking-wider text-white shadow-sm transition active:scale-95"
+            >
+              <Plus className="h-4 w-4" />
+              Nuevo
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <section className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6 lg:px-8 custom-scrollbar">
+        <div className="mx-auto grid w-full max-w-7xl gap-5 lg:grid-cols-[390px_minmax(0,1fr)]">
+          <aside className="space-y-5">
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="flex justify-center">
+                <ProgressRing
+                  value={sanctuaryStats.progress}
+                  label="Hoy"
+                  sublabel={`${sanctuaryStats.completed}/${sanctuaryStats.total} hábitos protegidos`}
+                />
+              </div>
+              <div className="mt-6 grid grid-cols-2 gap-3">
+                <div className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
+                  <Trophy className="h-5 w-5 text-amber-500" />
+                  <p className="mt-2 text-2xl font-black text-slate-950">{sanctuaryStats.longestStreak}</p>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Mejor racha</p>
+                </div>
+                <div className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
+                  <Activity className="h-5 w-5 text-indigo-500" />
+                  <p className="mt-2 text-2xl font-black text-slate-950">{sanctuaryStats.total}</p>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Hábitos vivos</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-orange-50 text-orange-500">
+                  <Flame className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Racha viva</p>
+                  <p className="text-sm font-black text-slate-950">
+                    {sanctuaryStats.topStreakHabit?.name ?? 'Sin hábitos activos'}
+                  </p>
+                </div>
+              </div>
+              <p className="mt-4 text-5xl font-black tracking-tight text-slate-950">
+                {sanctuaryStats.topStreak}
+                <span className="ml-2 text-sm font-black uppercase tracking-widest text-slate-400">días</span>
+              </p>
+            </div>
+          </aside>
+
+          <div className="min-h-0 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Sistema de rachas</p>
+                <h2 className="mt-1 text-xl font-black text-slate-950">Hábitos activos</h2>
+              </div>
+              <Sparkles className="h-5 w-5 text-emerald-500" />
+            </div>
+
+            {loading ? (
+              <div className="grid gap-3 lg:grid-cols-2">
+                {Array.from({ length: 4 }).map((_, index) => (
+                  <div key={index} className="h-28 animate-pulse rounded-2xl border border-slate-200 bg-slate-50" />
+                ))}
+              </div>
+            ) : errorMessage ? (
+              <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-700">
+                {errorMessage}
+              </div>
+            ) : habits.length === 0 ? (
+              <div className="flex min-h-72 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center">
+                <ShieldCheck className="h-10 w-10 text-slate-300" />
+                <p className="mt-3 text-sm font-bold text-slate-600">Crea tu primer hábito para activar rachas.</p>
+                <button
+                  onClick={() => setIsCreateOpen(true)}
+                  className="mt-4 inline-flex min-h-[44px] items-center gap-2 rounded-full bg-slate-950 px-5 py-2 text-xs font-black uppercase tracking-wider text-white"
+                >
+                  <Plus className="h-4 w-4" />
+                  Crear hábito
+                </button>
+              </div>
+            ) : (
+              <div className="grid gap-3 lg:grid-cols-2">
+                {habits.map((habit) => (
+                  <HabitTrackerCard
+                    key={habit.id}
+                    habit={habit}
+                    value={values[habit.id] ?? 0}
+                    saving={!!savingMap[habit.id]}
+                    onValueChange={updateHabitValue}
+                    onSave={saveHabit}
+                    onSaveValue={saveHabitValue}
+                    recentLogs={recentLogs}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      <HabitCreateModal
+        isOpen={isCreateOpen}
+        onClose={() => setIsCreateOpen(false)}
+        onCreate={createHabitQuick}
+      />
+    </main>
+  );
+}

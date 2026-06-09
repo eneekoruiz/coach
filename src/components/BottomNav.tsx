@@ -37,7 +37,17 @@ export default function BottomNav() {
       ),
     },
     {
-      name: 'Rutinas',
+      name: 'Hábitos',
+      href: '/habits',
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M20 13c0 5-3.5 7.5-8 9-4.5-1.5-8-4-8-9V5l8-3 8 3v8z" />
+          <path d="M9 12l2 2 4-5" />
+        </svg>
+      ),
+    },
+    {
+      name: 'Tareas',
       href: '/routines',
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
@@ -75,7 +85,7 @@ export default function BottomNav() {
       <div className="mx-auto max-w-md pointer-events-auto pb-4 sm:pb-6">
         <nav className="flex items-center justify-between bg-white/90 backdrop-blur-xl border border-slate-200/50 rounded-full px-2 py-2 shadow-[0_8px_30px_rgb(0,0,0,0.08)]">
           {tabs.map((tab) => {
-            const isActive = pathname === tab.href;
+            const isActive = tab.href === '/' ? pathname === '/' : pathname === tab.href || pathname.startsWith(`${tab.href}/`);
             return (
               <Link
                 key={tab.name}

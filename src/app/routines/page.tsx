@@ -4,39 +4,42 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import DailyChecklist from '@/components/DailyChecklist';
 
-const CheckSquare = (props: React.SVGProps<SVGSVGElement>) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
-    <polyline points="9 11 12 14 22 4"></polyline>
-    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+export const metadata = {
+  title: 'Tareas | BioAvatar',
+};
+
+const ChevronLeftIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.25} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+    <path d="M15 18l-6-6 6-6" />
   </svg>
 );
 
-const ChevronLeft = (props: React.SVGProps<SVGSVGElement>) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
-    <polyline points="15 18 9 12 15 6"></polyline>
+const ListChecksIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.25} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+    <path d="M11 6h10" />
+    <path d="M11 12h10" />
+    <path d="M11 18h10" />
+    <path d="M3 6l1.5 1.5L8 4" />
+    <path d="M3 12l1.5 1.5L8 10" />
+    <path d="M3 18l1.5 1.5L8 16" />
   </svg>
 );
 
 export default async function RoutinesPage() {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
     return (
-      <div className="flex-1 overflow-y-auto pb-24 md:pb-8 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.98),_rgba(233,238,244,0.95)_38%,_rgba(212,220,230,0.96)_100%)] px-4 py-6 text-slate-900 sm:px-6 lg:px-8 custom-scrollbar">
-        <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
-          <header className="rounded-[2rem] border border-white/80 bg-white/75 px-5 py-5 shadow-[0_22px_70px_rgba(15,23,42,0.12)] backdrop-blur-2xl sm:px-6">
-            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
-              Modo local sin Supabase
-            </h1>
-            <div className="mt-4">
-              <Link
-                href="/"
-                className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-4 py-2 text-sm font-medium text-white transition hover:scale-[1.01]"
-              >
-                Volver al Dashboard
-              </Link>
-            </div>
-          </header>
-        </div>
-      </div>
+      <main className="flex h-[100dvh] flex-1 items-center justify-center overflow-hidden bg-slate-50 p-6 text-slate-950">
+        <section className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <p className="text-[10px] font-black uppercase tracking-[0.34em] text-slate-400">Daily Task Center</p>
+          <h1 className="mt-2 text-3xl font-black tracking-tight">Modo local sin Supabase</h1>
+          <Link
+            href="/"
+            className="mt-5 inline-flex min-h-[44px] items-center rounded-full bg-slate-950 px-5 text-sm font-bold text-white"
+          >
+            Volver al inicio
+          </Link>
+        </section>
+      </main>
     );
   }
 
@@ -53,46 +56,45 @@ export default async function RoutinesPage() {
     }
   );
 
-  const { data: { user } } = await supabaseReal.auth.getUser();
+  const {
+    data: { user },
+  } = await supabaseReal.auth.getUser();
 
   if (!user) {
     redirect('/login');
   }
 
   return (
-    <div className="flex-1 overflow-y-auto pb-24 md:pb-8 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.98),_rgba(233,238,244,0.95)_38%,_rgba(212,220,230,0.96)_100%)] px-4 py-6 text-slate-900 sm:px-6 lg:px-8 custom-scrollbar">
-      <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
-        <header className="rounded-[2rem] border border-white/80 bg-white/75 px-5 py-5 shadow-[0_22px_70px_rgba(15,23,42,0.12)] backdrop-blur-2xl sm:px-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-[10px] uppercase tracking-[0.38em] text-slate-500">
-                Rutinas de Cuidado
-              </p>
-              <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
-                Tareas Diarias
-              </h1>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-                Mantén tus hábitos diarios bajo control con recordatorios optimizados y seguimiento instantáneo.
-              </p>
+    <main className="flex h-[100dvh] min-h-0 flex-1 flex-col overflow-hidden bg-slate-50 text-slate-950">
+      <header className="shrink-0 border-b border-slate-200 bg-white px-4 py-4 sm:px-6 lg:px-8">
+        <div className="mx-auto flex w-full max-w-4xl items-center justify-between gap-4">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600 ring-1 ring-indigo-100">
+              <ListChecksIcon className="h-5 w-5" />
             </div>
-
-            <div className="flex flex-wrap items-center gap-3">
-              <Link
-                href="/"
-                className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-800 transition hover:bg-slate-50 min-h-[44px]"
-              >
-                <ChevronLeft className="h-4 w-4" />
-                Volver
-              </Link>
+            <div className="min-w-0">
+              <p className="text-[10px] font-black uppercase tracking-[0.34em] text-slate-400">Daily Task Center</p>
+              <h1 className="truncate text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">
+                Tareas
+              </h1>
             </div>
           </div>
-        </header>
 
-        <section className="w-full">
-          {/* Main daily routines checklist container */}
+          <Link
+            href="/"
+            className="inline-flex min-h-[44px] shrink-0 items-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
+          >
+            <ChevronLeftIcon className="h-4 w-4" />
+            Volver
+          </Link>
+        </div>
+      </header>
+
+      <section className="min-h-0 flex-1 overflow-y-auto px-4 py-5 pb-28 sm:px-6 md:pb-8 lg:px-8 custom-scrollbar">
+        <div className="mx-auto w-full max-w-4xl">
           <DailyChecklist isDedicatedPage={true} />
-        </section>
-      </div>
-    </div>
+        </div>
+      </section>
+    </main>
   );
 }
