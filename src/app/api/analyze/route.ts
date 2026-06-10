@@ -7,6 +7,7 @@ import {
   ImageTooLargeError,
 } from '@/services/analyzeService';
 import { createFallbackDailyLog, withTimeout } from '@/services/aiRuntime';
+import { captureException } from '@/lib/monitoring';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'edge';
@@ -174,6 +175,17 @@ export async function POST(request: Request) {
         return jsonError(413, 'image_too_large', err.message);
       }
 
+      captureException(err, {
+        area: 'ai',
+        action: 'streamAnalyzeAndPersistDailyLog',
+        extra: {
+          hasText: Boolean(body.text),
+          hasImage: Boolean(body.image),
+          localDate: body.local_date,
+          sessionId: body.session_id ?? undefined,
+        },
+      });
+
       const fallbackData = createFallbackDailyLog(
         body.local_date || new Date().toISOString().slice(0, 10),
         err instanceof Error && err.message.includes('timeout') ? 'ai_timeout' : 'error_ia'
@@ -186,6 +198,7 @@ export async function POST(request: Request) {
       });
     }
   } catch (error) {
+    captureException(error, { area: 'ai', action: 'analyzeRouteUnhandled' });
     console.error('[ANALYZE_API_ERROR] Unexpected error:', error);
     const message = error instanceof Error ? error.message : 'Error desconocido';
     return jsonError(500, 'unexpected_error', `Falló el análisis: ${message}`);

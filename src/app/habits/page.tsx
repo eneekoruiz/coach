@@ -3,12 +3,17 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import HabitSanctuary from '@/components/HabitSanctuary';
+import { isE2EMockMode } from '@/lib/e2e';
 
 export const metadata = {
   title: 'Hábitos | BioAvatar',
 };
 
 export default async function HabitsPage() {
+  if (isE2EMockMode()) {
+    return <HabitSanctuary />;
+  }
+
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
     return (
       <main className="flex h-[100dvh] flex-1 items-center justify-center overflow-hidden overflow-x-hidden bg-slate-50 p-6 text-slate-950">

@@ -3,6 +3,7 @@ import { revalidatePath } from 'next/cache';
 
 import { resolveAuthenticatedClient } from '@/services/authService';
 import { updateTodayHabit } from '@/services/habitsService';
+import { captureException } from '@/lib/monitoring';
 
 export const dynamic = 'force-dynamic';
 
@@ -82,10 +83,22 @@ export async function POST(request: Request) {
       return NextResponse.json({ data }, { status: 200 });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
+      captureException(err, {
+        area: 'habits',
+        action: 'updateTodayHabit',
+        extra: {
+          userId: user.id,
+          habitId,
+          hasAmount: amount !== undefined,
+          hasDelta: delta !== undefined,
+          date,
+        },
+      });
       const status = mapDbErrorStatus(msg);
       return NextResponse.json({ error: msg }, { status });
     }
   } catch (err) {
+    captureException(err, { area: 'habits', action: 'updateTodayHabitRouteUnhandled' });
     const message = err instanceof Error ? err.message : String(err);
     return NextResponse.json({ error: message }, { status: 500 });
   }

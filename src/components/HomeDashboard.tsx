@@ -1,7 +1,8 @@
 'use client';
 
 import { AnimatePresence, motion } from 'framer-motion';
-import { useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useEffect, useMemo, useState } from 'react';
 
 import ChatInput from '@/components/ChatInput';
 import { useDashboard } from '@/hooks/useDashboard';
@@ -33,6 +34,7 @@ const fallbackLog: DailyLog = {
 };
 
 export default function HomeDashboard() {
+  const router = useRouter();
   const [isChatOpen, setIsChatOpen] = useState(false);
   const {
     isLoading,
@@ -47,6 +49,7 @@ export default function HomeDashboard() {
     addWaterIntake,
     hasLoggedToday,
     pendingSyncCount,
+    smartTrigger,
   } = useDashboard();
 
   const theme = useMemo(() => ({
@@ -61,11 +64,15 @@ export default function HomeDashboard() {
   const energyLevel = displayLog.bio_avatar.energia_fisica;
   const mentalClarity = displayLog.bio_avatar.claridad_mental;
 
+  useEffect(() => {
+    router.prefetch('/nutrition');
+    router.prefetch('/habits');
+    router.prefetch('/statistics');
+  }, [router]);
+
   return (
     <div className={`relative flex min-h-0 flex-1 flex-col overflow-hidden ${theme.background} ${theme.text}`}>
-      <div className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${theme.accent}`} />
-
-      <div className="relative z-10 flex h-full min-h-0 flex-1 flex-col overflow-hidden px-2 py-2 sm:px-4">
+      <div className={`flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-gradient-to-br ${theme.accent} px-2 py-2 pb-[calc(4rem+env(safe-area-inset-bottom))] sm:px-4 md:pb-4`}>
         <DashboardMain
           isLoading={isLoading}
           theme={theme}
@@ -80,6 +87,7 @@ export default function HomeDashboard() {
           updateWaterSettings={updateWaterSettings}
           addWaterIntake={addWaterIntake}
           pendingSyncCount={pendingSyncCount}
+          smartTrigger={smartTrigger}
           onChatOpen={() => setIsChatOpen(true)}
         />
       </div>

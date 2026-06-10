@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import DailyChecklist from '@/components/DailyChecklist';
 import ScreenGuideButton from '@/components/ScreenGuideButton';
+import { isE2EMockMode } from '@/lib/e2e';
 
 export const metadata = {
   title: 'Tareas | BioAvatar',
@@ -27,6 +28,18 @@ const ListChecksIcon = (props: React.SVGProps<SVGSVGElement>) => (
 );
 
 export default async function RoutinesPage() {
+  if (isE2EMockMode()) {
+    return (
+      <main className="flex h-[100dvh] min-h-0 flex-1 flex-col overflow-hidden bg-slate-50 text-slate-950">
+        <section className="min-h-0 flex-1 overflow-y-auto px-4 py-5 pb-28 sm:px-6 md:pb-8 lg:px-8 scrollbar-hide">
+          <div className="mx-auto w-full max-w-4xl">
+            <DailyChecklist isDedicatedPage={true} />
+          </div>
+        </section>
+      </main>
+    );
+  }
+
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
     return (
       <main className="flex h-[100dvh] flex-1 items-center justify-center overflow-hidden bg-slate-50 p-6 text-slate-950">

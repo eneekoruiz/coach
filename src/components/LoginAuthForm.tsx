@@ -13,6 +13,23 @@ export default function LoginAuthForm({
   resendConfirmationAction,
   defaultEmail = '',
 }: LoginAuthFormProps) {
+  const isE2EMockMode = process.env.NEXT_PUBLIC_E2E_MOCK_MODE === '1';
+
+  const handleMockAuth = (mode: 'login' | 'signup') => {
+    const emailInput = document.getElementById('email') as HTMLInputElement | null;
+    const passwordInput = document.getElementById('password') as HTMLInputElement | null;
+    const email = emailInput?.value?.trim() ?? '';
+    const password = passwordInput?.value ?? '';
+    const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+    if (!isValidEmail || password.length < 6) {
+      window.location.assign('/login?error=invalid_form');
+      return;
+    }
+
+    window.location.assign(`/?e2e_auth=${mode}`);
+  };
+
   return (
     <form className="space-y-4">
       <div>
@@ -21,6 +38,7 @@ export default function LoginAuthForm({
         </label>
         <input
           id="email"
+          data-testid="login-email"
           name="email"
           type="email"
           autoComplete="email"
@@ -42,6 +60,7 @@ export default function LoginAuthForm({
         </label>
         <input
           id="password"
+          data-testid="login-password"
           name="password"
           type="password"
           autoComplete="current-password"
@@ -55,15 +74,19 @@ export default function LoginAuthForm({
 
       <div className="grid grid-cols-1 gap-3 pt-2 sm:grid-cols-2">
         <button
-          type="submit"
-          formAction={loginAction}
+          type={isE2EMockMode ? 'button' : 'submit'}
+          data-testid="login-submit"
+          onClick={isE2EMockMode ? () => handleMockAuth('login') : undefined}
+          {...(!isE2EMockMode ? { formAction: loginAction } : {})}
           className="rounded-full bg-slate-950 px-4 py-3 text-sm font-medium text-white transition hover:scale-[1.01] active:scale-[0.99]"
         >
           Iniciar Sesión
         </button>
         <button
-          type="submit"
-          formAction={signupAction}
+          type={isE2EMockMode ? 'button' : 'submit'}
+          data-testid="signup-submit"
+          onClick={isE2EMockMode ? () => handleMockAuth('signup') : undefined}
+          {...(!isE2EMockMode ? { formAction: signupAction } : {})}
           className="rounded-full border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 transition hover:bg-slate-50"
         >
           Crear Cuenta

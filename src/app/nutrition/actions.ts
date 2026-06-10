@@ -5,11 +5,18 @@ import { google } from '@ai-sdk/google';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { dailyLogSchema, scannedDietImportSchema } from '@/lib/schema';
 import { z } from 'zod';
+import { isE2EMockMode } from '@/lib/e2e';
+import { getE2EMockStore } from '@/lib/e2e-mock-store';
+import { captureException } from '@/lib/monitoring';
 
 import { dietTemplateSchema, type DietTemplate, defaultTemplate, type MealItem } from '@/lib/schema';
 
 export async function getDietTemplates(): Promise<DietTemplate[]> {
   try {
+    if (isE2EMockMode()) {
+      return getE2EMockStore().nutrition.templates;
+    }
+
     const supabase = await createSupabaseServerClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return [];
@@ -96,6 +103,7 @@ export async function getDietTemplates(): Promise<DietTemplate[]> {
 
     return validTemplates;
   } catch (err) {
+    captureException(err, { area: 'nutrition', action: 'getDietTemplates' });
     console.error('getDietTemplates server action error:', err);
     return [];
   }
@@ -103,6 +111,21 @@ export async function getDietTemplates(): Promise<DietTemplate[]> {
 
 export async function saveDietTemplate(template: DietTemplate): Promise<{ success: boolean; data?: DietTemplate; error?: string }> {
   try {
+    if (isE2EMockMode()) {
+      const store = getE2EMockStore();
+      const savedTemplate: DietTemplate = {
+        ...template,
+        id: template.id ?? `diet-template-${Date.now()}`,
+      };
+      const existingIndex = store.nutrition.templates.findIndex((item) => item.id === savedTemplate.id);
+      if (existingIndex >= 0) {
+        store.nutrition.templates[existingIndex] = savedTemplate;
+      } else {
+        store.nutrition.templates.unshift(savedTemplate);
+      }
+      return { success: true, data: savedTemplate };
+    }
+
     const supabase = await createSupabaseServerClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { success: false, error: 'Usuario no autenticado.' };
@@ -172,6 +195,7 @@ export async function saveDietTemplate(template: DietTemplate): Promise<{ succes
 
     return { success: true, data: responseParsed.data };
   } catch (err) {
+    captureException(err, { area: 'nutrition', action: 'saveDietTemplate', extra: { templateName: template?.name } });
     console.error('saveDietTemplate server action error:', err);
     return { success: false, error: err instanceof Error ? err.message : 'Error inesperado.' };
   }
@@ -203,6 +227,10 @@ export async function deleteDietTemplate(templateId: string): Promise<{ success:
 
 export async function getDietCalendar(startDate: string, endDate: string): Promise<Array<{ date: string; template_id: string }>> {
   try {
+    if (isE2EMockMode()) {
+      return getE2EMockStore().nutrition.calendar.filter((item) => item.date >= startDate && item.date <= endDate);
+    }
+
     const supabase = await createSupabaseServerClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return [];
@@ -221,6 +249,7 @@ export async function getDietCalendar(startDate: string, endDate: string): Promi
 
     return data || [];
   } catch (err) {
+    captureException(err, { area: 'nutrition', action: 'getDietCalendar' });
     console.error('getDietCalendar server action error:', err);
     return [];
   }
@@ -228,6 +257,20 @@ export async function getDietCalendar(startDate: string, endDate: string): Promi
 
 export async function assignTemplateToDates(templateId: string, dates: string[]): Promise<{ success: boolean; error?: string }> {
   try {
+    if (isE2EMockMode()) {
+      const store = getE2EMockStore();
+      for (const date of dates) {
+        const existingIndex = store.nutrition.calendar.findIndex((item) => item.date === date);
+        const row = { date, template_id: templateId };
+        if (existingIndex >= 0) {
+          store.nutrition.calendar[existingIndex] = row;
+        } else {
+          store.nutrition.calendar.push(row);
+        }
+      }
+      return { success: true };
+    }
+
     const supabase = await createSupabaseServerClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { success: false, error: 'Usuario no autenticado.' };
@@ -249,6 +292,7 @@ export async function assignTemplateToDates(templateId: string, dates: string[])
 
     return { success: true };
   } catch (err) {
+    captureException(err, { area: 'nutrition', action: 'assignTemplateToDates', extra: { templateId, datesCount: dates.length } });
     console.error('assignTemplateToDates server action error:', err);
     return { success: false, error: err instanceof Error ? err.message : 'Error inesperado.' };
   }
@@ -389,6 +433,26 @@ export async function markMealAsEaten(
 
 export async function autocompleteDietWithAi(context: string): Promise<{ success: boolean; data?: DietTemplate; error?: string }> {
   try {
+    if (isE2EMockMode()) {
+      return {
+        success: true,
+        data: {
+          id: `diet-ai-${Date.now()}`,
+          parent_template_id: null,
+          name: 'Menú de Hoy IA',
+          target_kcal: 2200,
+          target_protein: 165,
+          target_carbs: 230,
+          target_fats: 72,
+          meals: [
+            { id: 'e2e-m1', name: 'Desayuno', text: 'Huevos, avena y fruta', target_kcal: 600, target_protein: 35, target_carbs: 70, target_fats: 18 },
+            { id: 'e2e-m2', name: 'Comida', text: 'Pechuga con arroz y verduras', target_kcal: 850, target_protein: 65, target_carbs: 90, target_fats: 20 },
+            { id: 'e2e-m3', name: 'Cena', text: 'Salmón con patata y ensalada', target_kcal: 750, target_protein: 65, target_carbs: 70, target_fats: 34 },
+          ],
+        },
+      };
+    }
+
     const prompt = 
       `El usuario solicita un menú para HOY basándose en este contexto:\n` +
       `"${context}"\n\n` +
@@ -438,6 +502,7 @@ export async function autocompleteDietWithAi(context: string): Promise<{ success
 
     return { success: true, data: parsed.data };
   } catch (err) {
+    captureException(err, { area: 'nutrition', action: 'autocompleteDietWithAi', extra: { context } });
     console.error('autocompleteDietWithAi server action error:', err);
     return { success: false, error: err instanceof Error ? err.message : 'Fallo en generación' };
   }
@@ -698,6 +763,10 @@ import { recipeSchema, ingredientItemSchema, type Recipe, type DietProgram, type
 
 export async function getRecipes(): Promise<Recipe[]> {
   try {
+    if (isE2EMockMode()) {
+      return [];
+    }
+
     const supabase = await createSupabaseServerClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return [];
@@ -730,6 +799,7 @@ export async function getRecipes(): Promise<Recipe[]> {
       };
     });
   } catch (err) {
+    captureException(err, { area: 'nutrition', action: 'getRecipes' });
     console.error('getRecipes server action error:', err);
     return [];
   }
@@ -932,6 +1002,10 @@ export async function deleteRecipe(recipeId: string): Promise<{ success: boolean
 // ── Diet Program Actions (Microcycles) ───────────────────────────────────────
 export async function getActiveDietProgram(): Promise<{ program: DietProgram | null; days: Array<{ day_number: number; template_id: string }> }> {
   try {
+    if (isE2EMockMode()) {
+      return { program: null, days: [] };
+    }
+
     const supabase = await createSupabaseServerClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { program: null, days: [] };
@@ -974,6 +1048,7 @@ export async function getActiveDietProgram(): Promise<{ program: DietProgram | n
       days: daysData || []
     };
   } catch (err) {
+    captureException(err, { area: 'nutrition', action: 'getActiveDietProgram' });
     console.error('getActiveDietProgram server action error:', err);
     return { program: null, days: [] };
   }
@@ -1081,6 +1156,10 @@ export async function deleteDietProgram(programId: string): Promise<{ success: b
 // ── Daily Diet Overrides Actions (Micro-management) ─────────────────────────
 export async function getDailyDietOverrides(startDate: string, endDate: string): Promise<DailyDietOverride[]> {
   try {
+    if (isE2EMockMode()) {
+      return [];
+    }
+
     const supabase = await createSupabaseServerClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return [];
@@ -1107,6 +1186,7 @@ export async function getDailyDietOverrides(startDate: string, endDate: string):
       total_fats: row.total_fats,
     }));
   } catch (err) {
+    captureException(err, { area: 'nutrition', action: 'getDailyDietOverrides', extra: { startDate, endDate } });
     console.error('getDailyDietOverrides server action error:', err);
     return [];
   }

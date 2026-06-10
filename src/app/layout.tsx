@@ -1,14 +1,12 @@
 import type { ReactNode } from 'react';
 import type { Metadata, Viewport } from 'next';
-import { Inter } from 'next/font/google';
 
 import './globals.css';
 import { Toaster } from 'sonner';
 import PWAInstallPrompt from '@/components/PWAInstallPrompt';
 import Sidebar from '@/components/Sidebar';
 import BottomNav from '@/components/BottomNav';
-
-const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
+import RouteTransitionShell from '@/components/RouteTransitionShell';
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://coach-mascota.vercel.app'),
@@ -59,11 +57,11 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="es" className={`${inter.variable} font-sans`}>
+    <html lang="es" className="font-sans">
       <body className="antialiased text-slate-900 bg-slate-50 selection:bg-cyan-500/30 overflow-hidden overscroll-none h-[100dvh] w-screen flex flex-col md:flex-row pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
         <Sidebar />
         <main className="flex-1 flex flex-col min-h-0 min-w-0 relative overflow-hidden">
-          {children}
+          <RouteTransitionShell>{children}</RouteTransitionShell>
         </main>
         <Toaster position="top-center" toastOptions={{ unstyled: true }} />
         <BottomNav />

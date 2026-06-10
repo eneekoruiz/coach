@@ -39,6 +39,12 @@ type DashboardMainProps = {
   updateWaterSettings: (target: number, glass: number) => Promise<boolean>;
   addWaterIntake: () => Promise<void>;
   pendingSyncCount: number;
+  smartTrigger: {
+    id: string;
+    title: string;
+    body: string;
+    cta?: string;
+  } | null;
   onChatOpen?: () => void;
 };
 
@@ -220,6 +226,7 @@ export default function DashboardMain({
   updateWaterSettings,
   addWaterIntake,
   pendingSyncCount,
+  smartTrigger,
   onChatOpen,
 }: DashboardMainProps) {
   const timeContext = useTimeContext();
@@ -278,7 +285,7 @@ export default function DashboardMain({
   };
 
   return (
-    <main className="mx-auto flex min-h-0 w-full max-w-4xl flex-1 flex-col justify-center gap-3 overflow-hidden px-1 py-1 sm:gap-4">
+    <main className="mx-auto flex min-h-0 w-full max-w-4xl flex-1 flex-col justify-center gap-3 overflow-y-auto overflow-x-hidden px-1 py-1 pb-[calc(4rem+env(safe-area-inset-bottom))] sm:gap-4 md:pb-4">
       <div className="pointer-events-none absolute left-1/2 top-3 z-20 -translate-x-1/2 rounded-full border border-white/70 bg-white/80 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-slate-600 shadow-sm backdrop-blur-xl">
         Bienestar {normalizedMomentum}%
       </div>
@@ -320,6 +327,27 @@ export default function DashboardMain({
               {avatar.subLabel}
             </p>
           </div>
+
+          {smartTrigger ? (
+            <motion.div
+              key={smartTrigger.id}
+              initial={{ opacity: 0, y: 8, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              className="mt-3 w-full max-w-lg rounded-[1.4rem] border border-cyan-100 bg-cyan-50/80 p-3 text-left shadow-sm"
+            >
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-cyan-700">
+                {smartTrigger.title}
+              </p>
+              <p className="mt-1 text-sm font-semibold leading-6 text-slate-700">
+                {smartTrigger.body}
+              </p>
+              {smartTrigger.cta ? (
+                <p className="mt-2 text-[11px] font-black uppercase tracking-[0.14em] text-cyan-700">
+                  {smartTrigger.cta}
+                </p>
+              ) : null}
+            </motion.div>
+          ) : null}
 
           <div className="mt-3 flex w-full max-w-lg flex-col gap-2">
             <motion.button

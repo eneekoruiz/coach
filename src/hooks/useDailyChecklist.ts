@@ -13,14 +13,22 @@ import {
   type RoutineTemplate,
 } from '@/app/routines/actions';
 
+function normalizeText(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
 export function useDailyChecklist() {
   const [templates, setTemplates] = useState<RoutineTemplate[]>([]);
-  const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
+  const [progressMap, setProgressMap] = useState<Record<string, number>>({});
   const [userHabits, setUserHabits] = useState<{ id: number; name: string }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [newTitle, setNewTitle] = useState('');
-  const [timeOfDay, setTimeOfDay] = useState<'morning' | 'afternoon' | 'night'>('morning');
+  const [timeOfDay, setTimeOfDay] = useState<'morning' | 'afternoon' | 'night' | 'all_day'>('morning');
   const [linkedHabitId, setLinkedHabitId] = useState<number | null>(null);
   const [habitIncrementAmount, setHabitIncrementAmount] = useState<number>(1);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
@@ -32,6 +40,33 @@ export function useDailyChecklist() {
     return () => setMounted(false);
   }, []);
 
+  useEffect(() => {
+    if (habitIncrementAmount > 1) {
+      setTimeOfDay('all_day');
+      return;
+    }
+
+    setTimeOfDay((current) => (current === 'all_day' ? 'morning' : current));
+  }, [habitIncrementAmount]);
+
+  const handleTitleChange = (value: string) => {
+    setNewTitle(value);
+
+    const normalizedTitle = normalizeText(value);
+    if (!normalizedTitle) {
+      return;
+    }
+
+    const matchedHabit = userHabits.find((habit) => {
+      const normalizedHabit = normalizeText(habit.name);
+      return normalizedTitle.includes(normalizedHabit) || normalizedHabit.includes(normalizedTitle);
+    });
+
+    if (matchedHabit) {
+      setLinkedHabitId(matchedHabit.id);
+    }
+  };
+
   // Load initial data
   useEffect(() => {
     async function loadData() {
@@ -42,7 +77,12 @@ export function useDailyChecklist() {
           getTodayRoutineLogs(getNormalizedDate(new Date())),
         ]);
         setTemplates(fetchedTemplates);
-        setCompletedIds(new Set(fetchedLogs.map((log) => log.routine_id)));
+        setProgressMap(
+          fetchedLogs.reduce<Record<string, number>>((acc, log) => {
+            acc[log.routine_id] = Math.max(1, Number(log.progress_count ?? 1));
+            return acc;
+          }, {})
+        );
 
         // Load active user habits
         const { data: userData } = await supabase.auth.getUser();
@@ -65,41 +105,46 @@ export function useDailyChecklist() {
     loadData();
   }, []);
 
-  const handleToggle = async (routineId: string) => {
+  const handleToggle = async (routineId: string, targetRepetitions: number) => {
     hapticSuccess();
-
-    const wasCompleted = completedIds.has(routineId);
+    const currentProgress = progressMap[routineId] ?? 0;
+    const isCompleted = currentProgress >= targetRepetitions;
+    const willCompleteNow = !isCompleted && currentProgress + 1 >= targetRepetitions;
 
     // Optimistic UI update
-    setCompletedIds((prev) => {
-      const next = new Set(prev);
-      if (wasCompleted) {
-        next.delete(routineId);
+    setProgressMap((prev) => {
+      const next = { ...prev };
+      if (isCompleted) {
+        delete next[routineId];
       } else {
-        next.add(routineId);
+        next[routineId] = Math.min(targetRepetitions, currentProgress + 1);
       }
       return next;
     });
 
     try {
-      if (wasCompleted) {
+      if (isCompleted) {
         const res = await unmarkRoutineComplete(routineId, getNormalizedDate(new Date()));
         if (!res.success) throw new Error(res.error);
       } else {
         const res = await markRoutineComplete(routineId, getNormalizedDate(new Date()));
         if (!res.success) throw new Error(res.error);
+        if (willCompleteNow) {
+          const { triggerMicroCelebrate } = await import('@/utils/rewards');
+          triggerMicroCelebrate();
+        }
       }
     } catch (err) {
       hapticError();
       console.error('Error toggling routine completion:', err);
       toast.error('Error al actualizar rutina.');
       // Revert optimistic UI on error
-      setCompletedIds((prev) => {
-        const next = new Set(prev);
-        if (wasCompleted) {
-          next.add(routineId);
+      setProgressMap((prev) => {
+        const next = { ...prev };
+        if (currentProgress > 0) {
+          next[routineId] = currentProgress;
         } else {
-          next.delete(routineId);
+          delete next[routineId];
         }
         return next;
       });
@@ -120,7 +165,8 @@ export function useDailyChecklist() {
         notificationsEnabled ? '🔔' : '📝',
         timeOfDay,
         linkedHabitId,
-        habitIncrementAmount
+        habitIncrementAmount,
+        1
       );
       if (res.success && res.data) {
         setTemplates((prev) => [...prev, res.data!]);
@@ -143,9 +189,9 @@ export function useDailyChecklist() {
       const res = await deleteRoutineTemplate(id);
       if (res.success) {
         setTemplates((prev) => prev.filter((t) => t.id !== id));
-        setCompletedIds((prev) => {
-          const next = new Set(prev);
-          next.delete(id);
+        setProgressMap((prev) => {
+          const next = { ...prev };
+          delete next[id];
           return next;
         });
         toast.success('Rutina eliminada.');
@@ -157,13 +203,13 @@ export function useDailyChecklist() {
 
   return {
     templates,
-    completedIds,
+    progressMap,
     userHabits,
     isLoading,
     isEditOpen,
     setIsEditOpen,
     newTitle,
-    setNewTitle,
+    setNewTitle: handleTitleChange,
     timeOfDay,
     setTimeOfDay,
     linkedHabitId,

@@ -11,14 +11,14 @@ interface DailyChecklistProps {
   isDedicatedPage?: boolean;
 }
 
-type TimeOfDay = 'morning' | 'afternoon' | 'night';
+type TimeOfDay = 'morning' | 'afternoon' | 'night' | 'all_day';
 
 export default function DailyChecklist({ isDedicatedPage = false }: DailyChecklistProps) {
   const router = useRouter();
 
   const {
     templates,
-    completedIds,
+    progressMap,
     isLoading,
     isEditOpen,
     setIsEditOpen,
@@ -47,7 +47,7 @@ export default function DailyChecklist({ isDedicatedPage = false }: DailyCheckli
   };
 
   const total = templates.length;
-  const completed = templates.filter((t) => completedIds.has(t.id)).length;
+  const completed = templates.filter((t) => (progressMap[t.id] ?? 0) >= Math.max(1, t.target_repetitions ?? 1)).length;
   const progressPercentage = total > 0 ? (completed / total) * 100 : 0;
   const pendingCount = total - completed;
 
@@ -83,6 +83,7 @@ export default function DailyChecklist({ isDedicatedPage = false }: DailyCheckli
 
   // Filter templates chronologically
   const morningTemplates = templates.filter((t) => t.time_of_day === 'morning' || !t.time_of_day);
+  const allDayTemplates = templates.filter((t) => t.time_of_day === 'all_day');
   const afternoonTemplates = templates.filter((t) => t.time_of_day === 'afternoon');
   const nightTemplates = templates.filter((t) => t.time_of_day === 'night');
 
@@ -98,11 +99,14 @@ export default function DailyChecklist({ isDedicatedPage = false }: DailyCheckli
         </h4>
         <div className="space-y-3">
           {groupTemplates.map((template) => {
-            const isDone = completedIds.has(template.id);
+            const targetRepetitions = Math.max(1, template.target_repetitions ?? 1);
+            const currentProgress = Math.min(targetRepetitions, progressMap[template.id] ?? 0);
+            const isDone = currentProgress >= targetRepetitions;
             return (
               <motion.div
                 key={template.id}
-                onClick={() => handleToggle(template.id)}
+                data-testid={`routine-item-${template.id}`}
+                onClick={() => handleToggle(template.id, targetRepetitions)}
                 className="flex min-h-[48px] items-center gap-3.5 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-all duration-200 ease-in-out cursor-pointer select-none hover:bg-slate-50/80 active:scale-[0.99]"
               >
                 {/* Custom Circular Checkbox */}
@@ -114,7 +118,7 @@ export default function DailyChecklist({ isDedicatedPage = false }: DailyCheckli
                   }`}
                 >
                   <AnimatePresence initial={false}>
-                    {isDone && (
+                    {isDone ? (
                       <motion.div
                         initial={{ scale: 0, rotate: -15 }}
                         animate={{ scale: 1, rotate: 0 }}
@@ -123,7 +127,16 @@ export default function DailyChecklist({ isDedicatedPage = false }: DailyCheckli
                       >
                         <Check className="w-3.5 h-3.5 text-white stroke-[3.5px]" />
                       </motion.div>
-                    )}
+                    ) : targetRepetitions > 1 && currentProgress > 0 ? (
+                      <motion.span
+                        initial={{ scale: 0.8, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        exit={{ scale: 0.8, opacity: 0 }}
+                        className="text-[10px] font-black text-indigo-700"
+                      >
+                        {currentProgress}
+                      </motion.span>
+                    ) : null}
                   </AnimatePresence>
                 </div>
 
@@ -142,10 +155,17 @@ export default function DailyChecklist({ isDedicatedPage = false }: DailyCheckli
                   {template.linked_habit_id && (
                     <span className="text-[9px] font-extrabold text-indigo-600 uppercase tracking-wider mt-0.5 inline-flex items-center gap-1">
                       <Link2 className="h-3 w-3" />
-                      Alimenta hábito (+{template.habit_increment_amount})
+                      Alimenta hábito (+{Math.max(1, template.habit_increment_amount ?? 1)} por toque)
                     </span>
                   )}
                 </div>
+                {targetRepetitions > 1 && (
+                  <div data-testid={`routine-progress-${template.id}`} className={`rounded-full px-2.5 py-1 text-[10px] font-black ${
+                    isDone ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'
+                  }`}>
+                    {currentProgress}/{targetRepetitions}
+                  </div>
+                )}
               </motion.div>
             );
           })}
@@ -220,6 +240,7 @@ export default function DailyChecklist({ isDedicatedPage = false }: DailyCheckli
       {/* Checklist items in Apple Reminders Style grouped chronologically */}
       <div className="space-y-4">
         {renderTimeGroup('Mañana', <Sun className="h-3.5 w-3.5" />, morningTemplates)}
+        {renderTimeGroup('A lo largo del día', <BellRing className="h-3.5 w-3.5" />, allDayTemplates)}
         {renderTimeGroup('Tarde', <CloudSun className="h-3.5 w-3.5" />, afternoonTemplates)}
         {renderTimeGroup('Noche', <Moon className="h-3.5 w-3.5" />, nightTemplates)}
       </div>
@@ -250,12 +271,19 @@ export default function DailyChecklist({ isDedicatedPage = false }: DailyCheckli
                 <select
                   value={timeOfDay}
                   onChange={(e) => setTimeOfDay(e.target.value as TimeOfDay)}
+                  disabled={habitIncrementAmount > 1}
                   className="w-full px-4 py-3 text-xs border border-slate-200 rounded-xl bg-white text-slate-700 font-bold focus:ring-2 focus:ring-indigo-500 outline-none min-h-[44px]"
                 >
                   <option value="morning">☀️ Mañana</option>
+                  <option value="all_day">🔁 A lo largo del día</option>
                   <option value="afternoon">⛅ Tarde</option>
                   <option value="night">🌙 Noche</option>
                 </select>
+                {habitIncrementAmount > 1 && (
+                  <p className="mt-1 text-[11px] font-semibold text-slate-500">
+                    Al repetirse varias veces, la tarea pasa automáticamente a "A lo largo del día".
+                  </p>
+                )}
               </div>
 
               <div>
@@ -267,9 +295,11 @@ export default function DailyChecklist({ isDedicatedPage = false }: DailyCheckli
                   onChange={(event) => setHabitIncrementAmount(Number(event.target.value))}
                   className="w-full min-h-[44px] rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500"
                 >
-                  <option value={1}>1 vez</option>
-                  <option value={2}>2 veces</option>
-                  <option value={3}>3 veces</option>
+                  {Array.from({ length: 8 }, (_, index) => index + 1).map((count) => (
+                    <option key={count} value={count}>
+                      {count} {count === 1 ? 'vez' : 'veces'}
+                    </option>
+                  ))}
                 </select>
               </div>
 

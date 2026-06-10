@@ -41,6 +41,13 @@ const defaultDietTargets = {
   fats: 70,
 };
 
+type SmartTrigger = {
+  id: string;
+  title: string;
+  body: string;
+  cta?: string;
+};
+
 function waterFromLog(log: DailyLog | null) {
   return Number(log?.water_ml ?? log?.hidratacion_ml ?? 0);
 }
@@ -71,6 +78,7 @@ export function useDashboard() {
   const [dietTargets, setDietTargets] = useState(cachedSnapshot?.dietTargets ?? defaultDietTargets);
   const [hasLoggedToday, setHasLoggedToday] = useState(cachedSnapshot?.hasLoggedToday ?? false);
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
+  const [smartTrigger, setSmartTrigger] = useState<SmartTrigger | null>(null);
 
   const persistSnapshot = useCallback(async (snapshot: Omit<DashboardSnapshot, 'updatedAt'>) => {
     await writeDashboardSnapshot({
@@ -205,12 +213,37 @@ export function useDashboard() {
       await flushQueuedMutations();
       const remainingQueue = await listDashboardMutations();
 
-      const { data: todayRecord, error } = await supabase
-        .from('daily_logs')
-        .select('health_momentum, ai_data, date')
-        .eq('user_id', user.id)
-        .eq('date', todayStr)
-        .maybeSingle();
+      const [
+        { data: todayRecord, error },
+        { data: positiveHabits },
+        { data: recentLogs },
+        { data: bodyMetrics },
+      ] = await Promise.all([
+        supabase
+          .from('daily_logs')
+          .select('health_momentum, ai_data, date, habit_tracking')
+          .eq('user_id', user.id)
+          .eq('date', todayStr)
+          .maybeSingle(),
+        supabase
+          .from('user_habits')
+          .select('id, name, target_value, current_streak, type')
+          .eq('user_id', user.id)
+          .eq('type', 'positive'),
+        supabase
+          .from('daily_logs')
+          .select('date, habit_tracking')
+          .eq('user_id', user.id)
+          .order('date', { ascending: false })
+          .limit(3),
+        supabase
+          .from('body_metrics')
+          .select('date, waist')
+          .eq('user_id', user.id)
+          .not('waist', 'is', null)
+          .order('date', { ascending: false })
+          .limit(8),
+      ]);
 
       if (error) throw error;
 
@@ -235,6 +268,66 @@ export function useDashboard() {
         ? todayRecord.health_momentum
         : 100;
       const nextInsight = createTodayInsight(nextLog, nextWaterTarget);
+
+      const currentHour = new Date().getHours();
+      const mealsLogged = nextLog.comidas?.length ?? 0;
+      let nextSmartTrigger: SmartTrigger | null = null;
+
+      const waistEntries = (bodyMetrics ?? [])
+        .map((metric) => ({
+          date: String(metric.date),
+          waist: Number(metric.waist),
+        }))
+        .filter((metric) => !Number.isNaN(metric.waist));
+
+      if (waistEntries.length >= 2) {
+        const latest = waistEntries[0];
+        const baseline = waistEntries[waistEntries.length - 1];
+        const waistDrop = baseline.waist - latest.waist;
+        if (waistDrop >= 2) {
+          nextSmartTrigger = {
+            id: 'waist-progress',
+            title: 'Hito corporal',
+            body: `He visto que tu cintura ha bajado ${waistDrop.toFixed(1)} cm. Eso ya es progreso medible, no sensación.`,
+            cta: 'Guárdalo en tu historia',
+          };
+        }
+      }
+
+      if (!nextSmartTrigger && currentHour >= 15 && mealsLogged === 0) {
+        nextSmartTrigger = {
+          id: 'late-meal',
+          title: 'Coach atento',
+          body: 'Ya es media tarde y todavía no veo comida registrada. Puedo improvisarte algo rápido con la varita de Nutrición.',
+          cta: 'Abrir Nutrición',
+        };
+      }
+
+      if (!nextSmartTrigger) {
+        const candidateHabit = (positiveHabits ?? []).find((habit) => {
+          const name = String(habit.name ?? '').toLowerCase();
+          return name.includes('paso') || name.includes('caminar') || name.includes('andar');
+        });
+
+        if (candidateHabit && (recentLogs?.length ?? 0) >= 3) {
+          const missedThreeDays = recentLogs!.slice(0, 3).every((log) => {
+            const tracking = Array.isArray(log.habit_tracking) ? log.habit_tracking : [];
+            const entry = tracking.find((item: { habit_id?: number; amount?: number }) => Number(item.habit_id) === Number(candidateHabit.id));
+            return Number(entry?.amount ?? 0) < Number(candidateHabit.target_value ?? 1);
+          });
+
+          if (missedThreeDays) {
+            nextSmartTrigger = {
+              id: 'steps-slip',
+              title: 'Racha a rescate',
+              body: `Llevas 3 días flojo con ${candidateHabit.name}. Hoy con una mini victoria ya cambiamos la narrativa.`,
+              cta: 'Registrar acción',
+            };
+          }
+        }
+      }
+
+      setSmartTrigger(nextSmartTrigger);
 
       setLastLog(nextLog);
       setHasLoggedToday(Boolean(todayRecord));
@@ -362,5 +455,6 @@ export function useDashboard() {
     reload: loadDashboard,
     hasLoggedToday,
     pendingSyncCount,
+    smartTrigger,
   };
 }

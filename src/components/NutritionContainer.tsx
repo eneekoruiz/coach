@@ -8,6 +8,7 @@ import DailyTemplateBuilder from './DailyTemplateBuilder';
 import WeeklyPlanBuilder from './WeeklyPlanBuilder';
 import TodayNutritionView from './TodayNutritionView';
 import ScreenGuideButton from './ScreenGuideButton';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { useNutritionPlan, type NutritionTab } from '@/hooks/useNutritionPlan';
 import { BookOpen, Calendar, ClipboardList, LayoutGrid, Sun } from 'lucide-react';
 
@@ -26,6 +27,9 @@ const nutritionTabs: Array<{
 
 export default function NutritionContainer({ initialTab }: { initialTab?: NutritionTab }) {
   const [isPlannerOpen, setIsPlannerOpen] = useState(Boolean(initialTab && initialTab !== 'calendar'));
+  const [mobileAccordionValue, setMobileAccordionValue] = useState<string | undefined>(
+    initialTab === 'recipes' || initialTab === 'days' ? initialTab : undefined
+  );
   const {
     activeTab,
     setActiveTab,
@@ -104,12 +108,12 @@ export default function NutritionContainer({ initialTab }: { initialTab?: Nutrit
 
   if (loading) {
     return (
-      <div className="flex h-full min-h-0 flex-col gap-3 animate-pulse" aria-hidden="true">
+      <div className="flex h-full min-h-0 w-full flex-1 flex-col gap-3 animate-pulse" aria-hidden="true">
         <div className="rounded-[1.5rem] border border-slate-200 bg-white p-4 shadow-sm">
           <div className="h-4 w-32 rounded-full bg-slate-200" />
           <div className="mt-2 h-3 w-48 rounded-full bg-slate-100" />
         </div>
-        <div className="grid flex-1 grid-cols-1 gap-3 lg:grid-cols-[300px_minmax(0,1fr)]">
+        <div className="grid h-full w-full flex-1 grid-cols-1 gap-3 lg:grid-cols-[300px_minmax(0,1fr)]">
           <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm" />
           <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm" />
         </div>
@@ -257,8 +261,44 @@ export default function NutritionContainer({ initialTab }: { initialTab?: Nutrit
             }}
           />
         )}
-        {isPlannerOpen && activeTab === 'recipes' && <RecipeLibrary />}
-        {isPlannerOpen && activeTab === 'days' && <DailyTemplateBuilder />}
+        {isPlannerOpen && activeTab === 'recipes' && (
+          <>
+            <div className="lg:hidden">
+              <Accordion type="single" collapsible value={mobileAccordionValue} onValueChange={setMobileAccordionValue} className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+                <AccordionItem value="recipes" className="px-4 py-3">
+                  <AccordionTrigger className="flex min-h-[48px] w-full items-center justify-between text-left text-sm font-black text-slate-900">
+                    Recetario
+                  </AccordionTrigger>
+                  <AccordionContent className="pt-3">
+                    <RecipeLibrary />
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+            </div>
+            <div className="hidden lg:block">
+              <RecipeLibrary />
+            </div>
+          </>
+        )}
+        {isPlannerOpen && activeTab === 'days' && (
+          <>
+            <div className="lg:hidden">
+              <Accordion type="single" collapsible value={mobileAccordionValue} onValueChange={setMobileAccordionValue} className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+                <AccordionItem value="days" className="px-4 py-3">
+                  <AccordionTrigger className="flex min-h-[48px] w-full items-center justify-between text-left text-sm font-black text-slate-900">
+                    Días Base
+                  </AccordionTrigger>
+                  <AccordionContent className="pt-3">
+                    <DailyTemplateBuilder />
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+            </div>
+            <div className="hidden lg:block">
+              <DailyTemplateBuilder />
+            </div>
+          </>
+        )}
         {isPlannerOpen && activeTab === 'programs' && <WeeklyPlanBuilder />}
         {isPlannerOpen && activeTab === 'calendar' && (
           <DietCalendarView

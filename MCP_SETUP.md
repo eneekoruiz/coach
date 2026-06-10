@@ -19,6 +19,16 @@ postgresql://postgres:<PASSWORD>@db.<PROJECT_REF>.supabase.co:5432/postgres
 
 <span style="color:red;font-weight:900;font-size:1.15em">ADVERTENCIA CRITICA: la URL de Supabase incluye password. NUNCA la subas al repositorio, NUNCA la pegues en codigo fuente y NUNCA la dejes en texto plano dentro del proyecto.</span>
 
+## 1.b Plantilla lista para pegar
+
+He dejado una plantilla lista en:
+
+```bash
+mcp/postgres.cursor.example.json
+```
+
+Abrela, sustituye la URL por la tuya y pega su contenido en la configuracion MCP de Cursor.
+
 ## 2. Tipos locales de Supabase
 
 Instala la CLI si no la tienes:
@@ -38,3 +48,13 @@ El resultado se escribira en:
 ```bash
 types/supabase.ts
 ```
+
+## 3. Regla operativa del repo
+
+Este proyecto ya tiene:
+
+- `MCP_SETUP.md`
+- `.cursorrules`
+- `mcp/postgres.cursor.example.json`
+
+Con eso, el repo queda preparado para que el MCP de Postgres se conecte siempre de la misma forma en cuanto pegues tu connection string real en el editor.

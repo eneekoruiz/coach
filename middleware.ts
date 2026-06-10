@@ -1,9 +1,14 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
+import { isE2EMockMode } from '@/lib/e2e';
 
 const publicRoutes = ['/login', '/signup', '/auth/callback'];
 
 export async function middleware(request: NextRequest) {
+  if (isE2EMockMode()) {
+    return NextResponse.next();
+  }
+
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 

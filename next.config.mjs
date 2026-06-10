@@ -1,5 +1,6 @@
 import path from 'path';
 import withSerwistInit from '@serwist/next';
+import { withSentryConfig } from '@sentry/nextjs';
 
 const withSerwist = withSerwistInit({
   swSrc: 'src/app/sw.ts',
@@ -10,9 +11,14 @@ const withSerwist = withSerwistInit({
 
 const projectRoot = path.resolve(process.cwd());
 
-export default withSerwist({
+const nextConfig = withSerwist({
   reactStrictMode: true,
+  allowedDevOrigins: ['http://localhost:3000'],
   turbopack: {
     root: projectRoot,
   },
+});
+
+export default withSentryConfig(nextConfig, {
+  silent: true,
 });

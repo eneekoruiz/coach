@@ -98,6 +98,7 @@ export default function TodayNutritionView({
               return (
                 <article
                   key={meal.id}
+                  data-testid={`today-meal-${meal.name.toLowerCase()}`}
                   className="rounded-2xl border border-slate-200 bg-slate-50 p-3 transition-all duration-200 ease-in-out hover:bg-white"
                 >
                   <div className="flex items-start justify-between gap-3">
@@ -157,6 +158,7 @@ export default function TodayNutritionView({
             type="button"
             onClick={onGenerateToday}
             disabled={isGeneratingAi}
+            data-testid="generate-today-ai"
             className="mt-5 inline-flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 text-sm font-black text-white shadow-sm transition-all duration-200 ease-in-out hover:bg-emerald-500 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isGeneratingAi ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}

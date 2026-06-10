@@ -17,6 +17,8 @@ import {
   WandSparkles,
 } from 'lucide-react';
 import ScreenGuideButton from './ScreenGuideButton';
+import { deriveRecipeTags } from '@/lib/recipe-tags';
+import { parseRecipeTextFallback } from '@/lib/recipe-fallback';
 
 type IngredientDraft = {
   name: string;
@@ -41,6 +43,7 @@ const emptyIngredient: IngredientDraft = {
 export default function RecipeLibrary() {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeTag, setActiveTag] = useState<string>('Todas');
   const [loading, setLoading] = useState(true);
   const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
   const [recipeName, setRecipeName] = useState('');
@@ -80,9 +83,28 @@ export default function RecipeLibrary() {
     [ingredients]
   );
 
-  const filteredRecipes = recipes.filter((recipe) =>
-    recipe.name.toLowerCase().includes(searchQuery.toLowerCase())
+  const recipesWithTags = useMemo(
+    () =>
+      recipes.map((recipe) => ({
+        recipe,
+        tags: deriveRecipeTags(recipe),
+      })),
+    [recipes]
   );
+
+  const availableTags = useMemo(() => {
+    const tags = new Set<string>(['Todas']);
+    recipesWithTags.forEach(({ tags: recipeTags }) => {
+      recipeTags.forEach((tag) => tags.add(tag));
+    });
+    return Array.from(tags);
+  }, [recipesWithTags]);
+
+  const filteredRecipes = recipesWithTags.filter(({ recipe, tags }) => {
+    const matchesSearch = recipe.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesTag = activeTag === 'Todas' || tags.includes(activeTag);
+    return matchesSearch && matchesTag;
+  });
 
   const openRecipe = (recipe: Recipe) => {
     setEditingRecipe(recipe);
@@ -136,6 +158,14 @@ export default function RecipeLibrary() {
     try {
       const result = await autocompleteRecipeWithAi(prompt);
       if (!result.success || !result.data) {
+        const fallbackRecipe = parseRecipeTextFallback(prompt);
+        if (fallbackRecipe) {
+          setRecipeName(fallbackRecipe.name);
+          setIngredients(fallbackRecipe.ingredients_json);
+          setInstructions(fallbackRecipe.instructions || '');
+          toast.success('La IA estaba descansando; he rellenado una versión rápida editable.');
+          return;
+        }
         toast.error(`Error al conectar con la IA: ${result.error || 'No se pudo rellenar la receta.'}`);
         return;
       }
@@ -249,6 +279,26 @@ export default function RecipeLibrary() {
           />
         </div>
 
+        <div className="mt-3 flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+          {availableTags.map((tag) => {
+            const active = tag === activeTag;
+            return (
+              <button
+                key={tag}
+                type="button"
+                onClick={() => setActiveTag(tag)}
+                className={`whitespace-nowrap rounded-full px-3 py-1.5 text-[10px] font-black transition-all duration-200 ease-in-out ${
+                  active
+                    ? 'bg-slate-900 text-white'
+                    : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                }`}
+              >
+                {tag}
+              </button>
+            );
+          })}
+        </div>
+
         <div className="mt-3 min-h-0 flex-1 space-y-2 overflow-y-auto pr-1 scrollbar-hide">
           {loading ? (
             <div className="space-y-2">
@@ -261,7 +311,7 @@ export default function RecipeLibrary() {
               <p className="mt-2 text-xs font-bold text-slate-500">Sin recetas todavía</p>
             </div>
           ) : (
-            filteredRecipes.map((recipe) => {
+            filteredRecipes.map(({ recipe, tags }) => {
               const isSelected = editingRecipe?.id === recipe.id;
 
               return (
@@ -293,6 +343,20 @@ export default function RecipeLibrary() {
                       <p className={`mt-1 text-[10px] font-bold ${isSelected ? 'text-slate-300' : 'text-slate-400'}`}>
                         {recipe.total_kcal} kcal · P {recipe.total_protein}g · C {recipe.total_carbs}g · G {recipe.total_fats}g
                       </p>
+                      {tags.length > 0 ? (
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          {tags.slice(0, 3).map((tag) => (
+                            <span
+                              key={tag}
+                              className={`rounded-full px-2 py-0.5 text-[9px] font-black ${
+                                isSelected ? 'bg-white/15 text-slate-100' : 'bg-white text-slate-500 ring-1 ring-slate-200'
+                              }`}
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                 </button>

@@ -28,6 +28,7 @@ export default function SportsHub() {
   const [intensity, setIntensity] = useState<(typeof INTENSITIES)[number]['value']>('moderate');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
+  const [savedCount, setSavedCount] = useState(0);
 
   const SelectedIcon = SPORTS.find((item) => item.label === sport)?.icon ?? Activity;
 
@@ -53,6 +54,7 @@ export default function SportsHub() {
         throw new Error(result.error || 'No se pudo guardar el entrenamiento.');
       }
 
+      setSavedCount((current) => current + 1);
       toast.success('Entrenamiento guardado.', {
         description: `${sport} · ${durationMinutes} min`,
       });
@@ -78,7 +80,8 @@ export default function SportsHub() {
         <section className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1.1fr)_360px]">
           <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
             <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Deporte</p>
-            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <div className="mt-4 rounded-[1.75rem] border border-slate-200 bg-slate-50 p-2">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               {SPORTS.map((item) => {
                 const Icon = item.icon;
                 const isActive = sport === item.label;
@@ -87,7 +90,8 @@ export default function SportsHub() {
                     key={item.label}
                     type="button"
                     onClick={() => setSport(item.label)}
-                    className={`flex min-h-[96px] flex-col items-center justify-center gap-2 rounded-3xl border px-4 py-4 transition-all duration-200 ease-in-out ${
+                    aria-pressed={isActive}
+                    className={`flex min-h-[88px] flex-col items-center justify-center gap-2 rounded-3xl border px-4 py-4 transition-all duration-200 ease-in-out active:scale-95 ${
                       isActive
                         ? 'border-slate-900 bg-slate-900 text-white'
                         : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-white'
@@ -98,6 +102,7 @@ export default function SportsHub() {
                   </button>
                 );
               })}
+              </div>
             </div>
 
             <div className="mt-5 grid gap-4 sm:grid-cols-2">
@@ -171,6 +176,11 @@ export default function SportsHub() {
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Activity className="h-4 w-4" />}
               <span>{saving ? 'Guardando entrenamiento' : 'Guardar entrenamiento'}</span>
             </button>
+            {savedCount > 0 && (
+              <p className="mt-3 text-xs font-semibold text-slate-500">
+                {savedCount} entrenamiento{savedCount === 1 ? '' : 's'} guardado{savedCount === 1 ? '' : 's'} en `workouts`.
+              </p>
+            )}
           </aside>
         </section>
       </div>

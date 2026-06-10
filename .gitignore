@@ -12,3 +12,4 @@ supabase/.temp/
 /.vscode/
 .DS_Store
 node_modules
+public/sw.js.map

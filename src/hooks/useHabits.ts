@@ -15,19 +15,42 @@ import {
   parseJsonResponse,
   getTodayIsoDate,
 } from '@/lib/habits-utils';
+import { readSessionViewCache, writeSessionViewCache } from '@/lib/session-view-cache';
+import { isE2EMockMode } from '@/lib/e2e';
+
+type HabitsViewCache = {
+  habits: HabitRow[];
+  recentLogs: DailyLogRow[];
+  values: Record<number, number>;
+};
+
+const HABITS_CACHE_KEY = 'coach.view.habits.v1';
 
 export function useHabits() {
   const router = useRouter();
   const { executeMutation } = useOfflineMutation();
-  const [habits, setHabits] = useState<HabitRow[]>([]);
-  const [values, setValues] = useState<Record<number, number>>({});
-  const [recentLogs, setRecentLogs] = useState<DailyLogRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const cached = readSessionViewCache<HabitsViewCache>(HABITS_CACHE_KEY);
+  const [habits, setHabits] = useState<HabitRow[]>(cached?.habits ?? []);
+  const [values, setValues] = useState<Record<number, number>>(cached?.values ?? {});
+  const [recentLogs, setRecentLogs] = useState<DailyLogRow[]>(cached?.recentLogs ?? []);
+  const [loading, setLoading] = useState(!cached);
   const [authRequired, setAuthRequired] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [savingMap, setSavingMap] = useState<Record<number, boolean>>({});
   const [selectedDate, setSelectedDate] = useState(() => getNormalizedDate(new Date()));
+
+  useEffect(() => {
+    if (habits.length === 0 && recentLogs.length === 0 && Object.keys(values).length === 0) {
+      return;
+    }
+
+    writeSessionViewCache(HABITS_CACHE_KEY, {
+      habits,
+      recentLogs,
+      values,
+    });
+  }, [habits, recentLogs, values]);
 
   // Auto-sync input values with logs of the selectedDate
   useEffect(() => {
@@ -53,6 +76,41 @@ export function useHabits() {
 
   const loadData = useCallback(async (cancelled: boolean) => {
     try {
+      if (isE2EMockMode()) {
+        const today = getNormalizedDate(new Date());
+        const mockHabits: HabitRow[] = [
+          {
+            id: 1,
+            user_id: 'e2e-user',
+            name: 'Agua',
+            type: 'positive',
+            is_custom: false,
+            tolerance_threshold: 2000,
+            target_value: 2000,
+            unit: 'ml',
+            current_streak: 4,
+            longest_streak: 10,
+            shields: 1,
+            sobriety_started_at: null,
+            last_relapse_at: null,
+            relapse_unit_cost: undefined,
+            relapse_unit_minutes: undefined,
+            slip_allowance: 1,
+            slip_window_days: 7,
+            slip_penalty_hours: 24,
+          },
+        ];
+        const mockLogs: DailyLogRow[] = [{ date: today, habit_tracking: [] }];
+        const mockValues = { 1: 0 };
+        if (!cancelled) {
+          setAuthRequired(false);
+          setHabits(mockHabits);
+          setRecentLogs(mockLogs);
+          setValues(mockValues);
+        }
+        return;
+      }
+
       const { data: userData, error: userError } = await supabase.auth.getUser();
       const user = userData.user;
 
@@ -149,14 +207,13 @@ export function useHabits() {
       }
 
       if (!cancelled) {
+        const nextValues = nextHabits.reduce<Record<number, number>>((acc, habit) => {
+          acc[habit.id] = 0;
+          return acc;
+        }, {});
         setHabits(nextHabits);
         setRecentLogs(nextLogs);
-        setValues(
-          nextHabits.reduce<Record<number, number>>((acc, habit) => {
-            acc[habit.id] = 0;
-            return acc;
-          }, {})
-        );
+        setValues(nextValues);
       }
     } catch (error) {
       if (!cancelled) {
@@ -279,7 +336,6 @@ export function useHabits() {
             },
           }
         );
-
         // Dopamina visual: Check streak rewards
         try {
           const { data: updatedHabit } = await supabase

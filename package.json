@@ -8,10 +8,13 @@
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
     "prebuild": "node ./scripts/prebuild-checks.cjs",
     "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,css,md}\"",
     "audit:clean-code": "node scripts/clean-code-audit.js",
-    "supabase:types": "supabase gen types typescript --linked --schema public > types/supabase.ts"
+    "supabase:types": "supabase gen types typescript --linked --schema public > types/supabase.ts",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed"
   },
   "dependencies": {
     "@ai-sdk/google": "^3.0.78",
@@ -29,7 +32,6 @@
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "react-hook-form": "^7.77.0",
-    "react-hot-toast": "^2.6.0",
     "recharts": "^3.8.1",
     "sonner": "^2.0.7",
     "vaul": "^1.1.2",
@@ -39,6 +41,8 @@
   "devDependencies": {
     "@emnapi/core": "^1.10.0",
     "@emnapi/runtime": "^1.10.0",
+    "@playwright/test": "^1.60.0",
+    "@sentry/nextjs": "^10.57.0",
     "@types/canvas-confetti": "^1.9.0",
     "@types/node": "^24.3.0",
     "@types/papaparse": "^5.5.2",

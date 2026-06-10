@@ -2,6 +2,7 @@
 
 import React, { useEffect } from 'react';
 import Link from 'next/link';
+import * as Sentry from '@sentry/nextjs';
 
 export default function NutritionError({
   error,
@@ -11,6 +12,7 @@ export default function NutritionError({
   reset: () => void;
 }) {
   useEffect(() => {
+    Sentry.captureException(error);
     console.error('Nutrition module error:', error);
   }, [error]);
 

@@ -24,3 +24,16 @@ export function triggerStreakConfetti() {
     colors: colors,
   });
 }
+
+export function triggerMicroCelebrate() {
+  if (typeof window === 'undefined') return;
+
+  confetti({
+    particleCount: 28,
+    spread: 42,
+    startVelocity: 22,
+    scalar: 0.72,
+    origin: { y: 0.76 },
+    colors: ['#34d399', '#22c55e', '#a7f3d0', '#93c5fd'],
+  });
+}

@@ -96,7 +96,7 @@ function HeatMap({
   }
 
   return (
-    <div className="grid grid-cols-10 gap-1.5">
+    <div className="grid w-full grid-cols-5 gap-1.5 sm:grid-cols-10">
       {entries
         .slice()
         .reverse()
@@ -337,7 +337,7 @@ export default function HabitDetailModal({
             </div>
             {isPositive ? (
               <div className="mb-4 w-full overflow-hidden rounded-xl border border-slate-100 bg-white p-3 shadow-sm">
-                <Sparkline data={buildMiniSeries(recentLogs, habit.id)} width={400} height={60} />
+                <Sparkline data={buildMiniSeries(recentLogs, habit.id)} width={280} height={60} />
               </div>
             ) : (
               <div className="mb-4 w-full overflow-hidden rounded-xl border border-slate-100 bg-white p-3 shadow-sm">

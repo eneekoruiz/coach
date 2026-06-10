@@ -3,6 +3,8 @@
 import { redirect } from 'next/navigation';
 import { isRedirectError } from 'next/dist/client/components/redirect-error';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
+import { isE2EMockMode } from '@/lib/e2e';
+import { captureException } from '@/lib/monitoring';
 
 function hasSupabaseConfig() {
   return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
@@ -33,6 +35,15 @@ function isValidEmail(value: string) {
 }
 
 export async function login(formData: FormData) {
+  if (isE2EMockMode()) {
+    const email = String(formData.get('email') ?? '').trim();
+    const password = String(formData.get('password') ?? '');
+    if (!email || !password || !isValidEmail(email)) {
+      redirect('/login?error=invalid_form');
+    }
+    redirect('/?e2e_auth=login');
+  }
+
   if (!hasSupabaseConfig()) {
     redirect('/login?error=config_missing');
   }
@@ -64,12 +75,22 @@ export async function login(formData: FormData) {
     if (isRedirectError(err)) {
       throw err;
     }
+    captureException(err, { area: 'auth', action: 'login' });
     console.error('[Auth Action] Login unexpected error:', err);
     redirect('/login?error=auth_failed');
   }
 }
 
 export async function signup(formData: FormData) {
+  if (isE2EMockMode()) {
+    const email = String(formData.get('email') ?? '').trim();
+    const password = String(formData.get('password') ?? '');
+    if (!email || !password || !isValidEmail(email) || password.length < 6) {
+      redirect('/login?error=invalid_form');
+    }
+    redirect('/?e2e_auth=signup');
+  }
+
   if (!hasSupabaseConfig()) {
     redirect('/login?error=config_missing');
   }
@@ -109,6 +130,7 @@ export async function signup(formData: FormData) {
     if (isRedirectError(err)) {
       throw err;
     }
+    captureException(err, { area: 'auth', action: 'signup' });
     console.error('[Auth Action] Signup unexpected error:', err);
     redirect('/login?error=auth_failed');
   }
@@ -145,6 +167,7 @@ export async function resendConfirmation(formData: FormData) {
     if (isRedirectError(err)) {
       throw err;
     }
+    captureException(err, { area: 'auth', action: 'resendConfirmation' });
     console.error('[Auth Action] Resend unexpected error:', err);
     redirect('/login?error=auth_failed');
   }
@@ -168,6 +191,7 @@ export async function logout() {
     if (isRedirectError(err)) {
       throw err;
     }
+    captureException(err, { area: 'auth', action: 'logout' });
     console.error('[Auth Action] Logout unexpected error:', err);
     redirect('/login?error=logout_failed');
   }

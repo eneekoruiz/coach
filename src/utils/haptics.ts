@@ -17,7 +17,7 @@ export function hapticLight() {
 export function hapticSuccess() {
   if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
     try {
-      navigator.vibrate([10, 50, 20]);
+      navigator.vibrate([10, 30, 10]);
     } catch (e) {
       // Ignore
     }

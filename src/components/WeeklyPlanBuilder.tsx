@@ -23,6 +23,7 @@ import {
   Sun,
   Trash2,
 } from 'lucide-react';
+import ShareAchievementButton from './ShareAchievementButton';
 
 const DAYS_OF_WEEK = [
   { value: 1, label: 'Lunes', short: 'L' },
@@ -305,6 +306,24 @@ export default function WeeklyPlanBuilder() {
             </p>
           </div>
           <div className="flex gap-2">
+            <ShareAchievementButton
+              payload={{
+                title: planName.trim() || 'Plan semanal',
+                subtitle: 'Semana estructurada en BioAvatar',
+                primaryValue: `${assignedCount}/7`,
+                primaryLabel: 'días asignados',
+                secondaryValue: isActive
+                  ? 'Semana activa lista para proyectarse al calendario.'
+                  : 'Semana guardada como bloque reusable de 7 días.',
+                footer: 'Planificación clínica con fricción cero.',
+                accentFrom: '#38bdf8',
+                accentTo: '#818cf8',
+                badge: 'Weekly Plan',
+                avatarLabel: 'W',
+                filename: `weekly-plan-${(planName.trim() || 'semana').toLowerCase().replace(/\s+/g, '-')}.png`,
+              }}
+              className="border-slate-200 bg-slate-950 text-white"
+            />
             <button
               type="button"
               onClick={handleExportPlan}

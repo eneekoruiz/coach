@@ -7,6 +7,7 @@ import StreakFlame from './StreakFlame';
 import toast from '@/lib/toast';
 import BottomSheet from './BottomSheet';
 import { buildNegativeHabitInsights } from '@/lib/habits-utils';
+import ShareAchievementButton from './ShareAchievementButton';
 
 interface HabitTrackerCardProps {
   habit: HabitRow;
@@ -213,6 +214,36 @@ export default function HabitTrackerCard({
   const trendLabel = habit.type === 'negative' ? 'evitar' : 'cumplir';
   const isExceededNegative = !isPositive && optimisticValue > graceLimit;
   const negativeInsights = !isPositive ? buildNegativeHabitInsights(habit, recentLogs, clockNow) : null;
+  const sharePayload = isPositive
+    ? {
+        title: habit.name,
+        subtitle: 'Racha de constancia en BioAvatar',
+        primaryValue: String(displayedStreak),
+        primaryLabel: 'días en racha',
+        secondaryValue: `Hoy llevas ${optimisticValue}/${targetValue}${habit.unit ? ` ${habit.unit}` : ''}.`,
+        footer: 'Consistencia real, no motivación vacía.',
+        accentFrom: '#10b981',
+        accentTo: '#38bdf8',
+        badge: 'Habit Streak',
+        avatarLabel: habit.name.charAt(0),
+        filename: `habit-${habit.name.toLowerCase().replace(/\s+/g, '-')}.png`,
+      }
+    : {
+        title: habit.name,
+        subtitle: 'Reloj de sobriedad en BioAvatar',
+        primaryValue: `${negativeInsights?.sobrietyDays ?? 0}d`,
+        primaryLabel: `${negativeInsights?.sobrietyHours ?? 0}h limpio`,
+        secondaryValue:
+          graceLimit > 0
+            ? `Límite flexible ${graceLimit}/día. Una recaída penaliza, pero no borra toda tu historia.`
+            : 'Modo estricto: cada día limpio alimenta tu reloj de sobriedad.',
+        footer: 'Resiliencia visible y medible.',
+        accentFrom: '#fb7185',
+        accentTo: '#f97316',
+        badge: 'Sobriety Clock',
+        avatarLabel: habit.name.charAt(0),
+        filename: `sobriety-${habit.name.toLowerCase().replace(/\s+/g, '-')}.png`,
+      };
 
   return (
     <>
@@ -308,6 +339,9 @@ export default function HabitTrackerCard({
             </motion.button>
           </div>
         </motion.div>
+        <div className="mt-2 flex justify-end">
+          <ShareAchievementButton payload={sharePayload} />
+        </div>
       </div>
 
       <BottomSheet

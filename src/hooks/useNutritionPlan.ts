@@ -15,25 +15,44 @@ import {
 } from '@/app/nutrition/actions';
 import { getTodayWorkoutSummary } from '@/app/sports/actions';
 import toast from '@/lib/toast';
+import { readSessionViewCache, writeSessionViewCache } from '@/lib/session-view-cache';
+import { isE2EMockMode } from '@/lib/e2e';
+import { captureException } from '@/lib/monitoring';
 
 export type NutritionTab = 'recipes' | 'days' | 'programs' | 'calendar';
 
+type NutritionViewCache = {
+  templates: DietTemplate[];
+  calendar: Array<{ date: string; template_id: string }>;
+  recipes: Recipe[];
+  overrides: DailyDietOverride[];
+  activeProgram: DietProgram | null;
+  activeProgramDays: DietProgramDay[];
+  realLog: DailyLog | null;
+  dailyWaterTarget: number;
+  todayWorkoutCalories: number;
+  todayWorkoutMinutes: number;
+};
+
+const NUTRITION_CACHE_KEY = 'coach.view.nutrition.v1';
+
 export function useNutritionPlan(initialTab?: NutritionTab) {
+  const cached = useMemo(() => readSessionViewCache<NutritionViewCache>(NUTRITION_CACHE_KEY), []);
   const [activeTab, setActiveTab] = useState<NutritionTab>(initialTab || 'calendar');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!cached);
   const [authRequired, setAuthRequired] = useState(false);
-  const [templates, setTemplates] = useState<DietTemplate[]>([]);
-  const [calendar, setCalendar] = useState<Array<{ date: string; template_id: string }>>([]);
-  const [recipes, setRecipes] = useState<Recipe[]>([]);
-  const [overrides, setOverrides] = useState<DailyDietOverride[]>([]);
-  const [activeProgram, setActiveProgram] = useState<DietProgram | null>(null);
-  const [activeProgramDays, setActiveProgramDays] = useState<DietProgramDay[]>([]);
+  const [templates, setTemplates] = useState<DietTemplate[]>(cached?.templates ?? []);
+  const [calendar, setCalendar] = useState<Array<{ date: string; template_id: string }>>(cached?.calendar ?? []);
+  const [recipes, setRecipes] = useState<Recipe[]>(cached?.recipes ?? []);
+  const [overrides, setOverrides] = useState<DailyDietOverride[]>(cached?.overrides ?? []);
+  const [activeProgram, setActiveProgram] = useState<DietProgram | null>(cached?.activeProgram ?? null);
+  const [activeProgramDays, setActiveProgramDays] = useState<DietProgramDay[]>(cached?.activeProgramDays ?? []);
   
-  const [realLog, setRealLog] = useState<DailyLog | null>(null);
-  const [dailyWaterTarget, setDailyWaterTarget] = useState(2000);
+  const [realLog, setRealLog] = useState<DailyLog | null>(cached?.realLog ?? null);
+  const [dailyWaterTarget, setDailyWaterTarget] = useState(cached?.dailyWaterTarget ?? 2000);
   const [isGeneratingAi, setIsGeneratingAi] = useState(false);
-  const [todayWorkoutCalories, setTodayWorkoutCalories] = useState(0);
-  const [todayWorkoutMinutes, setTodayWorkoutMinutes] = useState(0);
+  const [todayWorkoutCalories, setTodayWorkoutCalories] = useState(cached?.todayWorkoutCalories ?? 0);
+  const [todayWorkoutMinutes, setTodayWorkoutMinutes] = useState(cached?.todayWorkoutMinutes ?? 0);
   const isMounted = useRef(true);
 
   const todayStr = getNormalizedDate(new Date());
@@ -86,6 +105,45 @@ export function useNutritionPlan(initialTab?: NutritionTab) {
 
   const loadData = useCallback(async () => {
     try {
+      if (isE2EMockMode()) {
+        const fetchedTemplates = await getDietTemplates();
+        const today = new Date();
+        const start = new Date(today.getFullYear(), today.getMonth() - 1, 1).toISOString().slice(0, 10);
+        const end = new Date(today.getFullYear(), today.getMonth() + 2, 0).toISOString().slice(0, 10);
+        const [fetchedCalendar, fetchedRecipes, fetchedOverrides, fetchedProgram] = await Promise.all([
+          getDietCalendar(start, end),
+          getRecipes(),
+          getDailyDietOverrides(start, end),
+          getActiveDietProgram(),
+        ]);
+
+        setAuthRequired(false);
+        setDailyWaterTarget(2000);
+        setTemplates(fetchedTemplates);
+        setCalendar(fetchedCalendar);
+        setRecipes(fetchedRecipes);
+        setOverrides(fetchedOverrides);
+        setActiveProgram(fetchedProgram.program);
+        setActiveProgramDays(fetchedProgram.days as DietProgramDay[]);
+        setTodayWorkoutCalories(0);
+        setTodayWorkoutMinutes(0);
+        setRealLog(null);
+        writeSessionViewCache(NUTRITION_CACHE_KEY, {
+          templates: fetchedTemplates,
+          calendar: fetchedCalendar,
+          recipes: fetchedRecipes,
+          overrides: fetchedOverrides,
+          activeProgram: fetchedProgram.program,
+          activeProgramDays: fetchedProgram.days as DietProgramDay[],
+          realLog: null,
+          dailyWaterTarget: 2000,
+          todayWorkoutCalories: 0,
+          todayWorkoutMinutes: 0,
+        });
+        setLoading(false);
+        return;
+      }
+
       const { data: sessionData } = await supabase.auth.getSession();
       const accessToken = sessionData.session?.access_token;
 
@@ -127,6 +185,8 @@ export function useNutritionPlan(initialTab?: NutritionTab) {
       setTodayWorkoutCalories(workoutSummary.totalCalories);
       setTodayWorkoutMinutes(workoutSummary.totalMinutes);
 
+      let nextRealLog: DailyLog | null = null;
+
       if (user) {
         const { data: logRecord, error: logError } = await supabase
           .from('daily_logs')
@@ -138,12 +198,30 @@ export function useNutritionPlan(initialTab?: NutritionTab) {
         if (!logError && logRecord?.ai_data) {
           const validated = dailyLogSchema.safeParse(logRecord.ai_data);
           if (validated.success) {
+            nextRealLog = validated.data;
             setRealLog(validated.data);
           }
+        } else {
+          setRealLog(null);
         }
       }
+
+      writeSessionViewCache(NUTRITION_CACHE_KEY, {
+        templates: fetchedTemplates,
+        calendar: fetchedCalendar,
+        recipes: fetchedRecipes,
+        overrides: fetchedOverrides,
+        activeProgram: fetchedProgram.program,
+        activeProgramDays: fetchedProgram.days as DietProgramDay[],
+        realLog: nextRealLog,
+        dailyWaterTarget: user ? Number(user.user_metadata?.daily_water_target_ml ?? 2000) : 2000,
+        todayWorkoutCalories: workoutSummary.totalCalories,
+        todayWorkoutMinutes: workoutSummary.totalMinutes,
+      });
     } catch (err) {
+      captureException(err, { area: 'nutrition', action: 'loadNutritionPlan' });
       console.error('Error loading nutrition module data:', err);
+      toast.error('No se pudo cargar Nutrición. Mostramos lo último guardado mientras reintentamos.');
     } finally {
       setLoading(false);
     }
@@ -176,6 +254,7 @@ export function useNutritionPlan(initialTab?: NutritionTab) {
           toast.error(res.error || 'Fallo en generación');
         }
       } catch (err) {
+        captureException(err, { area: 'nutrition', action: 'generateTodayPlanWithAi' });
         console.error('AI Diet generation error:', err);
         toast.error('Fallo en generación de plan.');
       } finally {
@@ -230,6 +309,18 @@ export function useNutritionPlan(initialTab?: NutritionTab) {
     };
 
     setRealLog(optimisticLog);
+    writeSessionViewCache(NUTRITION_CACHE_KEY, {
+      templates,
+      calendar,
+      recipes,
+      overrides,
+      activeProgram,
+      activeProgramDays,
+      realLog: optimisticLog,
+      dailyWaterTarget,
+      todayWorkoutCalories,
+      todayWorkoutMinutes,
+    });
     toast.success(`${meal.name} registrado`, { description: mealKey });
 
     const result = await markMealAsEaten(meal, todayStr, todayTemplate?.id);

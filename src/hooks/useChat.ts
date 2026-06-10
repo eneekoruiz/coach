@@ -10,6 +10,7 @@ import toast from '@/lib/toast';
 import { type DailyLog } from '@/lib/schema';
 import { triggerVibration } from '@/lib/haptics';
 import { supabase } from '@/lib/supabase';
+import { captureException } from '@/lib/monitoring';
 import { useSpeechRecognition } from './useSpeechRecognition';
 import { useImageSelection } from './useImageSelection';
 
@@ -100,7 +101,9 @@ export function useChat(onUpdate?: () => void | Promise<void>, momentum?: number
         setHistory([]);
       }
     } catch (err) {
+      captureException(err, { area: 'coach', action: 'createChatSession' });
       console.error('Error creating new session:', err);
+      toast.error('No pude crear una nueva conversación ahora mismo.');
     }
   }, []);
 
@@ -128,7 +131,9 @@ export function useChat(onUpdate?: () => void | Promise<void>, momentum?: number
         }
       }
     } catch (err) {
+      captureException(err, { area: 'coach', action: 'loadChatSessions' });
       console.error('Error loading chat sessions:', err);
+      toast.error('No pude cargar el historial del coach.');
     }
   }, [activeSessionId, createNewSession]);
 
@@ -146,7 +151,9 @@ export function useChat(onUpdate?: () => void | Promise<void>, momentum?: number
         setHistory(data as any);
       }
     } catch (err) {
+      captureException(err, { area: 'coach', action: 'loadChatHistory', extra: { sessionId } });
       console.error('Error loading session history:', err);
+      toast.error('No pude abrir esa conversación completa.');
     }
   }, []);
 
@@ -357,6 +364,7 @@ export function useChat(onUpdate?: () => void | Promise<void>, momentum?: number
             localResponse = responseMsg || 'No he podido procesar ese cambio. Inténtalo indicando un valor numérico claro (ej. "meta de agua 3000ml").';
           }
         } catch (err) {
+          captureException(err, { area: 'coach', action: 'updateWaterSettingsFromChat' });
           console.error(err);
           localResponse = 'Hubo un error de conexión al actualizar tus ajustes. Inténtalo de nuevo.';
         }
@@ -419,7 +427,10 @@ export function useChat(onUpdate?: () => void | Promise<void>, momentum?: number
             { user_id: user.id, role: 'user', content: trimmed, session_id: activeSessionId },
             { user_id: user.id, role: 'assistant', content: localResponse, session_id: activeSessionId }
           ]).then(({ error }) => {
-            if (error) console.error('Error saving local response to chat_history:', error);
+            if (error) {
+              captureException(error, { area: 'coach', action: 'persistLocalCoachResponse', extra: { sessionId: activeSessionId } });
+              console.error('Error saving local response to chat_history:', error);
+            }
           });
         }
       });
@@ -543,7 +554,9 @@ export function useChat(onUpdate?: () => void | Promise<void>, momentum?: number
           triggerVibration('success');
           setCloseDayFeedback(null);
         } catch (parseErr) {
+          captureException(parseErr, { area: 'coach', action: 'parseStreamedAnalyzeResponse' });
           console.error('[useChat] Failed to parse fully accumulated JSON:', parseErr, accumulated);
+          toast.error('He recibido una respuesta incompleta del coach. Puedes reintentar en un toque.');
         }
       }
 
@@ -551,6 +564,7 @@ export function useChat(onUpdate?: () => void | Promise<void>, momentum?: number
 
       if (onUpdate) await onUpdate();
     } catch (err) {
+      captureException(err, { area: 'coach', action: 'submitCoachMessage', extra: { mode } });
       setHistory((prev) => prev.slice(0, -1));
       handleServiceError(err);
       setFeedback(null);
