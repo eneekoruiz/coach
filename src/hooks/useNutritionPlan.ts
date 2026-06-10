@@ -13,6 +13,7 @@ import {
   getDailyDietOverrides,
   markMealAsEaten,
 } from '@/app/nutrition/actions';
+import { getTodayWorkoutSummary } from '@/app/sports/actions';
 import toast from '@/lib/toast';
 
 export type NutritionTab = 'recipes' | 'days' | 'programs' | 'calendar';
@@ -31,6 +32,8 @@ export function useNutritionPlan(initialTab?: NutritionTab) {
   const [realLog, setRealLog] = useState<DailyLog | null>(null);
   const [dailyWaterTarget, setDailyWaterTarget] = useState(2000);
   const [isGeneratingAi, setIsGeneratingAi] = useState(false);
+  const [todayWorkoutCalories, setTodayWorkoutCalories] = useState(0);
+  const [todayWorkoutMinutes, setTodayWorkoutMinutes] = useState(0);
   const isMounted = useRef(true);
 
   const todayStr = getNormalizedDate(new Date());
@@ -108,11 +111,12 @@ export function useNutritionPlan(initialTab?: NutritionTab) {
       const end = new Date(today.getFullYear(), today.getMonth() + 2, 0).toISOString().slice(0, 10);
 
       // Parallel data fetching for clinical nutrition engine
-      const [fetchedCalendar, fetchedRecipes, fetchedOverrides, fetchedProgram] = await Promise.all([
+      const [fetchedCalendar, fetchedRecipes, fetchedOverrides, fetchedProgram, workoutSummary] = await Promise.all([
         getDietCalendar(start, end),
         getRecipes(),
         getDailyDietOverrides(start, end),
-        getActiveDietProgram()
+        getActiveDietProgram(),
+        getTodayWorkoutSummary(todayStr),
       ]);
 
       setCalendar(fetchedCalendar);
@@ -120,6 +124,8 @@ export function useNutritionPlan(initialTab?: NutritionTab) {
       setOverrides(fetchedOverrides);
       setActiveProgram(fetchedProgram.program);
       setActiveProgramDays(fetchedProgram.days as DietProgramDay[]);
+      setTodayWorkoutCalories(workoutSummary.totalCalories);
+      setTodayWorkoutMinutes(workoutSummary.totalMinutes);
 
       if (user) {
         const { data: logRecord, error: logError } = await supabase
@@ -250,6 +256,8 @@ export function useNutritionPlan(initialTab?: NutritionTab) {
     realLog,
     dailyWaterTarget,
     isGeneratingAi,
+    todayWorkoutCalories,
+    todayWorkoutMinutes,
     todayTemplate,
     loadData,
     handleAiGenerate,

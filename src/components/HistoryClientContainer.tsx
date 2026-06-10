@@ -3,6 +3,7 @@
 import React, { Suspense, useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
 import Papa from 'papaparse';
+import { Line, LineChart, ResponsiveContainer } from 'recharts';
 import {
   Activity,
   CalendarHeart,
@@ -17,7 +18,7 @@ import {
   UploadCloud,
 } from 'lucide-react';
 
-import { type DailyLog, type MoodEntry } from '@/lib/schema';
+import { type BodyMetric, type DailyLog, type Workout } from '@/lib/schema';
 import { type HabitRow } from '@/types/habits';
 import { supabase } from '@/lib/supabase';
 import toast from '@/lib/toast';
@@ -56,6 +57,8 @@ interface HistoryClientContainerProps {
   logs: HistoryLog[];
   moodEntries: MoodHistoryEntry[];
   habits: HabitRow[];
+  bodyMetrics: BodyMetric[];
+  workouts: Workout[];
 }
 
 const TrendChart = dynamic(() => import('@/components/TrendChart'), { ssr: false });
@@ -90,7 +93,13 @@ function MetricBlock({
   );
 }
 
-export default function HistoryClientContainer({ logs, moodEntries, habits }: HistoryClientContainerProps) {
+export default function HistoryClientContainer({
+  logs,
+  moodEntries,
+  habits,
+  bodyMetrics,
+  workouts,
+}: HistoryClientContainerProps) {
   const [activeTab, setActiveTab] = useState<'stats' | 'daily'>('stats');
   const [selectedLog, setSelectedLog] = useState<HistoryLog | null>(null);
   const [isExporting, setIsExporting] = useState(false);
@@ -163,6 +172,25 @@ export default function HistoryClientContainer({ logs, moodEntries, habits }: Hi
       loggedDays: orderedLogs.length,
     };
   }, [habits, logs, moodEntries]);
+
+  const bodySummary = useMemo(() => {
+    const latest = bodyMetrics.at(-1) ?? null;
+    const previous = bodyMetrics.length > 1 ? bodyMetrics.at(-2) ?? null : null;
+    const delta = latest && previous ? Number((latest.weight - previous.weight).toFixed(1)) : 0;
+    const workoutCalories = workouts.reduce((sum, workout) => sum + workout.kcal_burned, 0);
+    const workoutMinutes = workouts.reduce((sum, workout) => sum + workout.duration_minutes, 0);
+
+    return {
+      latest,
+      delta,
+      workoutCalories,
+      workoutMinutes,
+      chart: bodyMetrics.map((metric) => ({
+        date: metric.date,
+        weight: metric.weight,
+      })),
+    };
+  }, [bodyMetrics, workouts]);
 
   const handleExport = async () => {
     setIsExporting(true);
@@ -626,6 +654,60 @@ export default function HistoryClientContainer({ logs, moodEntries, habits }: Hi
                 <p className="mt-2 text-sm font-semibold text-slate-500">
                   Factor más repetido: {summary.topMoodFactor}.
                 </p>
+              </article>
+            </div>
+
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_360px]">
+              <article className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
+                <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">Evolución corporal</p>
+                <div className="mt-3 flex items-end justify-between gap-4">
+                  <div>
+                    <h4 className="text-lg font-black tracking-tight text-slate-950">Peso en tendencia</h4>
+                    <p className="mt-2 text-4xl font-black tracking-tight text-slate-950">
+                      {bodySummary.latest ? `${bodySummary.latest.weight.toFixed(1)} kg` : 'Sin registros'}
+                    </p>
+                    <p className="mt-2 text-sm font-semibold text-slate-500">
+                      {bodySummary.latest
+                        ? `${bodySummary.delta >= 0 ? '+' : ''}${bodySummary.delta.toFixed(1)} kg frente al último registro.`
+                        : 'Registra el peso de hoy para activar esta lectura.'}
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-4 h-56">
+                  {bodySummary.chart.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={bodySummary.chart}>
+                        <Line
+                          type="monotone"
+                          dataKey="weight"
+                          stroke="#0f172a"
+                          strokeWidth={3}
+                          dot={{ r: 3, fill: '#0f172a' }}
+                          activeDot={{ r: 5 }}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="flex h-full items-center justify-center rounded-3xl bg-slate-50 text-sm font-semibold text-slate-400">
+                      Sin datos corporales todavía.
+                    </div>
+                  )}
+                </div>
+              </article>
+
+              <article className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
+                <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">Actividad</p>
+                <h4 className="mt-2 text-lg font-black tracking-tight text-slate-950">Carga deportiva</h4>
+                <div className="mt-4 grid gap-3">
+                  <div className="rounded-3xl bg-orange-50 p-4">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-orange-600">Kcal quemadas</p>
+                    <p className="mt-2 text-3xl font-black text-slate-950">{bodySummary.workoutCalories}</p>
+                  </div>
+                  <div className="rounded-3xl bg-sky-50 p-4">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-sky-600">Minutos activos</p>
+                    <p className="mt-2 text-3xl font-black text-slate-950">{bodySummary.workoutMinutes}</p>
+                  </div>
+                </div>
               </article>
             </div>
           </div>

@@ -118,6 +118,62 @@ export type DailyTemplateRecipe = z.infer<typeof dailyTemplateRecipeSchema>;
 export type WeeklyPlan = z.infer<typeof weeklyPlanSchema>;
 export type WeeklyPlanDay = z.infer<typeof weeklyPlanDaySchema>;
 
+export const scannedDietRecipeSchema = z.object({
+  key: z.string().min(1),
+  name: z.string().min(1).max(100),
+  ingredients_json: z.array(ingredientItemSchema).min(1).max(30),
+  instructions: z.string().min(1),
+  total_kcal: z.number().min(0),
+  total_protein: z.number().min(0),
+  total_carbs: z.number().min(0),
+  total_fats: z.number().min(0),
+});
+
+export const scannedDietTemplateSchema = z.object({
+  key: z.string().min(1),
+  name: z.string().min(1).max(100),
+  target_kcal: z.number().min(0),
+  target_protein: z.number().min(0),
+  target_carbs: z.number().min(0),
+  target_fats: z.number().min(0),
+  meals: z.array(
+    z.object({
+      id: z.string().optional(),
+      name: z.string().min(1).max(100),
+      text: z.string().min(1),
+      recipe_key: z.string().min(1),
+      target_kcal: z.number().min(0),
+      target_protein: z.number().min(0),
+      target_carbs: z.number().min(0),
+      target_fats: z.number().min(0),
+    })
+  ).min(1).max(6),
+});
+
+export const scannedWeeklyPlanSchema = z.object({
+  name: z.string().min(1).max(100),
+  week_start_date: z.string().optional(),
+  days: z.array(
+    z.object({
+      day_of_week: z.number().int().min(1).max(7),
+      day_name: z.string().min(1),
+      template_key: z.string().min(1),
+    })
+  ).length(7),
+});
+
+export const scannedDietImportSchema = z.object({
+  source_summary: z.string().min(1),
+  recipes: z.array(scannedDietRecipeSchema).min(1).max(24),
+  daily_templates: z.array(scannedDietTemplateSchema).min(1).max(14),
+  weekly_plan: scannedWeeklyPlanSchema,
+});
+
+export type ScannedDietRecipe = z.infer<typeof scannedDietRecipeSchema>;
+export type ScannedDietTemplate = z.infer<typeof scannedDietTemplateSchema>;
+export type ScannedWeeklyPlan = z.infer<typeof scannedWeeklyPlanSchema>;
+export type ScannedDietImport = z.infer<typeof scannedDietImportSchema>;
+
 export const dailyLogSchema = z
   .object({
     date: z.string().optional(),
@@ -242,3 +298,27 @@ export const moodEntrySchema = z.object({
 });
 
 export type MoodEntry = z.infer<typeof moodEntrySchema>;
+
+export const bodyMetricSchema = z.object({
+  id: z.string().uuid().optional(),
+  user_id: z.string().uuid().optional(),
+  date: z.string(),
+  weight: z.number().min(0).max(500),
+  body_fat_percentage: z.number().min(0).max(100).nullable().optional(),
+  muscle_mass: z.number().min(0).max(500).nullable().optional(),
+  notes: z.string().max(500).nullable().optional(),
+});
+
+export const workoutSchema = z.object({
+  id: z.string().uuid().optional(),
+  user_id: z.string().uuid().optional(),
+  date: z.string(),
+  sport_type: z.string().min(1).max(50),
+  duration_minutes: z.number().int().min(1).max(1440),
+  intensity: z.enum(['low', 'moderate', 'high']).default('moderate'),
+  kcal_burned: z.number().int().min(0).max(10000),
+  notes: z.string().max(500).nullable().optional(),
+});
+
+export type BodyMetric = z.infer<typeof bodyMetricSchema>;
+export type Workout = z.infer<typeof workoutSchema>;

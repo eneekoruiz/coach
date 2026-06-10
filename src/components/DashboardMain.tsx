@@ -3,11 +3,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { AnimatePresence, motion, type Variants } from 'framer-motion';
-import { Battery, Brain, Droplets, Loader2, MessageCircle, Zap, X } from 'lucide-react';
+import { Battery, Brain, Droplets, Loader2, MessageCircle, Scale, Zap, X } from 'lucide-react';
 import { type DailyLog } from '@/lib/schema';
 import { triggerVibration } from '@/lib/haptics';
 import { useDashboardState } from '@/hooks/useDashboardState';
 import { useTimeContext } from '@/hooks/useTimeContext';
+import WeightLogSheet from '@/components/WeightLogSheet';
 
 interface DashboardTheme {
   background: string;
@@ -225,6 +226,7 @@ export default function DashboardMain({
   const [avatarMotion, setAvatarMotion] = useState<AvatarMotionState>('idle');
   const [waterBusy, setWaterBusy] = useState(false);
   const [isWaterOpen, setIsWaterOpen] = useState(false);
+  const [isWeightOpen, setIsWeightOpen] = useState(false);
   const {
     normalizedMomentum,
     waterMl,
@@ -329,6 +331,17 @@ export default function DashboardMain({
               <MessageCircle className="h-4 w-4" />
               Hablar con el Coach
             </motion.button>
+            <button
+              type="button"
+              onClick={() => {
+                triggerVibration('light');
+                setIsWeightOpen(true);
+              }}
+              className="inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-black text-slate-700 transition-all duration-200 ease-in-out hover:bg-white active:scale-95"
+            >
+              <Scale className="h-4 w-4" />
+              Peso de hoy
+            </button>
           </div>
 
           {pendingSyncCount > 0 && (
@@ -417,6 +430,7 @@ export default function DashboardMain({
         onConfirm={handleWater}
         onSaveSettings={updateWaterSettings}
       />
+      <WeightLogSheet isOpen={isWeightOpen} onClose={() => setIsWeightOpen(false)} />
     </main>
   );
 }

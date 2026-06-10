@@ -19,7 +19,7 @@ import { cookies } from 'next/headers';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import HistoryClientContainer from '@/components/HistoryClientContainer';
-import { dailyLogSchema, type DailyLog } from '@/lib/schema';
+import { dailyLogSchema, type BodyMetric, type DailyLog, type Workout } from '@/lib/schema';
 import type { HabitRow } from '@/types/habits';
 
 type HistoryRow = {
@@ -124,7 +124,7 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
     redirect('/login');
   }
 
-  const [{ data }, { data: moodData }, { data: habitsData }] = await Promise.all([
+  const [{ data }, { data: moodData }, { data: habitsData }, { data: bodyMetricsData }, { data: workoutsData }] = await Promise.all([
     supabaseReal
       .from('daily_logs')
       .select('date, health_momentum, avatar_image_url, ai_data')
@@ -145,6 +145,20 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
       .from('user_habits')
       .select('*')
       .eq('user_id', user.id),
+    supabaseReal
+      .from('body_metrics')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('date', { ascending: true })
+      .limit(180),
+    supabaseReal
+      .from('workouts')
+      .select('*')
+      .eq('user_id', user.id)
+      .gte('date', startDate)
+      .lte('date', endDate)
+      .order('date', { ascending: false })
+      .limit(180),
   ]);
 
   const rows = (data ?? []) as HistoryRow[];
@@ -225,6 +239,23 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
             logs={logs}
             moodEntries={(moodData ?? []) as MoodHistoryEntry[]}
             habits={(habitsData ?? []) as HabitRow[]}
+            bodyMetrics={((bodyMetricsData ?? []) as BodyMetric[]).map((metric) => ({
+              ...metric,
+              weight: Number(metric.weight),
+              body_fat_percentage:
+                metric.body_fat_percentage === null || metric.body_fat_percentage === undefined
+                  ? null
+                  : Number(metric.body_fat_percentage),
+              muscle_mass:
+                metric.muscle_mass === null || metric.muscle_mass === undefined
+                  ? null
+                  : Number(metric.muscle_mass),
+            }))}
+            workouts={((workoutsData ?? []) as Workout[]).map((workout) => ({
+              ...workout,
+              duration_minutes: Number(workout.duration_minutes),
+              kcal_burned: Number(workout.kcal_burned),
+            }))}
           />
         ) : (
           <section className="flex min-h-[50vh] items-center justify-center px-2">

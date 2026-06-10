@@ -6,6 +6,8 @@ dist/
 .env.*.local
 .vercel/
 coverage/
+tsconfig.tsbuildinfo
+supabase/.temp/
 /*.log
 /.vscode/
 .DS_Store

@@ -1,17 +1,21 @@
 'use client';
 
 import React, { useMemo } from 'react';
-import { CheckCircle2, Loader2, Sparkles, Utensils, Wand2 } from 'lucide-react';
+import { CheckCircle2, Flame, Loader2, Sparkles, Utensils, Wand2 } from 'lucide-react';
 import type { DailyLog, DietTemplate, MealItem } from '@/lib/schema';
 import DietEmptyState from './DietEmptyState';
+import DietScanner from './DietScanner';
 
 interface TodayNutritionViewProps {
   todayTemplate: DietTemplate | null;
   realLog: DailyLog | null;
   isGeneratingAi: boolean;
+  todayWorkoutCalories: number;
+  todayWorkoutMinutes: number;
   onGenerateToday: () => void;
   onMarkMealAsEaten: (meal: MealItem) => void;
   onOpenPlanner: () => void;
+  onImportedDiet: () => Promise<void> | void;
 }
 
 function isMealLogged(log: DailyLog | null, meal: MealItem) {
@@ -24,9 +28,12 @@ export default function TodayNutritionView({
   todayTemplate,
   realLog,
   isGeneratingAi,
+  todayWorkoutCalories,
+  todayWorkoutMinutes,
   onGenerateToday,
   onMarkMealAsEaten,
   onOpenPlanner,
+  onImportedDiet,
 }: TodayNutritionViewProps) {
   const totals = useMemo(() => {
     const meals = todayTemplate?.meals ?? [];
@@ -135,8 +142,8 @@ export default function TodayNutritionView({
         </div>
       </section>
 
-      <aside className="flex min-h-0 flex-col justify-between rounded-3xl border border-emerald-100 bg-white p-4 shadow-sm">
-        <div>
+      <aside className="flex min-h-0 flex-col gap-3 overflow-y-auto rounded-3xl border border-emerald-100 bg-white p-4 shadow-sm scrollbar-hide">
+        <div className="rounded-3xl border border-emerald-100 bg-emerald-50/70 p-4">
           <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
             AI Auto-Pilot
           </p>
@@ -146,17 +153,37 @@ export default function TodayNutritionView({
           <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
             Crea una plantilla, la asigna a hoy y deja el día listo para registrar comida por comida.
           </p>
+          <button
+            type="button"
+            onClick={onGenerateToday}
+            disabled={isGeneratingAi}
+            className="mt-5 inline-flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 text-sm font-black text-white shadow-sm transition-all duration-200 ease-in-out hover:bg-emerald-500 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isGeneratingAi ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+            <span>{isGeneratingAi ? 'Generando menú' : 'Generar Menú de Hoy con IA'}</span>
+          </button>
         </div>
 
-        <button
-          type="button"
-          onClick={onGenerateToday}
-          disabled={isGeneratingAi}
-          className="mt-5 inline-flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 text-sm font-black text-white shadow-sm transition-all duration-200 ease-in-out hover:bg-emerald-500 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {isGeneratingAi ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
-          <span>{isGeneratingAi ? 'Generando menú' : 'Generar Menú de Hoy con IA'}</span>
-        </button>
+        <div className="rounded-3xl border border-orange-100 bg-orange-50 p-4">
+          <div className="flex items-center gap-3">
+            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-orange-500 ring-1 ring-orange-100">
+              <Flame className="h-4 w-4" />
+            </span>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-orange-600">
+                Gasto deportivo de hoy
+              </p>
+              <p className="mt-1 text-lg font-black tracking-tight text-slate-950">
+                {todayWorkoutCalories} kcal · {todayWorkoutMinutes} min
+              </p>
+            </div>
+          </div>
+          <p className="mt-2 text-xs font-semibold leading-5 text-slate-500">
+            Lo usamos como lectura rápida de tu déficit o superávit real del día.
+          </p>
+        </div>
+
+        <DietScanner onImported={onImportedDiet} />
       </aside>
     </div>
   );

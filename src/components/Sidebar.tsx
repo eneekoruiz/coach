@@ -77,6 +77,18 @@ export default function Sidebar() {
         </svg>
       ),
     },
+    {
+      name: 'Sports',
+      href: '/sports',
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M6.5 6.5l11 11" />
+          <path d="M7.5 16.5l9-9" />
+          <path d="M4 9l5-5" />
+          <path d="M15 20l5-5" />
+        </svg>
+      ),
+    },
   ];
 
   return (

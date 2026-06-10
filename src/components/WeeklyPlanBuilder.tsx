@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
+import Papa from 'papaparse';
 import {
   deleteWeeklyPlan,
   getActiveWeeklyPlan,
@@ -16,6 +17,7 @@ import {
   CalendarDays,
   Check,
   ClipboardList,
+  Download,
   Plus,
   Save,
   Sun,
@@ -50,6 +52,45 @@ export default function WeeklyPlanBuilder() {
     () => DAYS_OF_WEEK.filter((day) => Boolean(dayMappings[day.value])).length,
     [dayMappings]
   );
+
+  const handleExportPlan = () => {
+    if (Object.keys(dayMappings).length === 0) {
+      toast.error('Primero asigna al menos un Día Base a la semana.');
+      return;
+    }
+
+    const mealNames = Array.from(
+      new Set(
+        Object.values(dayMappings)
+          .map((templateId) => templates.find((template) => template.id === templateId))
+          .flatMap((template) => template?.meals.map((meal) => meal.name) ?? [])
+      )
+    );
+
+    const rows = mealNames.map((mealName) => {
+      const row: Record<string, string> = { Comida: mealName };
+      DAYS_OF_WEEK.forEach((day) => {
+        const template = templates.find((item) => item.id === dayMappings[day.value]);
+        const meal = template?.meals.find((item) => item.name === mealName);
+        row[day.label] = meal ? `${meal.text} (${Math.round(meal.target_kcal)} kcal)` : '';
+      });
+      return row;
+    });
+
+    const csv = Papa.unparse(rows);
+    const blob = new Blob([new Uint8Array([0xef, 0xbb, 0xbf]), csv], {
+      type: 'text/csv;charset=utf-8;',
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${planName.trim().replace(/\s+/g, '-').toLowerCase() || 'plan-semanal'}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast.success('Plan exportado a CSV.');
+  };
 
   const loadData = async () => {
     setLoading(true);
@@ -264,6 +305,14 @@ export default function WeeklyPlanBuilder() {
             </p>
           </div>
           <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={handleExportPlan}
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black text-slate-700 transition hover:bg-slate-50 active:scale-95"
+            >
+              <Download className="h-4 w-4" />
+              Exportar
+            </button>
             {planId && (
               <button
                 type="button"

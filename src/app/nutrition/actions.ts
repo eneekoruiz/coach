@@ -3,7 +3,7 @@
 import { generateObject } from 'ai';
 import { google } from '@ai-sdk/google';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
-import { dailyLogSchema } from '@/lib/schema';
+import { dailyLogSchema, scannedDietImportSchema } from '@/lib/schema';
 import { z } from 'zod';
 
 import { dietTemplateSchema, type DietTemplate, defaultTemplate, type MealItem } from '@/lib/schema';
@@ -508,6 +508,91 @@ export async function analyzeFoodImage(
     return {
       success: false,
       error: err instanceof Error ? err.message : 'Error al procesar la imagen con IA.',
+    };
+  }
+}
+
+export async function scanDietPhotoWithAi(
+  base64Image: string,
+  mimeType: string,
+  context = ''
+): Promise<{
+  success: boolean;
+  data?: {
+    weekly_plan_id: string;
+    recipes_created: number;
+    templates_created: number;
+    structured: z.infer<typeof scannedDietImportSchema>;
+  };
+  error?: string;
+}> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { success: false, error: 'Usuario no autenticado.' };
+    }
+
+    const base64Data = base64Image.includes(';base64,')
+      ? base64Image.split(';base64,')[1]
+      : base64Image;
+
+    const result = await generateObject({
+      model: google('gemini-2.5-flash'),
+      temperature: 0,
+      system:
+        'Eres un dietista clínico experto en digitalizar dietas escritas o impresas. Debes reconstruir recetas, días base y una semana completa en JSON estricto. Nunca escribas prosa fuera del esquema. Si un dato exacto no aparece, estima con criterio profesional y mantenlo coherente.',
+      schema: scannedDietImportSchema,
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'image',
+              image: base64Data,
+              mediaType: mimeType,
+            },
+            {
+              type: 'text',
+              text:
+                `Digitaliza esta dieta en papel y conviértela en recetas reutilizables, plantillas diarias y un plan semanal completo. ${context.trim()}`.trim() +
+                ' Usa nombres de comidas naturales en español. En ingredients_json devuelve cantidad, unidad y macros por ingrediente. En instructions resume la preparación real de cada receta. Si el documento tiene estructura por días, respétala al formar weekly_plan.days.',
+            },
+          ],
+        },
+      ],
+    });
+
+    const parsed = scannedDietImportSchema.safeParse(result.object);
+    if (!parsed.success) {
+      return { success: false, error: 'La IA no devolvió una estructura clínica válida.' };
+    }
+
+    const { data: rpcData, error: rpcError } = await supabase.rpc('import_scanned_diet_bundle', {
+      payload: parsed.data,
+    });
+
+    if (rpcError) {
+      throw rpcError;
+    }
+
+    return {
+      success: true,
+      data: {
+        weekly_plan_id: String(rpcData?.weekly_plan_id ?? ''),
+        recipes_created: Number(rpcData?.recipes_created ?? 0),
+        templates_created: Number(rpcData?.templates_created ?? 0),
+        structured: parsed.data,
+      },
+    };
+  } catch (err) {
+    console.error('scanDietPhotoWithAi error:', err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : 'No se pudo digitalizar la dieta.',
     };
   }
 }

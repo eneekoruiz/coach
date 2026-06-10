@@ -38,6 +38,8 @@ export default function NutritionContainer({ initialTab }: { initialTab?: Nutrit
     activeProgramDays,
     realLog,
     isGeneratingAi,
+    todayWorkoutCalories,
+    todayWorkoutMinutes,
     todayTemplate,
     loadData,
     handleAiGenerate,
@@ -177,9 +179,19 @@ export default function NutritionContainer({ initialTab }: { initialTab?: Nutrit
             todayTemplate={todayTemplate}
             realLog={realLog}
             isGeneratingAi={isGeneratingAi}
+            todayWorkoutCalories={todayWorkoutCalories}
+            todayWorkoutMinutes={todayWorkoutMinutes}
             onGenerateToday={handleAiGenerate}
             onMarkMealAsEaten={handleMarkMealAsEaten}
-            onOpenPlanner={() => setIsPlannerOpen(true)}
+            onOpenPlanner={() => {
+              setActiveTab('programs');
+              setIsPlannerOpen(true);
+            }}
+            onImportedDiet={async () => {
+              setActiveTab('programs');
+              setIsPlannerOpen(true);
+              await loadData();
+            }}
           />
         )}
         {isPlannerOpen && activeTab === 'recipes' && <RecipeLibrary />}
