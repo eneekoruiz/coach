@@ -3,7 +3,7 @@
 import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Trash2, Check, Sparkles, Loader2, ListTodo, Sun, CloudSun, Moon, Link2 } from 'lucide-react';
+import { Plus, Check, Sparkles, Loader2, ListTodo, Sun, CloudSun, Moon, Link2, BellRing } from 'lucide-react';
 import BottomSheet from './BottomSheet';
 import { useDailyChecklist } from '@/hooks/useDailyChecklist';
 
@@ -26,10 +26,16 @@ export default function DailyChecklist({ isDedicatedPage = false }: DailyCheckli
     setNewTitle,
     timeOfDay,
     setTimeOfDay,
+    linkedHabitId,
+    setLinkedHabitId,
+    habitIncrementAmount,
+    setHabitIncrementAmount,
+    notificationsEnabled,
+    setNotificationsEnabled,
+    userHabits,
     isPending,
     handleToggle,
     handleAddTemplate,
-    handleDeleteTemplate,
   } = useDailyChecklist();
 
   const handleEditClick = () => {
@@ -222,50 +228,10 @@ export default function DailyChecklist({ isDedicatedPage = false }: DailyCheckli
       {isEditOpen && isDedicatedPage && (
         <BottomSheet isOpen={isEditOpen} onClose={() => setIsEditOpen(false)} title="Nueva Tarea">
           <div className="space-y-4">
-            {/* List of current templates */}
-            <div className="max-h-48 overflow-y-auto mb-4 space-y-2 pr-1 scrollbar-hide">
-              {templates.length === 0 ? (
-                <p className="text-xs font-bold text-slate-400 text-center py-6">
-                  Aún no hay tareas creadas.
-                </p>
-              ) : (
-                templates.map((t) => (
-                  <div
-                    key={t.id}
-                    className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="text-base">{t.icon}</span>
-                      <span className="text-xs font-bold text-slate-700">
-                        {t.title}
-                        {t.time_of_day && (
-                          <span className="ml-1.5 text-[9px] uppercase tracking-wider bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded">
-                            {t.time_of_day === 'morning' ? 'Mañana' : t.time_of_day === 'afternoon' ? 'Tarde' : 'Noche'}
-                          </span>
-                        )}
-                      </span>
-                    </div>
-                    <button
-                      onClick={() => handleDeleteTemplate(t.id)}
-                      disabled={isPending}
-                      className="text-red-500 hover:text-red-600 p-2.5 rounded-lg hover:bg-red-50 transition min-h-[44px] min-w-[44px] flex items-center justify-center"
-                    >
-                      {isPending ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Trash2 className="w-4 h-4" />
-                      )}
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
-
-            {/* Add template form */}
-            <form onSubmit={handleAddTemplate} className="space-y-4 pt-4 border-t border-slate-100">
+            <form onSubmit={handleAddTemplate} className="space-y-4">
               <div>
                 <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1.5">
-                  ¿Qué quieres recordar?
+                  1. Nombre
                 </label>
                 <input
                   type="text"
@@ -279,7 +245,7 @@ export default function DailyChecklist({ isDedicatedPage = false }: DailyCheckli
 
               <div>
                 <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1.5">
-                  Hora / momento del día
+                  2. Momento del día
                 </label>
                 <select
                   value={timeOfDay}
@@ -289,6 +255,61 @@ export default function DailyChecklist({ isDedicatedPage = false }: DailyCheckli
                   <option value="morning">☀️ Mañana</option>
                   <option value="afternoon">⛅ Tarde</option>
                   <option value="night">🌙 Noche</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1.5">
+                  3. Repeticiones
+                </label>
+                <select
+                  value={habitIncrementAmount}
+                  onChange={(event) => setHabitIncrementAmount(Number(event.target.value))}
+                  className="w-full min-h-[44px] rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value={1}>1 vez</option>
+                  <option value={2}>2 veces</option>
+                  <option value={3}>3 veces</option>
+                </select>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">
+                      4. Notificación
+                    </label>
+                    <p className="mt-1 text-xs font-semibold text-slate-500">
+                      Guarda la preferencia en el tipo de tarea.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setNotificationsEnabled((current) => !current)}
+                    className={`inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full px-4 text-xs font-black transition-all duration-200 ease-in-out ${
+                      notificationsEnabled ? 'bg-indigo-600 text-white' : 'bg-white text-slate-500 ring-1 ring-slate-200'
+                    }`}
+                  >
+                    <BellRing className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1.5">
+                  5. Vincular a hábito
+                </label>
+                <select
+                  value={linkedHabitId ?? ''}
+                  onChange={(event) => setLinkedHabitId(event.target.value ? Number(event.target.value) : null)}
+                  className="w-full min-h-[44px] rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="">Sin vincular</option>
+                  {userHabits.map((habit) => (
+                    <option key={habit.id} value={habit.id}>
+                      {habit.name}
+                    </option>
+                  ))}
                 </select>
               </div>
 

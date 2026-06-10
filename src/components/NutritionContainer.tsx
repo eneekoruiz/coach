@@ -46,10 +46,14 @@ export default function NutritionContainer({ initialTab }: { initialTab?: Nutrit
 
   if (loading) {
     return (
-      <div className="space-y-4 animate-pulse" aria-hidden="true">
+      <div className="flex h-full min-h-0 flex-col gap-3 animate-pulse" aria-hidden="true">
         <div className="rounded-[1.5rem] border border-slate-200 bg-white p-4 shadow-sm">
           <div className="h-4 w-32 rounded-full bg-slate-200" />
-          <div className="mt-2 h-3 w-48 bg-slate-100 rounded-full" />
+          <div className="mt-2 h-3 w-48 rounded-full bg-slate-100" />
+        </div>
+        <div className="grid flex-1 grid-cols-1 gap-3 lg:grid-cols-[300px_minmax(0,1fr)]">
+          <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm" />
+          <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm" />
         </div>
       </div>
     );
@@ -167,7 +171,7 @@ export default function NutritionContainer({ initialTab }: { initialTab?: Nutrit
         )}
       </div>
 
-      <div className="min-h-0 flex-1 overflow-hidden">
+      <div className="min-h-0 flex-1 overflow-y-auto scrollbar-hide">
         {!isPlannerOpen && (
           <TodayNutritionView
             todayTemplate={todayTemplate}

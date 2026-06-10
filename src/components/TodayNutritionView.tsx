@@ -3,6 +3,7 @@
 import React, { useMemo } from 'react';
 import { CheckCircle2, Loader2, Sparkles, Utensils, Wand2 } from 'lucide-react';
 import type { DailyLog, DietTemplate, MealItem } from '@/lib/schema';
+import DietEmptyState from './DietEmptyState';
 
 interface TodayNutritionViewProps {
   todayTemplate: DietTemplate | null;
@@ -125,15 +126,11 @@ export default function TodayNutritionView({
               );
             })
           ) : (
-            <div className="flex h-full min-h-[280px] flex-col items-center justify-center rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center">
-              <Sparkles className="h-10 w-10 text-emerald-500" />
-              <h3 className="mt-3 text-lg font-black tracking-tight text-slate-950">
-                No hay menú asignado para hoy
-              </h3>
-              <p className="mt-2 max-w-sm text-sm font-semibold leading-6 text-slate-500">
-                Pulsa el generador IA y te monta desayuno, comida, cena y macros sin pasar por el builder.
-              </p>
-            </div>
+            <DietEmptyState
+              onAiGenerate={onGenerateToday}
+              onManualCreate={onOpenPlanner}
+              isLoadingAi={isGeneratingAi}
+            />
           )}
         </div>
       </section>

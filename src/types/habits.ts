@@ -11,6 +11,11 @@ export interface HabitRow {
   unit?: string | null;
   relapse_unit_cost?: number;
   relapse_unit_minutes?: number;
+  sobriety_started_at?: string | null;
+  last_relapse_at?: string | null;
+  slip_allowance?: number;
+  slip_window_days?: number;
+  slip_penalty_hours?: number;
   current_streak: number;
   longest_streak: number;
   shields: number;

@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { type HabitRow } from '@/types/habits';
+import { getNegativeHabitPolicy } from '@/lib/habits-utils';
 
 export function isMissingHabitTableError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error);
@@ -65,17 +66,34 @@ export async function evaluateAndUpdateStreaks(
     const amount = report ? Number(report.amount || 0) : 0;
 
     if (h.type === 'negative') {
+      const { graceLimit, slipAllowance, slipWindowDays } = getNegativeHabitPolicy(h);
+      const { data: previousLogs } = await supabase
+        .from('daily_logs')
+        .select('habit_tracking')
+        .eq('user_id', userId)
+        .order('date', { ascending: false })
+        .limit(Math.max(0, slipWindowDays - 1));
+
+      const previousRelapseDays = (previousLogs ?? []).filter((log) => {
+        const tracking = Array.isArray(log.habit_tracking) ? log.habit_tracking : [];
+        const entry = tracking.find((item: { habit_id: number; amount: number }) => Number(item.habit_id) === Number(h.id));
+        return Number(entry?.amount ?? 0) > graceLimit;
+      }).length;
+      const totalRelapseDays = previousRelapseDays + (amount > graceLimit ? 1 : 0);
+
       if (amount === 0) {
         const next = (h.current_streak ?? 0) + 1;
         const longest = Math.max(h.longest_streak ?? 0, next);
         updates.push({ id: h.id, current_streak: next, longest_streak: longest });
-      } else if (amount <= Math.max(0, h.tolerance_threshold ?? 0)) {
+      } else if (amount <= graceLimit) {
+        updates.push({ id: h.id, current_streak: h.current_streak ?? 0 });
+      } else if (totalRelapseDays > slipAllowance) {
+        updates.push({ id: h.id, current_streak: 0 });
+      } else {
         updates.push({
           id: h.id,
-          current_streak: Math.max(0, (h.current_streak ?? 0) - Math.ceil(amount)),
+          current_streak: Math.max(0, (h.current_streak ?? 0) - 1),
         });
-      } else {
-        updates.push({ id: h.id, current_streak: 0 });
       }
     } else {
       if (amount >= (h.target_value ?? h.tolerance_threshold ?? 1)) {

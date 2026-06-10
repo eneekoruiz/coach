@@ -20,10 +20,10 @@ export function useDailyChecklist() {
   const [isLoading, setIsLoading] = useState(true);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [newTitle, setNewTitle] = useState('');
-  const [newIcon, setNewIcon] = useState('✨');
   const [timeOfDay, setTimeOfDay] = useState<'morning' | 'afternoon' | 'night'>('morning');
   const [linkedHabitId, setLinkedHabitId] = useState<number | null>(null);
   const [habitIncrementAmount, setHabitIncrementAmount] = useState<number>(1);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [isPending, startTransition] = useTransition();
   const [mounted, setMounted] = useState(false);
 
@@ -31,8 +31,6 @@ export function useDailyChecklist() {
     setMounted(true);
     return () => setMounted(false);
   }, []);
-
-  const iconsList = ['✨', '💧', '🥗', '🏋️', '🧘', '📚', '💊', '😴', '🚶', '🍎'];
 
   // Load initial data
   useEffect(() => {
@@ -119,7 +117,7 @@ export function useDailyChecklist() {
     startTransition(async () => {
       const res = await createRoutineTemplate(
         newTitle.trim(),
-        newIcon,
+        notificationsEnabled ? '🔔' : '📝',
         timeOfDay,
         linkedHabitId,
         habitIncrementAmount
@@ -129,7 +127,9 @@ export function useDailyChecklist() {
         setNewTitle('');
         setLinkedHabitId(null);
         setHabitIncrementAmount(1);
+        setNotificationsEnabled(true);
         setTimeOfDay('morning');
+        setIsEditOpen(false);
         toast.success('Rutina añadida con éxito.');
       } else {
         toast.error(res?.error || 'Error al añadir rutina.');
@@ -164,17 +164,16 @@ export function useDailyChecklist() {
     setIsEditOpen,
     newTitle,
     setNewTitle,
-    newIcon,
-    setNewIcon,
     timeOfDay,
     setTimeOfDay,
     linkedHabitId,
     setLinkedHabitId,
     habitIncrementAmount,
     setHabitIncrementAmount,
+    notificationsEnabled,
+    setNotificationsEnabled,
     isPending,
     mounted,
-    iconsList,
     handleToggle,
     handleAddTemplate,
     handleDeleteTemplate,

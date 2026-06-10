@@ -1,5 +1,2 @@
-import { redirect } from 'next/navigation';
-
-export default function TasksAliasPage() {
-  redirect('/routines');
-}
+export { metadata } from '@/app/routines/page';
+export { default } from '@/app/routines/page';

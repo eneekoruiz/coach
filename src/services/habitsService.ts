@@ -44,6 +44,11 @@ export async function createHabit(params: CreateHabitParams) {
       tolerance_threshold: tolerance,
       target_value: target_number,
       unit: unit ?? null,
+      sobriety_started_at: type === 'negative' ? new Date().toISOString() : null,
+      last_relapse_at: null,
+      slip_allowance: type === 'negative' ? 1 : 0,
+      slip_window_days: type === 'negative' ? 7 : 1,
+      slip_penalty_hours: type === 'negative' ? 24 : 0,
       current_streak: 0,
       longest_streak: 0,
       shields: 0,
@@ -83,6 +88,9 @@ export interface UpdateHabitSettingsParams {
   toleranceThreshold?: number;
   targetValue?: number;
   unit?: string | null;
+  slipAllowance?: number;
+  slipWindowDays?: number;
+  slipPenaltyHours?: number;
 }
 
 type HabitTrackingEntry = {
@@ -120,7 +128,7 @@ export async function updateTodayHabit(params: UpdateTodayHabitParams) {
   // 1) Fetch habit to get its name and type
   const { data: habit, error: habitError } = await supabase
     .from('user_habits')
-    .select('name, type')
+    .select('name, type, sobriety_started_at, tolerance_threshold, slip_allowance, slip_window_days')
     .eq('id', habitId)
     .eq('user_id', userId)
     .single();
@@ -229,11 +237,62 @@ export async function updateTodayHabit(params: UpdateTodayHabitParams) {
     habitTracking: currentTracking,
   });
 
+  if (habit.type === 'negative') {
+    const graceLimit = Math.max(0, habit.tolerance_threshold ?? 0);
+    const slipAllowance = Math.max(0, habit.slip_allowance ?? 1);
+    const slipWindowDays = Math.max(1, habit.slip_window_days ?? 7);
+    const nowIso = new Date().toISOString();
+    let timestampUpdates: Record<string, string> | null = null;
+
+    if (newAmount === 0 && !habit.sobriety_started_at) {
+      timestampUpdates = { sobriety_started_at: nowIso };
+    }
+
+    if (newAmount > 0) {
+      timestampUpdates = {
+        ...(timestampUpdates ?? {}),
+        last_relapse_at: nowIso,
+      };
+    }
+
+    if (newAmount > graceLimit) {
+      const { data: recentLogs } = await supabase
+        .from('daily_logs')
+        .select('date, habit_tracking')
+        .eq('user_id', userId)
+        .lt('date', targetDate)
+        .order('date', { ascending: false })
+        .limit(Math.max(0, slipWindowDays - 1));
+
+      const relapseDaysInWindow =
+        (recentLogs ?? []).filter((log) => {
+          const tracking = parseHabitTracking(log.habit_tracking);
+          const entry = tracking.find((item) => Number(item.habit_id) === habitId);
+          return Number(entry?.amount ?? 0) > graceLimit;
+        }).length + 1;
+
+      if (relapseDaysInWindow > slipAllowance) {
+        timestampUpdates = {
+          ...(timestampUpdates ?? {}),
+          sobriety_started_at: nowIso,
+        };
+      }
+    }
+
+    if (timestampUpdates) {
+      await supabase
+        .from('user_habits')
+        .update(timestampUpdates)
+        .eq('id', habitId)
+        .eq('user_id', userId);
+    }
+  }
+
   return updatedLog;
 }
 
 export async function updateHabitSettings(params: UpdateHabitSettingsParams) {
-  const { supabase, userId, habitId, toleranceThreshold, targetValue, unit } = params;
+  const { supabase, userId, habitId, toleranceThreshold, targetValue, unit, slipAllowance, slipWindowDays, slipPenaltyHours } = params;
   const updates: Record<string, number | string | null> = {};
 
   if (typeof toleranceThreshold === 'number') {
@@ -244,6 +303,15 @@ export async function updateHabitSettings(params: UpdateHabitSettingsParams) {
   }
   if (unit !== undefined) {
     updates.unit = unit;
+  }
+  if (typeof slipAllowance === 'number') {
+    updates.slip_allowance = Math.max(0, Math.floor(slipAllowance));
+  }
+  if (typeof slipWindowDays === 'number') {
+    updates.slip_window_days = Math.max(1, Math.floor(slipWindowDays));
+  }
+  if (typeof slipPenaltyHours === 'number') {
+    updates.slip_penalty_hours = Math.max(0, Math.floor(slipPenaltyHours));
   }
 
   if (Object.keys(updates).length === 0) {

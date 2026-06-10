@@ -176,12 +176,7 @@ export function useChat(onUpdate?: () => void | Promise<void>, momentum?: number
       const base = speechBaseTextRef.current;
       setInputText(base + (base.trim() ? ' ' : '') + transcript);
     },
-    onEnd: () => {
-      const textToSubmit = inputTextRef.current.trim();
-      if (textToSubmit) {
-        handleSubmit();
-      }
-    }
+    onEnd: () => undefined,
   });
 
   const handleToggleListening = useCallback(() => {

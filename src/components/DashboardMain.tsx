@@ -3,17 +3,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { AnimatePresence, motion, type Variants } from 'framer-motion';
-import {
-  Battery,
-  Brain,
-  CheckCircle2,
-  Droplets,
-  Loader2,
-  MessageCircle,
-  Utensils,
-  Zap,
-  X,
-} from 'lucide-react';
+import { Battery, Brain, Droplets, Loader2, MessageCircle, Zap, X } from 'lucide-react';
 import { type DailyLog } from '@/lib/schema';
 import { triggerVibration } from '@/lib/haptics';
 import { useDashboardState } from '@/hooks/useDashboardState';
@@ -82,26 +72,6 @@ const avatarVariants: Variants = {
 function clampPercent(value: number, max: number) {
   if (max <= 0) return 0;
   return Math.min(100, Math.max(0, Math.round((value / max) * 100)));
-}
-
-function MetricTile({
-  label,
-  value,
-  icon,
-}: {
-  label: string;
-  value: string;
-  icon: React.ReactNode;
-}) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-      <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-xl bg-slate-50 text-slate-600">
-        {icon}
-      </div>
-      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">{label}</p>
-      <p className="mt-0.5 text-base font-black tracking-tight text-slate-900">{value}</p>
-    </div>
-  );
 }
 
 function WaterIntakeModal({
@@ -306,9 +276,9 @@ export default function DashboardMain({
   };
 
   return (
-    <main className="mx-auto flex min-h-0 w-full max-w-4xl flex-1 flex-col justify-center gap-2 overflow-hidden py-1 sm:gap-3">
+    <main className="mx-auto flex min-h-0 w-full max-w-4xl flex-1 flex-col justify-center gap-3 overflow-hidden px-1 py-1 sm:gap-4">
       <div className="pointer-events-none absolute left-1/2 top-3 z-20 -translate-x-1/2 rounded-full border border-white/70 bg-white/80 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-slate-600 shadow-sm backdrop-blur-xl">
-        Inercia {normalizedMomentum}%
+        Bienestar {normalizedMomentum}%
       </div>
 
       <section className="min-h-0 rounded-[1.5rem] border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
@@ -321,7 +291,7 @@ export default function DashboardMain({
           <motion.div
             variants={avatarVariants}
             animate={avatarMotion}
-            className={`relative flex h-28 w-28 items-center justify-center overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white shadow-sm sm:h-36 sm:w-36 lg:h-40 lg:w-40 ${avatar.aura}`}
+            className={`relative flex h-40 w-full max-w-[22rem] items-center justify-center overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white shadow-sm sm:h-44 lg:h-48 ${avatar.aura}`}
           >
             <img
               src={avatar.url}
@@ -349,42 +319,16 @@ export default function DashboardMain({
             </p>
           </div>
 
-          <div className="mt-3 grid w-full max-w-lg grid-cols-3 gap-2">
+          <div className="mt-3 flex w-full max-w-lg flex-col gap-2">
             <motion.button
               type="button"
-              whileTap={{ scale: 0.96 }}
-              onClick={() => {
-                triggerVibration('light');
-                setIsWaterOpen(true);
-              }}
-              disabled={waterBusy}
-              className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-cyan-500 px-3 text-xs font-black text-white shadow-sm transition-all duration-200 ease-in-out hover:bg-cyan-400 disabled:opacity-70"
-            >
-              <Droplets className="h-4 w-4" />
-              +{defaultGlassSize}ml
-            </motion.button>
-
-            <motion.button
-              type="button"
-              whileTap={{ scale: 0.96 }}
+              whileTap={{ scale: 0.98 }}
               onClick={handleCoach}
-              className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-slate-900 px-3 text-xs font-black text-white shadow-sm transition-all duration-200 ease-in-out hover:bg-slate-800"
+              className="inline-flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 px-4 text-sm font-black text-white shadow-sm transition-all duration-200 ease-in-out hover:bg-slate-800"
             >
               <MessageCircle className="h-4 w-4" />
-              Coach
+              Hablar con el Coach
             </motion.button>
-
-            <Link
-              href="/nutrition"
-              onClick={() => {
-                triggerVibration('light');
-                setAvatarMotion('success');
-              }}
-              className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-3 text-xs font-black text-emerald-700 transition-all duration-200 ease-in-out hover:bg-emerald-100"
-            >
-              <Utensils className="h-4 w-4" />
-              {timeContext.mealFocus}
-            </Link>
           </div>
 
           {pendingSyncCount > 0 && (
@@ -406,72 +350,62 @@ export default function DashboardMain({
           <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-600">{primaryAction}</p>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
-            Coach contextual
-          </p>
-          <p className="mt-1 line-clamp-3 text-xs leading-5 text-slate-600">
-            {insightText || timeContext.coachPrompt}
-          </p>
-          <button
-            type="button"
-            onClick={handleCoach}
-            className="mt-3 inline-flex h-10 w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 px-4 text-xs font-black text-white transition-all duration-200 ease-in-out hover:bg-slate-800 active:scale-95"
-          >
-            <MessageCircle className="h-4 w-4" />
-            Abrir Coach
-          </button>
-        </div>
-      </section>
-
-      <section className="grid grid-cols-4 gap-2">
-        <MetricTile
-          label="Agua"
-          value={`${waterMl}ml`}
-          icon={<Droplets className="h-4 w-4 text-cyan-600" />}
-        />
-        <MetricTile
-          label="Nutrición"
-          value={`${kcalPercent}%`}
-          icon={<Utensils className="h-4 w-4 text-emerald-600" />}
-        />
-        <MetricTile
-          label="Energía"
-          value={`${energyLevel}/5`}
-          icon={<Battery className="h-4 w-4 text-amber-600" />}
-        />
-        <MetricTile
-          label="Claridad"
-          value={`${mentalClarity}/5`}
-          icon={<Brain className="h-4 w-4 text-sky-600" />}
-        />
-      </section>
-
-      <div className="grid grid-cols-2 gap-2">
-        <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+        <div className="rounded-2xl border border-cyan-100 bg-cyan-50 p-3 shadow-sm">
           <div className="flex items-center justify-between">
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Hidratación</p>
-            <p className="text-xs font-black text-cyan-600">{waterPercent}%</p>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-cyan-600">
+                Agua unificada
+              </p>
+              <p className="mt-1 text-xl font-black tracking-tight text-slate-950">
+                {waterMl}/{dailyWaterTarget}ml
+              </p>
+            </div>
+            <motion.button
+              type="button"
+              whileTap={{ scale: 0.96 }}
+              onClick={() => {
+                triggerVibration('light');
+                setIsWaterOpen(true);
+              }}
+              disabled={waterBusy}
+              className="inline-flex h-12 min-w-[44px] items-center justify-center gap-2 rounded-2xl bg-cyan-500 px-4 text-xs font-black text-white shadow-sm transition-all duration-200 ease-in-out hover:bg-cyan-400 disabled:opacity-70"
+            >
+              {waterBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Droplets className="h-4 w-4" />}
+              +{defaultGlassSize}ml
+            </motion.button>
           </div>
-          <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
+          <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/80">
             <div className="h-full rounded-full bg-cyan-500 transition-all duration-500" style={{ width: `${waterPercent}%` }} />
           </div>
+          <p className="mt-2 text-xs font-semibold text-slate-500">
+            {insightText || timeContext.coachPrompt}
+          </p>
+        </div>
+      </section>
+
+      <section className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+          <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-xl bg-slate-50 text-slate-600">
+            <Battery className="h-4 w-4 text-amber-600" />
+          </div>
+          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Energía</p>
+          <p className="mt-0.5 text-base font-black tracking-tight text-slate-900">{energyLevel}/5</p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-          <div className="flex items-center justify-between">
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Inercia</p>
-            <p className="text-xs font-black text-slate-900">{normalizedMomentum}%</p>
+          <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-xl bg-slate-50 text-slate-600">
+            <Brain className="h-4 w-4 text-sky-600" />
           </div>
-          <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
-            <div className="h-full rounded-full bg-slate-900 transition-all duration-500" style={{ width: `${normalizedMomentum}%` }} />
-          </div>
+          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Claridad</p>
+          <p className="mt-0.5 text-base font-black tracking-tight text-slate-900">{mentalClarity}/5</p>
         </div>
-      </div>
-
-      <div className="hidden items-center justify-center gap-2 text-xs text-slate-400 sm:flex">
-        <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-        Inicio sin histórico: solo estado del día actual.
-      </div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm col-span-2 sm:col-span-1">
+          <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-xl bg-slate-50 text-slate-600">
+            <Zap className="h-4 w-4 text-emerald-600" />
+          </div>
+          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Nutrición</p>
+          <p className="mt-0.5 text-base font-black tracking-tight text-slate-900">{kcalPercent}%</p>
+        </div>
+      </section>
 
       <WaterIntakeModal
         open={isWaterOpen}

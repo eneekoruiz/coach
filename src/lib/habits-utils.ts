@@ -27,6 +27,60 @@ export function isHabitRow(value: unknown): value is HabitRow {
   );
 }
 
+export function getNegativeHabitPolicy(habit: HabitRow) {
+  return {
+    graceLimit: Math.max(0, habit.tolerance_threshold ?? 0),
+    slipAllowance: Math.max(0, habit.slip_allowance ?? 1),
+    slipWindowDays: Math.max(1, habit.slip_window_days ?? 7),
+    slipPenaltyHours: Math.max(0, habit.slip_penalty_hours ?? 24),
+  };
+}
+
+export function buildNegativeHabitInsights(
+  habit: HabitRow,
+  logs: DailyLogRow[],
+  nowMs: number = Date.now()
+) {
+  const { graceLimit, slipAllowance, slipWindowDays, slipPenaltyHours } = getNegativeHabitPolicy(habit);
+  const entries = logs.slice(0, slipWindowDays).map((log) => {
+    const tracking = log.habit_tracking ?? [];
+    const record = tracking.find((entry) => entry.habit_id === habit.id);
+    return {
+      date: log.date,
+      amount: Number(record?.amount ?? 0),
+      relapseFactor: record?.relapse_factor ?? null,
+    };
+  });
+
+  const slipDays = entries.filter((entry) => entry.amount > 0 && entry.amount <= graceLimit).length;
+  const relapseDays = entries.filter((entry) => entry.amount > graceLimit).length;
+  const totalPenaltyUnits = entries.reduce((sum, entry) => sum + (entry.amount > 0 ? Math.max(1, entry.amount) : 0), 0);
+  const totalPenaltyHours = totalPenaltyUnits * slipPenaltyHours;
+  const exceededAllowance = relapseDays > slipAllowance;
+  const remainingAllowance = Math.max(0, slipAllowance - relapseDays);
+  const startedAtMs = habit.sobriety_started_at ? new Date(habit.sobriety_started_at).getTime() : nowMs;
+  const effectiveStartMs = exceededAllowance
+    ? nowMs
+    : Math.min(nowMs, startedAtMs + totalPenaltyHours * 60 * 60 * 1000);
+  const effectiveSobrietyMs = Math.max(0, nowMs - effectiveStartMs);
+
+  return {
+    entries,
+    graceLimit,
+    slipAllowance,
+    slipWindowDays,
+    slipPenaltyHours,
+    slipDays,
+    relapseDays,
+    totalPenaltyHours,
+    exceededAllowance,
+    remainingAllowance,
+    effectiveSobrietyMs,
+    sobrietyDays: Math.floor(effectiveSobrietyMs / (1000 * 60 * 60 * 24)),
+    sobrietyHours: Math.floor((effectiveSobrietyMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
+  };
+}
+
 export function isHabitTrackingEntry(value: unknown): value is HabitTrackingEntry {
   if (!isObject(value)) return false;
   return typeof value.habit_id === 'number' && typeof value.amount === 'number';

@@ -392,7 +392,7 @@ export async function analyzeAndPersistDailyLog(params: AnalyzeParams) {
       model: google('gemini-1.5-flash'),
       system: compactSystemPrompt,
       messages: [
-        ...(history || []).slice(-4).map(msg => ({
+        ...(history || []).slice(-8).map(msg => ({
           role: msg.role === 'assistant' ? 'assistant' as const : 'user' as const,
           content: msg.content.slice(0, 600),
         })),
@@ -756,7 +756,7 @@ export async function streamAnalyzeAndPersistDailyLog(params: AnalyzeParams) {
     model: google('gemini-1.5-flash'),
     system: compactSystemPrompt,
     messages: [
-      ...(history || []).slice(-4).map(msg => ({
+      ...(history || []).slice(-8).map(msg => ({
         role: msg.role === 'assistant' ? 'assistant' as const : 'user' as const,
         content: msg.content.slice(0, 600),
       })),

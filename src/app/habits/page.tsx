@@ -11,7 +11,7 @@ export const metadata = {
 export default async function HabitsPage() {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
     return (
-      <main className="flex h-[100dvh] flex-1 items-center justify-center overflow-hidden bg-slate-50 p-6 text-slate-950">
+      <main className="flex h-[100dvh] flex-1 items-center justify-center overflow-hidden overflow-x-hidden bg-slate-50 p-6 text-slate-950">
         <section className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <p className="text-[10px] font-black uppercase tracking-[0.34em] text-slate-400">Habit Sanctuary</p>
           <h1 className="mt-2 text-3xl font-black tracking-tight">Modo local sin Supabase</h1>

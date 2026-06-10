@@ -6,6 +6,7 @@ import { useHaptic } from '@/hooks/useHaptic';
 import StreakFlame from './StreakFlame';
 import toast from '@/lib/toast';
 import BottomSheet from './BottomSheet';
+import { buildNegativeHabitInsights } from '@/lib/habits-utils';
 
 interface HabitTrackerCardProps {
   habit: HabitRow;
@@ -14,7 +15,17 @@ interface HabitTrackerCardProps {
   onValueChange: (habitId: number, nextValue: number) => void;
   onSave: (habitId: number) => void;
   onSaveValue: (habitId: number, nextValue: number, metadata?: { relapseFactor?: 'stress' | 'social' | 'boredom' | 'craving' | 'other' | null }) => Promise<void>;
-  onUpdateSettings: (habitId: number, settings: { toleranceThreshold?: number; targetValue?: number; unit?: string | null }) => Promise<void>;
+  onUpdateSettings: (
+    habitId: number,
+    settings: {
+      toleranceThreshold?: number;
+      targetValue?: number;
+      unit?: string | null;
+      slipAllowance?: number;
+      slipWindowDays?: number;
+      slipPenaltyHours?: number;
+    }
+  ) => Promise<void>;
   recentLogs: DailyLogRow[];
 }
 
@@ -42,10 +53,16 @@ export default function HabitTrackerCard({
   const [showGlow, setShowGlow] = useState(false);
   const [showPerfectWeek, setShowPerfectWeek] = useState(false);
   const [isRelapseOpen, setIsRelapseOpen] = useState(false);
+  const [clockNow, setClockNow] = useState(Date.now());
 
   const prevStreakRef = useRef(habit.current_streak);
-
   const isPositive = habit.type === 'positive';
+
+  useEffect(() => {
+    if (isPositive) return;
+    const interval = window.setInterval(() => setClockNow(Date.now()), 60_000);
+    return () => window.clearInterval(interval);
+  }, [isPositive]);
   const targetValue = habit.target_value ?? habit.tolerance_threshold ?? 1;
   const graceLimit = Math.max(0, habit.tolerance_threshold ?? 0);
   const isGoalMetToday = isPositive
@@ -59,7 +76,7 @@ export default function HabitTrackerCard({
     : isPerfectNegative
     ? habit.current_streak + 1
     : isSlipNegative
-    ? Math.max(0, habit.current_streak - Math.ceil(optimisticValue))
+    ? habit.current_streak
     : 0;
 
   const prevDisplayedStreakRef = useRef(displayedStreak);
@@ -195,6 +212,7 @@ export default function HabitTrackerCard({
 
   const trendLabel = habit.type === 'negative' ? 'evitar' : 'cumplir';
   const isExceededNegative = !isPositive && optimisticValue > graceLimit;
+  const negativeInsights = !isPositive ? buildNegativeHabitInsights(habit, recentLogs, clockNow) : null;
 
   return (
     <>
@@ -244,7 +262,7 @@ export default function HabitTrackerCard({
                   ? 'bg-amber-100 text-amber-700'
                   : 'bg-rose-100 text-rose-700'
               }`}>
-                {isPositive ? 'Construcción' : isSlipNegative ? 'Desliz controlado' : 'Días limpio'}
+                {isPositive ? 'Construcción' : isSlipNegative ? 'Penaliza, no rompe' : 'Días limpio'}
               </span>
               {isPositive ? (
                 <p className="mt-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-400">
@@ -265,9 +283,19 @@ export default function HabitTrackerCard({
           </div>
 
           <div className="flex items-center gap-2.5 shrink-0">
-            <motion.div animate={flameControls}>
-              <StreakFlame streak={displayedStreak} />
-            </motion.div>
+            {isPositive ? (
+              <motion.div animate={flameControls}>
+                <StreakFlame streak={displayedStreak} />
+              </motion.div>
+            ) : (
+              <div className="rounded-2xl border border-rose-100 bg-white/85 px-3 py-2 text-right shadow-sm">
+                <p className="text-[8px] font-black uppercase tracking-[0.16em] text-rose-400">Sobriedad</p>
+                <p className="mt-1 text-sm font-black leading-none text-slate-950">
+                  {negativeInsights?.sobrietyDays ?? 0}d {negativeInsights?.sobrietyHours ?? 0}h
+                </p>
+                <p className="mt-1 text-[9px] font-bold text-slate-400">sin hacerlo</p>
+              </div>
+            )}
 
             <motion.button
               animate={buttonControls}

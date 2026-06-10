@@ -130,6 +130,10 @@ export function useHabits() {
             unit: 'recaídas',
             relapse_unit_cost: 8,
             relapse_unit_minutes: 20,
+            slip_allowance: 1,
+            slip_window_days: 7,
+            slip_penalty_hours: 24,
+            sobriety_started_at: new Date().toISOString(),
             current_streak: 0,
             longest_streak: 0,
             shields: 0,
@@ -325,7 +329,14 @@ export function useHabits() {
   const updateHabitSettings = useCallback(
     async (
       habitId: number,
-      settings: { toleranceThreshold?: number; targetValue?: number; unit?: string | null }
+      settings: {
+        toleranceThreshold?: number;
+        targetValue?: number;
+        unit?: string | null;
+        slipAllowance?: number;
+        slipWindowDays?: number;
+        slipPenaltyHours?: number;
+      }
     ) => {
       const token = await getTokenOrThrow();
       const previousHabits = habits;
@@ -338,6 +349,9 @@ export function useHabits() {
                 tolerance_threshold: settings.toleranceThreshold ?? habit.tolerance_threshold,
                 target_value: settings.targetValue ?? habit.target_value,
                 unit: settings.unit !== undefined ? settings.unit : habit.unit,
+                slip_allowance: settings.slipAllowance ?? habit.slip_allowance,
+                slip_window_days: settings.slipWindowDays ?? habit.slip_window_days,
+                slip_penalty_hours: settings.slipPenaltyHours ?? habit.slip_penalty_hours,
               }
             : habit
         )
@@ -355,6 +369,9 @@ export function useHabits() {
             tolerance_threshold: settings.toleranceThreshold,
             target_value: settings.targetValue,
             unit: settings.unit,
+            slip_allowance: settings.slipAllowance,
+            slip_window_days: settings.slipWindowDays,
+            slip_penalty_hours: settings.slipPenaltyHours,
           }),
         });
         const payload = await parseJsonResponse<{ data?: unknown; error?: string }>(response);

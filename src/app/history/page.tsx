@@ -20,6 +20,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import HistoryClientContainer from '@/components/HistoryClientContainer';
 import { dailyLogSchema, type DailyLog } from '@/lib/schema';
+import type { HabitRow } from '@/types/habits';
 
 type HistoryRow = {
   date: string;
@@ -33,6 +34,16 @@ type HistoryLog = {
   health_momentum: number;
   avatar_image_url: string | null;
   ai_data: DailyLog | null;
+};
+
+type MoodHistoryEntry = {
+  id: string;
+  date: string;
+  mood_score: number | null;
+  valence_score: number | null;
+  is_daily_summary: boolean | null;
+  impact_factors: string[] | null;
+  impact_tags: string[] | null;
 };
 
 type LegacyDailyLog = Partial<DailyLog> & {
@@ -113,14 +124,28 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
     redirect('/login');
   }
 
-  const { data, error } = await supabaseReal
-    .from('daily_logs')
-    .select('date, health_momentum, avatar_image_url, ai_data')
-    .eq('user_id', user.id)
-    .gte('date', startDate)
-    .lte('date', endDate)
-    .order('date', { ascending: false })
-    .limit(180);
+  const [{ data }, { data: moodData }, { data: habitsData }] = await Promise.all([
+    supabaseReal
+      .from('daily_logs')
+      .select('date, health_momentum, avatar_image_url, ai_data')
+      .eq('user_id', user.id)
+      .gte('date', startDate)
+      .lte('date', endDate)
+      .order('date', { ascending: false })
+      .limit(180),
+    supabaseReal
+      .from('mood_logs')
+      .select('id, date, mood_score, valence_score, is_daily_summary, impact_factors, impact_tags')
+      .eq('user_id', user.id)
+      .gte('date', startDate)
+      .lte('date', endDate)
+      .order('date', { ascending: false })
+      .limit(180),
+    supabaseReal
+      .from('user_habits')
+      .select('*')
+      .eq('user_id', user.id),
+  ]);
 
   const rows = (data ?? []) as HistoryRow[];
   const logs: HistoryLog[] = rows.map((row) => {
@@ -196,7 +221,11 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
         </header>
 
         {hasLogs ? (
-          <HistoryClientContainer logs={logs} />
+          <HistoryClientContainer
+            logs={logs}
+            moodEntries={(moodData ?? []) as MoodHistoryEntry[]}
+            habits={(habitsData ?? []) as HabitRow[]}
+          />
         ) : (
           <section className="flex min-h-[50vh] items-center justify-center px-2">
             <div className="max-w-xl rounded-[2rem] border border-white/80 bg-white/80 p-8 text-center shadow-[0_20px_70px_rgba(15,23,42,0.12)] backdrop-blur-2xl">

@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { HabitRow, DailyLogRow } from '@/types/habits';
-import { toNumber, buildMiniSeries } from '@/lib/habits-utils';
+import { toNumber, buildMiniSeries, buildNegativeHabitInsights } from '@/lib/habits-utils';
 import Sparkline from './Sparkline';
 import BottomSheet from './BottomSheet';
 
@@ -13,7 +13,17 @@ interface HabitDetailModalProps {
   isPending: boolean;
   onValueChange: (habitId: number, nextValue: number) => void;
   onSaveDirect: (val: number) => void;
-  onUpdateSettings: (habitId: number, settings: { toleranceThreshold?: number; targetValue?: number; unit?: string | null }) => Promise<void>;
+  onUpdateSettings: (
+    habitId: number,
+    settings: {
+      toleranceThreshold?: number;
+      targetValue?: number;
+      unit?: string | null;
+      slipAllowance?: number;
+      slipWindowDays?: number;
+      slipPenaltyHours?: number;
+    }
+  ) => Promise<void>;
   recentLogs: DailyLogRow[];
   streakProgress: number;
   trendLabel: string;
@@ -132,10 +142,23 @@ export default function HabitDetailModal({
   const targetValue = habit.target_value ?? habit.tolerance_threshold ?? 1;
   const graceLimit = Math.max(0, habit.tolerance_threshold ?? 0);
   const [thresholdDraft, setThresholdDraft] = React.useState(isPositive ? targetValue : graceLimit);
+  const [allowanceDraft, setAllowanceDraft] = React.useState(Math.max(0, habit.slip_allowance ?? 1));
+  const [windowDraft, setWindowDraft] = React.useState(Math.max(1, habit.slip_window_days ?? 7));
+  const [penaltyDraft, setPenaltyDraft] = React.useState(Math.max(0, habit.slip_penalty_hours ?? 24));
+  const [clockNow, setClockNow] = React.useState(Date.now());
 
   React.useEffect(() => {
     setThresholdDraft(isPositive ? targetValue : graceLimit);
-  }, [graceLimit, isPositive, targetValue]);
+    setAllowanceDraft(Math.max(0, habit.slip_allowance ?? 1));
+    setWindowDraft(Math.max(1, habit.slip_window_days ?? 7));
+    setPenaltyDraft(Math.max(0, habit.slip_penalty_hours ?? 24));
+  }, [graceLimit, habit.slip_allowance, habit.slip_penalty_hours, habit.slip_window_days, isPositive, targetValue]);
+
+  React.useEffect(() => {
+    if (isPositive) return;
+    const interval = window.setInterval(() => setClockNow(Date.now()), 60_000);
+    return () => window.clearInterval(interval);
+  }, [isPositive]);
 
   const last30 = recentLogs.slice(0, 30).map((log) => {
     const record = (log.habit_tracking ?? []).find((entry) => entry.habit_id === habit.id);
@@ -164,6 +187,7 @@ export default function HabitDetailModal({
     }, {})
   ).sort((a, b) => b[1] - a[1])[0]?.[0];
   const topFactorLabel = topFactor ? factorLabels[topFactor] ?? topFactor : 'Sin patrón';
+  const negativeInsights = !isPositive ? buildNegativeHabitInsights(habit, recentLogs, clockNow) : null;
 
   return (
     <BottomSheet isOpen={isOpen} onClose={onClose} title={habit.name}>
@@ -190,32 +214,82 @@ export default function HabitDetailModal({
 
         {!isPositive && (
           <div className="grid gap-3">
+            <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-600">Reloj de sobriedad</p>
+              <p className="mt-2 text-3xl font-black tracking-tight text-slate-950">
+                {negativeInsights?.sobrietyDays ?? 0}d {negativeInsights?.sobrietyHours ?? 0}h
+              </p>
+              <p className="mt-1 text-xs font-semibold text-slate-500">desde la última recaída registrada</p>
+            </div>
             <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4">
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-600">Límite flexible</p>
-              <div className="mt-2 flex items-center gap-2">
-                <input
-                  type="number"
-                  min={0}
-                  value={thresholdDraft}
-                  onChange={(event) => setThresholdDraft(toNumber(event.target.value))}
-                  className="h-11 w-24 rounded-xl border border-amber-200 bg-white px-3 text-center text-lg font-black text-slate-950 outline-none"
-                />
-                <button
-                  type="button"
-                  disabled={isPending}
-                  onClick={() => onUpdateSettings(habit.id, { toleranceThreshold: Math.max(0, Math.floor(thresholdDraft)) })}
-                  className="h-11 rounded-xl bg-slate-950 px-4 text-xs font-black uppercase tracking-wider text-white transition-all duration-200 ease-in-out active:scale-95 disabled:opacity-60"
-                >
-                  Guardar
-                </button>
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-600">Tolerancia editable</p>
+              <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                <label className="space-y-1">
+                  <span className="text-[9px] font-black uppercase tracking-[0.14em] text-amber-700">Límite/día</span>
+                  <input
+                    type="number"
+                    min={0}
+                    value={thresholdDraft}
+                    onChange={(event) => setThresholdDraft(toNumber(event.target.value))}
+                    className="h-11 w-full rounded-xl border border-amber-200 bg-white px-3 text-center text-sm font-black text-slate-950 outline-none"
+                  />
+                </label>
+                <label className="space-y-1">
+                  <span className="text-[9px] font-black uppercase tracking-[0.14em] text-amber-700">Recaídas</span>
+                  <input
+                    type="number"
+                    min={0}
+                    value={allowanceDraft}
+                    onChange={(event) => setAllowanceDraft(toNumber(event.target.value))}
+                    className="h-11 w-full rounded-xl border border-amber-200 bg-white px-3 text-center text-sm font-black text-slate-950 outline-none"
+                  />
+                </label>
+                <label className="space-y-1">
+                  <span className="text-[9px] font-black uppercase tracking-[0.14em] text-amber-700">Ventana</span>
+                  <input
+                    type="number"
+                    min={1}
+                    value={windowDraft}
+                    onChange={(event) => setWindowDraft(toNumber(event.target.value))}
+                    className="h-11 w-full rounded-xl border border-amber-200 bg-white px-3 text-center text-sm font-black text-slate-950 outline-none"
+                  />
+                </label>
+                <label className="space-y-1">
+                  <span className="text-[9px] font-black uppercase tracking-[0.14em] text-amber-700">Penaliza h</span>
+                  <input
+                    type="number"
+                    min={0}
+                    value={penaltyDraft}
+                    onChange={(event) => setPenaltyDraft(toNumber(event.target.value))}
+                    className="h-11 w-full rounded-xl border border-amber-200 bg-white px-3 text-center text-sm font-black text-slate-950 outline-none"
+                  />
+                </label>
               </div>
+              <button
+                type="button"
+                disabled={isPending}
+                onClick={() =>
+                  onUpdateSettings(habit.id, {
+                    toleranceThreshold: Math.max(0, Math.floor(thresholdDraft)),
+                    slipAllowance: Math.max(0, Math.floor(allowanceDraft)),
+                    slipWindowDays: Math.max(1, Math.floor(windowDraft)),
+                    slipPenaltyHours: Math.max(0, Math.floor(penaltyDraft)),
+                  })
+                }
+                className="mt-3 h-11 rounded-xl bg-slate-950 px-4 text-xs font-black uppercase tracking-wider text-white transition-all duration-200 ease-in-out active:scale-95 disabled:opacity-60"
+              >
+                Guardar reglas
+              </button>
               <p className="mt-2 text-xs font-semibold leading-5 text-amber-800">
-                0 mantiene día perfecto. Hasta este límite conserva la racha con penalización. Por encima, recaída roja.
+                Hasta el límite diario penaliza sin romper. Si superas las recaídas permitidas en la ventana, el reloj se reinicia.
               </p>
             </div>
             <div className="rounded-2xl border border-rose-100 bg-rose-50 p-4">
               <p className="text-[10px] font-black uppercase tracking-[0.18em] text-rose-500">Detonante dominante 30d</p>
               <p className="mt-1 text-lg font-black text-slate-950">{topFactorLabel}</p>
+              <p className="mt-2 text-xs font-semibold text-rose-700">
+                {negativeInsights?.totalPenaltyHours ?? 0}h penalizadas · {negativeInsights?.remainingAllowance ?? 0} recaídas fuertes restantes
+              </p>
             </div>
           </div>
         )}

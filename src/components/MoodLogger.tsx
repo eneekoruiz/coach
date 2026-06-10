@@ -154,7 +154,7 @@ export default function MoodLogger({ onSaved, existingEntry }: MoodLoggerProps) 
         className="self-start text-xs font-bold text-slate-500 hover:text-slate-800 flex items-center gap-1.5"
       >
         <ArrowLeft size={14} />
-        Volver a selección de tipo ({isDailySummary ? 'Balance General' : 'Registro Puntual'})
+        Volver ({isDailySummary ? 'Balance General' : 'Registro Puntual'})
       </button>
 
       {/* ─ Phase 1 · Emotional Slider Card ─────────────────── */}
@@ -256,7 +256,7 @@ export default function MoodLogger({ onSaved, existingEntry }: MoodLoggerProps) 
         </div>
       </motion.div>
 
-      {/* ─ Phase 2 · Impact Factors & Type Selector ────────── */}
+      {/* ─ Phase 2 · Impact Factors ─────────────────────────── */}
       <AnimatePresence>
         {hasSelectedMood && (
           <motion.div
@@ -309,24 +309,8 @@ export default function MoodLogger({ onSaved, existingEntry }: MoodLoggerProps) 
                 })}
               </div>
 
-              <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-3 pt-2 border-t border-slate-100">
-                ¿Tipo de Registro?
-              </p>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setIsDailySummary(false)}
-                  className={`py-2.5 px-3 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 min-h-[44px] ${!isDailySummary ? 'bg-slate-900 text-white border-slate-900 shadow-sm' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
-                >
-                  ⚡ Registro puntual
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsDailySummary(true)}
-                  className={`py-2.5 px-3 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 min-h-[44px] ${isDailySummary ? 'bg-slate-900 text-white border-slate-900 shadow-sm' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
-                >
-                  🌅 Balance del día
-                </button>
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-semibold text-slate-600">
+                Guardando como: <span className="font-black text-slate-900">{isDailySummary ? 'Balance General del Día' : 'Registro Puntual de este momento'}</span>
               </div>
             </div>
           </motion.div>

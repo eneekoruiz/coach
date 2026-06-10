@@ -111,7 +111,7 @@ export default function HabitSanctuary() {
   }
 
   return (
-    <main className="flex h-[100dvh] min-h-0 flex-1 flex-col overflow-hidden bg-slate-50 text-slate-950">
+    <main className="flex h-[100dvh] min-h-0 flex-1 flex-col overflow-hidden overflow-x-hidden bg-slate-50 text-slate-950">
       <header className="shrink-0 border-b border-slate-200 bg-white px-4 py-4 sm:px-6 lg:px-8">
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
