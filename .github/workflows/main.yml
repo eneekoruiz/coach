@@ -44,11 +44,14 @@ jobs:
         run: npm run build
 
       - name: Deploy to Vercel
-        if: ${{ success() && secrets.VERCEL_TOKEN != '' && secrets.VERCEL_ORG_ID != '' && secrets.VERCEL_PROJECT_ID != '' }}
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         run: |
+          if [ -z "$VERCEL_TOKEN" ] || [ -z "$VERCEL_ORG_ID" ] || [ -z "$VERCEL_PROJECT_ID" ]; then
+            echo "Vercel secrets are not configured; skipping production deploy."
+            exit 0
+          fi
           npx vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
           npx vercel deploy --prod --token="$VERCEL_TOKEN"
