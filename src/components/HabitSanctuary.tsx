@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { Activity, Flame, Plus, ShieldCheck, Sparkles, Trophy, Target, Ban } from 'lucide-react';
 import HabitCreateModal from './HabitCreateModal';
 import HabitTrackerCard from './HabitTrackerCard';
+import ScreenGuideButton from './ScreenGuideButton';
 import { useHabits } from '@/hooks/useHabits';
 import { computeHabitOutcome } from '@/lib/habits';
 
@@ -122,6 +123,17 @@ export default function HabitSanctuary() {
             </p>
           </div>
           <div className="grid grid-cols-3 gap-2 sm:flex sm:items-center">
+            <ScreenGuideButton
+              title="Hábitos"
+              description="Esta pantalla separa lo que construyes de lo que intentas dejar atrás, para que cada hábito tenga una lectura emocional clara."
+              goal="Te ayuda a revisar rachas, proteger consistencia y entrar en detalle solo cuando realmente lo necesitas."
+              bullets={[
+                'Construcción mide lo que sí quieres repetir.',
+                'Resiliencia usa reloj de sobriedad y mapa inverso.',
+                'La configuración avanzada vive dentro de cada hábito para evitar fatiga visual.',
+              ]}
+              compact
+            />
             <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
               <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
                 <ShieldCheck className="h-4 w-4 text-emerald-500" />

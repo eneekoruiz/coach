@@ -192,6 +192,17 @@ export default function HistoryClientContainer({
     };
   }, [bodyMetrics, workouts]);
 
+  const moodByDate = useMemo(
+    () =>
+      moodEntries.reduce<Record<string, MoodHistoryEntry>>((acc, entry) => {
+        if (!acc[entry.date]) {
+          acc[entry.date] = entry;
+        }
+        return acc;
+      }, {}),
+    [moodEntries]
+  );
+
   const handleExport = async () => {
     setIsExporting(true);
     toast.success('Iniciando exportación de datos nutricionales...');
@@ -603,60 +614,6 @@ export default function HistoryClientContainer({
           <div className="space-y-5">
             <TrendChart logs={logs} />
 
-            <div className="grid gap-4 lg:grid-cols-2">
-              <article className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
-                <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">Nutrición</p>
-                <h4 className="mt-2 text-lg font-black tracking-tight text-slate-950">Lectura de adherencia</h4>
-                <div className="mt-4 grid grid-cols-2 gap-3">
-                  <div className="rounded-2xl bg-orange-50 p-4">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-orange-500">Media kcal</p>
-                    <p className="mt-2 text-3xl font-black text-slate-950">{summary.avgKcal}</p>
-                  </div>
-                  <div className="rounded-2xl bg-cyan-50 p-4">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-cyan-600">Media agua</p>
-                    <p className="mt-2 text-3xl font-black text-slate-950">{summary.avgWater}ml</p>
-                  </div>
-                </div>
-              </article>
-
-              <article className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
-                <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">Hábitos Positivos</p>
-                <h4 className="mt-2 text-lg font-black tracking-tight text-slate-950">
-                  {summary.bestPositive?.name ?? 'Sin hábito protagonista'}
-                </h4>
-                <p className="mt-4 text-4xl font-black tracking-tight text-slate-950">
-                  {summary.bestPositive?.current_streak ?? 0}
-                  <span className="ml-2 text-sm font-black uppercase tracking-widest text-slate-400">días</span>
-                </p>
-                <p className="mt-2 text-sm font-semibold text-slate-500">
-                  Récord global {summary.bestPositive?.longest_streak ?? 0} días.
-                </p>
-              </article>
-
-              <article className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
-                <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">Hábitos Negativos</p>
-                <h4 className="mt-2 text-lg font-black tracking-tight text-slate-950">
-                  {summary.bestNegative?.name ?? 'Sin reloj activo'}
-                </h4>
-                <p className="mt-4 text-4xl font-black tracking-tight text-slate-950">
-                  {summary.bestNegative?.current_streak ?? 0}
-                  <span className="ml-2 text-sm font-black uppercase tracking-widest text-slate-400">días limpios</span>
-                </p>
-                <p className="mt-2 text-sm font-semibold text-slate-500">
-                  Diseñado para sostener continuidad, no para castigar un tropiezo aislado.
-                </p>
-              </article>
-
-              <article className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
-                <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">Ánimo</p>
-                <h4 className="mt-2 text-lg font-black tracking-tight text-slate-950">Balance emocional</h4>
-                <p className="mt-4 text-4xl font-black tracking-tight text-slate-950">{summary.moodAverage}</p>
-                <p className="mt-2 text-sm font-semibold text-slate-500">
-                  Factor más repetido: {summary.topMoodFactor}.
-                </p>
-              </article>
-            </div>
-
             <div className="grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_360px]">
               <article className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
                 <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">Evolución corporal</p>
@@ -712,7 +669,7 @@ export default function HistoryClientContainer({
             </div>
           </div>
         ) : (
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="space-y-4">
             {logs.length === 0 ? (
               <div className="col-span-full rounded-[2rem] border border-dashed border-slate-200 bg-white p-10 text-center text-sm font-semibold text-slate-500">
                 Aún no hay datos históricos suficientes.
@@ -721,7 +678,12 @@ export default function HistoryClientContainer({
               [...logs]
                 .sort((a, b) => b.date.localeCompare(a.date))
                 .map((log, index) => (
-                  <HistoryCard key={`${log.date}-${index}`} log={log} onOpen={() => setSelectedLog(log)} />
+                  <HistoryCard
+                    key={`${log.date}-${index}`}
+                    log={log}
+                    moodEntry={moodByDate[log.date]}
+                    onOpen={() => setSelectedLog(log)}
+                  />
                 ))
             )}
           </div>

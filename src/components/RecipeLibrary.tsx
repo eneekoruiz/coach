@@ -8,14 +8,15 @@ import {
   Calculator,
   GripVertical,
   Loader2,
-  WandSparkles,
   Plus,
   Save,
   Search,
   Soup,
   Trash2,
   Utensils,
+  WandSparkles,
 } from 'lucide-react';
+import ScreenGuideButton from './ScreenGuideButton';
 
 type IngredientDraft = {
   name: string;
@@ -303,97 +304,137 @@ export default function RecipeLibrary() {
 
       <section className="min-h-0 overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <form onSubmit={handleSaveRecipe} className="flex h-full min-h-0 flex-col gap-3">
-          <div className="flex flex-col gap-3 border-b border-slate-100 pb-3 md:flex-row md:items-start md:justify-between">
-            <div className="min-w-0 flex-1">
-              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
-                Lienzo de Trabajo
-              </p>
-              <input
-                type="text"
-                value={recipeName}
-                onChange={(event) => setRecipeName(event.target.value)}
-                placeholder="Selecciona o crea una receta"
-                className="mt-1 w-full rounded-none border-b border-transparent bg-transparent pb-1 text-lg font-black text-slate-900 outline-none transition focus:border-slate-300"
+          <div className="flex flex-col gap-4 border-b border-slate-100 pb-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
+                  Lienzo de Trabajo
+                </p>
+                <p className="mt-1 text-xs font-semibold text-slate-500">
+                  ¿Qué vas a cocinar? Deja que la IA lo desglose o complétalo a mano ingrediente por ingrediente.
+                </p>
+              </div>
+              <ScreenGuideButton
+                title="Recetario"
+                description="Esta vista convierte cada plato en una receta reutilizable con ingredientes, macros e instrucciones."
+                goal="Te ayuda a que las kcal totales nazcan de los ingredientes y no de campos sueltos."
+                bullets={[
+                  'Empieza por el nombre o una frase corta para la IA.',
+                  'El total de la receta se actualiza con cada ingrediente.',
+                  'Más abajo tienes la lista viva y el panel de añadido manual.',
+                ]}
+                compact
               />
             </div>
-            <div className="flex gap-2">
-              {editingRecipe?.id && (
+
+            <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_380px_auto]">
+              <div className="min-w-0">
+                <label className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
+                  Nombre de la receta
+                </label>
+                <input
+                  type="text"
+                  value={recipeName}
+                  onChange={(event) => setRecipeName(event.target.value)}
+                  placeholder="Ej. Bowl de arroz con pollo y verduras"
+                  className="mt-2 h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-black text-slate-900 outline-none transition focus:border-slate-300 focus:bg-white"
+                />
+              </div>
+
+              <div className="rounded-2xl border border-cyan-100 bg-cyan-50/70 p-3">
+                <div className="flex items-center gap-2">
+                  <WandSparkles className="h-4 w-4 text-cyan-600" />
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-cyan-700">
+                    Rellenar con IA
+                  </p>
+                </div>
+                <textarea
+                  value={aiPrompt}
+                  onChange={(event) => setAiPrompt(event.target.value)}
+                  rows={2}
+                  placeholder="150g pechuga de pollo, 60g arroz, verduras salteadas..."
+                  className="mt-2 w-full rounded-xl border border-cyan-100 bg-white px-3 py-2 text-xs font-semibold text-slate-700 outline-none"
+                />
                 <button
                   type="button"
-                  onClick={() => handleDeleteRecipe(editingRecipe)}
-                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-rose-200 bg-white text-rose-500 transition hover:bg-rose-50 active:scale-95"
-                  title="Eliminar receta"
+                  onClick={handleAiFill}
+                  disabled={aiBusy}
+                  className="mt-2 inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-cyan-600 text-xs font-black text-white transition-all duration-200 ease-in-out hover:bg-cyan-500 active:scale-95 disabled:opacity-60"
                 >
-                  <Trash2 className="h-4 w-4" />
+                  {aiBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <WandSparkles className="h-4 w-4" />}
+                  {aiBusy ? 'Pensando...' : 'Desglosar receta'}
                 </button>
-              )}
-              <button
-                type="submit"
-                className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 text-xs font-black text-white transition hover:bg-slate-800 active:scale-95"
-              >
-                <Save className="h-4 w-4" />
-                Guardar
-              </button>
+              </div>
+
+              <div className="flex gap-2 xl:flex-col">
+                {editingRecipe?.id && (
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteRecipe(editingRecipe)}
+                    className="flex h-12 w-12 items-center justify-center rounded-2xl border border-rose-200 bg-white text-rose-500 transition hover:bg-rose-50 active:scale-95"
+                    title="Eliminar receta"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                )}
+                <button
+                  type="submit"
+                  className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-slate-900 px-4 text-xs font-black text-white transition hover:bg-slate-800 active:scale-95"
+                >
+                  <Save className="h-4 w-4" />
+                  Guardar
+                </button>
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
+                Total de la receta
+              </p>
+              <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-4">
+                {[
+                  ['Kcal', totals.kcal, 'bg-slate-950 text-white'],
+                  ['Proteínas', `${totals.protein}g`, 'bg-rose-50 text-rose-600'],
+                  ['Carbos', `${totals.carbs}g`, 'bg-sky-50 text-sky-700'],
+                  ['Grasas', `${totals.fats}g`, 'bg-amber-50 text-amber-700'],
+                ].map(([label, value, className]) => (
+                  <div key={label} className={`rounded-2xl px-4 py-4 ${className}`}>
+                    <p className="text-[9px] font-black uppercase tracking-[0.14em] opacity-70">{label}</p>
+                    <p className="mt-2 text-2xl font-black tracking-tight">{value}</p>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-            {[
-              ['kcal', totals.kcal, 'text-emerald-700'],
-              ['Proteína', `${totals.protein}g`, 'text-rose-600'],
-              ['Carbohidratos', `${totals.carbs}g`, 'text-sky-600'],
-              ['Grasas', `${totals.fats}g`, 'text-amber-600'],
-            ].map(([label, value, color]) => (
-              <div key={label} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-400">
-                  {label}
-                </p>
-                <p className={`mt-1 text-lg font-black ${color}`}>{value}</p>
-              </div>
-            ))}
-          </div>
-
-          <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_300px]">
-            <div>
-            <label className="block text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
-              Preparación
-            </label>
-            <textarea
-              value={instructions}
-              onChange={(event) => setInstructions(event.target.value)}
-              rows={3}
-              placeholder="Pasos, timing, textura, sustituciones clínicas..."
-              className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-700 outline-none transition focus:border-slate-400 focus:bg-white"
-            />
-            </div>
-            <div className="rounded-xl border border-cyan-100 bg-cyan-50/60 p-3">
-              <div className="flex items-center gap-2">
-                <WandSparkles className="h-4 w-4 text-cyan-600" />
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-cyan-700">
-                  Magic Wand
-                </p>
-              </div>
+          <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_320px]">
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <label className="block text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
+                Preparación
+              </label>
               <textarea
-                value={aiPrompt}
-                onChange={(event) => setAiPrompt(event.target.value)}
-                rows={2}
-                placeholder="150g pechuga de pollo y 50g arroz"
-                className="mt-2 w-full rounded-xl border border-cyan-100 bg-white px-3 py-2 text-xs font-semibold text-slate-700 outline-none"
+                value={instructions}
+                onChange={(event) => setInstructions(event.target.value)}
+                rows={4}
+                placeholder="Pasos, timing, textura, sustituciones clínicas..."
+                className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 outline-none transition focus:border-slate-400 focus:bg-white"
               />
-              <button
-                type="button"
-                onClick={handleAiFill}
-                disabled={aiBusy}
-                className="mt-2 inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-cyan-600 text-xs font-black text-white transition-all duration-200 ease-in-out hover:bg-cyan-500 active:scale-95 disabled:opacity-60"
-              >
-                {aiBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <WandSparkles className="h-4 w-4" />}
-                {aiBusy ? 'Pensando...' : 'Rellenar con IA'}
-              </button>
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-white p-4">
+              <div className="flex items-center gap-2">
+                <Calculator className="h-4 w-4 text-slate-500" />
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
+                  Lógica de cálculo
+                </p>
+              </div>
+              <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
+                El resumen superior sale de la suma de ingredientes. Si vas rápido, añade solo nombre y cantidad; deja los macros manuales para cuando hagan falta.
+              </p>
             </div>
           </div>
 
           <div className="grid min-h-0 grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_300px]">
-            <div>
+            <div className="rounded-2xl border border-slate-200 bg-white p-4">
               <div className="mb-2 flex items-center justify-between">
                 <h4 className="text-xs font-black uppercase tracking-[0.12em] text-slate-800">
                   Ingredientes
@@ -411,14 +452,14 @@ export default function RecipeLibrary() {
                       Recetario mágico listo
                     </p>
                     <p className="mt-1 text-xs font-semibold text-slate-500">
-                      Escribe ingredientes simples o usa IA para estructurar macros.
+                      Empieza con IA o añade ingredientes manuales uno a uno.
                     </p>
                   </div>
                 ) : (
                   ingredients.map((ingredient, index) => (
                     <div
                       key={`${ingredient.name}-${index}`}
-                      className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2"
+                      className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2"
                     >
                       <div className="min-w-0">
                         <p className="truncate text-xs font-black text-slate-800">
@@ -442,9 +483,17 @@ export default function RecipeLibrary() {
               </div>
             </div>
 
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
-                Añadir ingrediente
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
+                  Añadir ingrediente manual
+                </p>
+                <span className="rounded-full bg-white px-2 py-1 text-[9px] font-black text-slate-500 ring-1 ring-slate-200">
+                  rápido
+                </span>
+              </div>
+              <p className="mt-2 text-xs font-semibold leading-5 text-slate-500">
+                Usa nombre y cantidad si quieres velocidad. Activa macros avanzados solo cuando lo necesites.
               </p>
               <div className="mt-3 space-y-2">
                 <input
@@ -478,26 +527,26 @@ export default function RecipeLibrary() {
                   />
                 </label>
                 {showAdvancedMacros && (
-                <div className="grid grid-cols-4 gap-2">
-                  {[
-                    ['kcal', 'kcal'],
-                    ['P', 'protein'],
-                    ['C', 'carbs'],
-                    ['G', 'fats'],
-                  ].map(([label, field]) => (
-                    <label key={field} className="block">
-                      <span className="mb-1 block text-[8px] font-black uppercase text-slate-400">
-                        {label}
-                      </span>
-                      <input
-                        type="number"
-                        value={Number(ingredientDraft[field as keyof IngredientDraft])}
-                        onChange={(event) => updateIngredientDraft(field as keyof Pick<IngredientDraft, 'kcal' | 'protein' | 'carbs' | 'fats'>, Number(event.target.value))}
-                        className="h-9 w-full rounded-lg border border-slate-200 bg-white px-1 text-center text-xs font-bold text-slate-700 outline-none focus:border-slate-400"
-                      />
-                    </label>
-                  ))}
-                </div>
+                  <div className="grid grid-cols-4 gap-2">
+                    {[
+                      ['kcal', 'kcal'],
+                      ['P', 'protein'],
+                      ['C', 'carbs'],
+                      ['G', 'fats'],
+                    ].map(([label, field]) => (
+                      <label key={field} className="block">
+                        <span className="mb-1 block text-[8px] font-black uppercase text-slate-400">
+                          {label}
+                        </span>
+                        <input
+                          type="number"
+                          value={Number(ingredientDraft[field as keyof IngredientDraft])}
+                          onChange={(event) => updateIngredientDraft(field as keyof Pick<IngredientDraft, 'kcal' | 'protein' | 'carbs' | 'fats'>, Number(event.target.value))}
+                          className="h-9 w-full rounded-lg border border-slate-200 bg-white px-1 text-center text-xs font-bold text-slate-700 outline-none focus:border-slate-400"
+                        />
+                      </label>
+                    ))}
+                  </div>
                 )}
                 <button
                   type="button"
@@ -505,7 +554,7 @@ export default function RecipeLibrary() {
                   className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white text-xs font-black text-slate-700 transition hover:border-slate-300 hover:bg-slate-100 active:scale-95"
                 >
                   <Plus className="h-4 w-4" />
-                  Añadir
+                  Añadir ingrediente manual
                 </button>
               </div>
             </div>

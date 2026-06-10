@@ -7,6 +7,7 @@ import RecipeLibrary from './RecipeLibrary';
 import DailyTemplateBuilder from './DailyTemplateBuilder';
 import WeeklyPlanBuilder from './WeeklyPlanBuilder';
 import TodayNutritionView from './TodayNutritionView';
+import ScreenGuideButton from './ScreenGuideButton';
 import { useNutritionPlan, type NutritionTab } from '@/hooks/useNutritionPlan';
 import { BookOpen, Calendar, ClipboardList, LayoutGrid, Sun } from 'lucide-react';
 
@@ -45,6 +46,61 @@ export default function NutritionContainer({ initialTab }: { initialTab?: Nutrit
     handleAiGenerate,
     handleMarkMealAsEaten,
   } = useNutritionPlan(initialTab);
+
+  const currentGuide = !isPlannerOpen
+    ? {
+        title: 'Nutrición · Hoy',
+        description: 'Aquí ves el menú de hoy, sus macros y el registro rápido de cada comida.',
+        goal: 'Sirve para resolver el día actual con cero fricción y dejar el trabajo más técnico dentro del Planificador PRO.',
+        bullets: [
+          'Genera un menú con IA si hoy todavía no tienes día asignado.',
+          'Marca cada comida con un toque cuando ya te la has tomado.',
+          'Abre Planificador PRO solo cuando quieras construir recetas, días o semanas.',
+        ],
+      }
+    : activeTab === 'recipes'
+      ? {
+          title: 'Recetario',
+          description: 'Esta vista convierte cada plato en una receta reutilizable con ingredientes, instrucciones y macros.',
+          goal: 'Te ayuda a construir una base limpia para después reutilizarla dentro de Días Base y Planes Semanales.',
+          bullets: [
+            'Empieza por el nombre o deja que la IA desglosse la receta.',
+            'El total superior siempre sale de la suma real de ingredientes.',
+            'Cuando guardas, la receta queda lista para arrastrarla a otras vistas.',
+          ],
+        }
+      : activeTab === 'days'
+        ? {
+            title: 'Días Base',
+            description: 'Aquí montas un día completo combinando recetas para desayuno, comida, cena y extras.',
+            goal: 'Sirve para crear plantillas reutilizables y luego generar variaciones sin rehacer el día entero.',
+            bullets: [
+              'Cada bloque acepta una receta ya creada.',
+              'Crear variación duplica la plantilla y protege la original.',
+              'Guarda el Día Base antes de reutilizarlo dentro de una semana.',
+            ],
+          }
+        : activeTab === 'programs'
+          ? {
+              title: 'Planes Semanales',
+              description: 'Aquí encadenas siete Días Base y montas una semana lista para repetirse.',
+              goal: 'Te permite llenar un mes entero con muy pocas decisiones y exportarlo si hace falta.',
+              bullets: [
+                'Asigna un Día Base a cada día.',
+                'Usa exportar para sacar el plan en CSV.',
+                'Después aplícalo al calendario desde un lunes.',
+              ],
+            }
+          : {
+              title: 'Calendario',
+              description: 'Aquí ves el mes del paciente y aterrizas las plantillas en fechas reales.',
+              goal: 'Sirve para proyectar semanas completas, revisar ajustes manuales y abrir el detalle clínico de cada día.',
+              bullets: [
+                'Rellenar con semana proyecta bloques completos.',
+                'Los ajustes manuales pisan la asignación automática.',
+                'Toca un día para abrir su detalle desde abajo.',
+              ],
+            };
 
   if (loading) {
     return (
@@ -94,6 +150,13 @@ export default function NutritionContainer({ initialTab }: { initialTab?: Nutrit
             </p>
           </div>
           <div className="flex gap-2">
+            <ScreenGuideButton
+              title={currentGuide.title}
+              description={currentGuide.description}
+              goal={currentGuide.goal}
+              bullets={currentGuide.bullets}
+              compact
+            />
             <button
               type="button"
               onClick={() => {
