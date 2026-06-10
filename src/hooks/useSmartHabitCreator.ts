@@ -33,21 +33,23 @@ export function useSmartHabitCreator(onCreated?: () => void) {
           name: parsed.name,
           type: parsed.type,
           target_number: parsed.target_number ?? 1,
-          unit: parsed.unit ?? null,
+          unit: parsed.unit_label ?? parsed.unit ?? null,
           tolerance: parsed.tolerance ?? 0,
+          metric_type: parsed.metric_type,
+          unit_label: parsed.unit_label ?? parsed.unit ?? null,
+          step_value: parsed.step_value,
+          metric_config: parsed.metric_config,
         }),
       });
 
       const createPayload = await createRes.json();
       if (!createRes.ok || createPayload.error) {
         throw new Error(
-          typeof createPayload.error === 'string'
-            ? createPayload.error
-            : 'Failed to create habit'
+          typeof createPayload.error === 'string' ? createPayload.error : 'Failed to create habit'
         );
       }
 
-      toast.success('Hábito creado ✔️');
+      toast.success('Hábito creado');
       setText('');
       onCreated?.();
     } catch (err) {

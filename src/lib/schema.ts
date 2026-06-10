@@ -1,5 +1,19 @@
 import { z } from 'zod';
 
+export const habitMetricTypeSchema = z.enum(['boolean', 'counter', 'volume', 'duration']);
+
+export const habitMetricConfigSchema = z.object({
+  min: z.number().min(0).optional(),
+  max: z.number().min(0).optional(),
+  precision: z.number().int().min(0).max(4).optional(),
+  presets: z.array(z.number().positive()).max(6).optional(),
+  base_unit: z.string().max(32).optional(),
+  display_unit: z.string().max(32).optional(),
+});
+
+export type HabitMetricTypeSchema = z.infer<typeof habitMetricTypeSchema>;
+export type HabitMetricConfigSchema = z.infer<typeof habitMetricConfigSchema>;
+
 export const mealItemSchema = z.object({
   id: z.string(),
   name: z.string().min(1).max(100),
@@ -32,9 +46,33 @@ export const defaultTemplate: DietTemplate = {
   target_carbs: 200,
   target_fats: 70,
   meals: [
-    { id: 'm1', name: 'Desayuno', text: '', target_kcal: 0, target_protein: 0, target_carbs: 0, target_fats: 0 },
-    { id: 'm2', name: 'Almuerzo', text: '', target_kcal: 0, target_protein: 0, target_carbs: 0, target_fats: 0 },
-    { id: 'm3', name: 'Cena', text: '', target_kcal: 0, target_protein: 0, target_carbs: 0, target_fats: 0 },
+    {
+      id: 'm1',
+      name: 'Desayuno',
+      text: '',
+      target_kcal: 0,
+      target_protein: 0,
+      target_carbs: 0,
+      target_fats: 0,
+    },
+    {
+      id: 'm2',
+      name: 'Almuerzo',
+      text: '',
+      target_kcal: 0,
+      target_protein: 0,
+      target_carbs: 0,
+      target_fats: 0,
+    },
+    {
+      id: 'm3',
+      name: 'Cena',
+      text: '',
+      target_kcal: 0,
+      target_protein: 0,
+      target_carbs: 0,
+      target_fats: 0,
+    },
   ],
 };
 
@@ -96,7 +134,17 @@ export const dailyTemplateRecipeSchema = z.object({
   id: z.string().uuid().optional(),
   daily_template_id: z.string().uuid(),
   recipe_id: z.string().uuid(),
-  meal_type: z.enum(['Desayuno', 'Almuerzo', 'Cena', 'Snacks', 'Brunch', 'Merienda', 'Post-Entreno', 'Cena Libre', 'Comida Extra']),
+  meal_type: z.enum([
+    'Desayuno',
+    'Almuerzo',
+    'Cena',
+    'Snacks',
+    'Brunch',
+    'Merienda',
+    'Post-Entreno',
+    'Cena Libre',
+    'Comida Extra',
+  ]),
 });
 
 export const weeklyPlanSchema = z.object({
@@ -136,30 +184,35 @@ export const scannedDietTemplateSchema = z.object({
   target_protein: z.number().min(0),
   target_carbs: z.number().min(0),
   target_fats: z.number().min(0),
-  meals: z.array(
-    z.object({
-      id: z.string().optional(),
-      name: z.string().min(1).max(100),
-      text: z.string().min(1),
-      recipe_key: z.string().min(1),
-      target_kcal: z.number().min(0),
-      target_protein: z.number().min(0),
-      target_carbs: z.number().min(0),
-      target_fats: z.number().min(0),
-    })
-  ).min(1).max(6),
+  meals: z
+    .array(
+      z.object({
+        id: z.string().optional(),
+        name: z.string().min(1).max(100),
+        text: z.string().min(1),
+        recipe_key: z.string().min(1),
+        target_kcal: z.number().min(0),
+        target_protein: z.number().min(0),
+        target_carbs: z.number().min(0),
+        target_fats: z.number().min(0),
+      })
+    )
+    .min(1)
+    .max(6),
 });
 
 export const scannedWeeklyPlanSchema = z.object({
   name: z.string().min(1).max(100),
   week_start_date: z.string().optional(),
-  days: z.array(
-    z.object({
-      day_of_week: z.number().int().min(1).max(7),
-      day_name: z.string().min(1),
-      template_key: z.string().min(1),
-    })
-  ).length(7),
+  days: z
+    .array(
+      z.object({
+        day_of_week: z.number().int().min(1).max(7),
+        day_name: z.string().min(1),
+        template_key: z.string().min(1),
+      })
+    )
+    .length(7),
 });
 
 export const scannedDietImportSchema = z.object({

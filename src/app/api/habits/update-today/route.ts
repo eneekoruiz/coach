@@ -1,11 +1,25 @@
 import { NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
+import { z } from 'zod';
 
 import { resolveAuthenticatedClient } from '@/services/authService';
 import { updateTodayHabit } from '@/services/habitsService';
 import { captureException } from '@/lib/monitoring';
 
 export const dynamic = 'force-dynamic';
+
+const MAX_SINGLE_DELTA = 10000;
+const relapseFactorSchema = z.enum(['stress', 'social', 'boredom', 'craving', 'other']);
+const updateTodayHabitSchema = z.object({
+  habit_id: z.coerce.number().int().positive(),
+  amount: z.coerce.number().min(0).optional(),
+  delta: z.coerce.number().min(-MAX_SINGLE_DELTA).max(MAX_SINGLE_DELTA).optional(),
+  date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+  relapse_factor: relapseFactorSchema.nullable().optional(),
+});
 
 function mapDbErrorStatus(message: string) {
   const lower = message.toLowerCase();
@@ -31,40 +45,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid JSON body.' }, { status: 400 });
     }
 
-    const habitId = Number(body.habit_id);
-    if (!Number.isFinite(habitId) || habitId <= 0) {
-      return NextResponse.json({ error: 'habit_id required and must be positive' }, { status: 400 });
+    const parsed = updateTodayHabitSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
     }
-
-    let amount: number | undefined;
-    if (body.amount !== undefined) {
-      amount = Number(body.amount);
-      if (!Number.isFinite(amount) || amount < 0) {
-        return NextResponse.json({ error: 'amount must be a non-negative number' }, { status: 400 });
-      }
-    }
-
-    let delta: number | undefined;
-    if (body.delta !== undefined) {
-      delta = Number(body.delta);
-      if (!Number.isFinite(delta)) {
-        return NextResponse.json({ error: 'delta must be a finite number' }, { status: 400 });
-      }
-    }
-
-    let date: string | undefined;
-    if (body.date !== undefined) {
-      if (typeof body.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(body.date)) {
-        return NextResponse.json({ error: 'date must be in YYYY-MM-DD format' }, { status: 400 });
-      }
-      date = body.date;
-    }
-
-    const allowedRelapseFactors = ['stress', 'social', 'boredom', 'craving', 'other'] as const;
-    type RelapseFactor = (typeof allowedRelapseFactors)[number];
-    const relapseFactor = typeof body.relapse_factor === 'string' && allowedRelapseFactors.includes(body.relapse_factor as RelapseFactor)
-      ? body.relapse_factor
-      : undefined;
+    const { habit_id: habitId, amount, delta, date, relapse_factor: relapseFactor } = parsed.data;
 
     try {
       const data = await updateTodayHabit({
@@ -74,7 +59,7 @@ export async function POST(request: Request) {
         amount,
         delta,
         date,
-        relapseFactor,
+        relapseFactor: relapseFactor ?? undefined,
       });
 
       // Purge cache of the dashboard/home path to ensure fresh data

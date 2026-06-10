@@ -7,15 +7,20 @@ import {
   MissingHabitTableError,
   PermissionDeniedError,
 } from '@/services/habitsService';
+import { habitMetricConfigSchema, habitMetricTypeSchema } from '@/lib/schema';
 
 export const dynamic = 'force-dynamic';
 
 const createHabitSchema = z.object({
   name: z.string().min(1).max(80),
   type: z.enum(['positive', 'negative']),
-  target_number: z.number().int().positive().default(1),
+  target_number: z.number().int().nonnegative().default(1),
   unit: z.string().nullable().optional(),
   tolerance: z.number().int().nonnegative().default(0),
+  metric_type: habitMetricTypeSchema.optional(),
+  unit_label: z.string().max(32).nullable().optional(),
+  step_value: z.number().positive().max(100000).optional(),
+  metric_config: habitMetricConfigSchema.optional(),
 });
 
 export async function POST(request: Request) {
@@ -54,6 +59,10 @@ export async function POST(request: Request) {
         target_number: payload.target_number,
         unit: payload.unit,
         tolerance: payload.tolerance,
+        metricType: payload.metric_type,
+        unitLabel: payload.unit_label,
+        stepValue: payload.step_value,
+        metricConfig: payload.metric_config,
       });
 
       return NextResponse.json({ data }, { status: 200 });

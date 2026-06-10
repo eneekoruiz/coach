@@ -1,6 +1,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { type HabitRow } from '@/types/habits';
 import { getNegativeHabitPolicy } from '@/lib/habits-utils';
+import { getHabitMetric } from '@/lib/habit-metrics';
 
 export function isMissingHabitTableError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error);
@@ -8,7 +9,9 @@ export function isMissingHabitTableError(error: unknown) {
 
   return (
     lower.includes('user_habits') &&
-    (lower.includes('schema cache') || lower.includes('does not exist') || lower.includes('relation'))
+    (lower.includes('schema cache') ||
+      lower.includes('does not exist') ||
+      lower.includes('relation'))
   );
 }
 
@@ -36,8 +39,8 @@ export function computeHabitOutcome(habit: HabitRow, amount: number) {
     return 'broken';
   }
 
-  // positive
-  if (amount >= (habit.target_value ?? habit.tolerance_threshold ?? 1)) return 'perfect';
+  const metric = getHabitMetric(habit);
+  if (amount >= metric.targetValue) return 'perfect';
   return 'missed';
 }
 
@@ -46,7 +49,10 @@ export async function evaluateAndUpdateStreaks(
   userId: string,
   reports: Array<{ habit_id: number; amount: number }>
 ) {
-  const { data: habits, error } = await supabase.from('user_habits').select('*').eq('user_id', userId);
+  const { data: habits, error } = await supabase
+    .from('user_habits')
+    .select('*')
+    .eq('user_id', userId);
 
   if (error) {
     if (isMissingHabitTableError(error)) {
@@ -76,7 +82,9 @@ export async function evaluateAndUpdateStreaks(
 
       const previousRelapseDays = (previousLogs ?? []).filter((log) => {
         const tracking = Array.isArray(log.habit_tracking) ? log.habit_tracking : [];
-        const entry = tracking.find((item: { habit_id: number; amount: number }) => Number(item.habit_id) === Number(h.id));
+        const entry = tracking.find(
+          (item: { habit_id: number; amount: number }) => Number(item.habit_id) === Number(h.id)
+        );
         return Number(entry?.amount ?? 0) > graceLimit;
       }).length;
       const totalRelapseDays = previousRelapseDays + (amount > graceLimit ? 1 : 0);
@@ -96,7 +104,8 @@ export async function evaluateAndUpdateStreaks(
         });
       }
     } else {
-      if (amount >= (h.target_value ?? h.tolerance_threshold ?? 1)) {
+      const metric = getHabitMetric(h);
+      if (amount >= metric.targetValue) {
         const next = (h.current_streak ?? 0) + 1;
         const longest = Math.max(h.longest_streak ?? 0, next);
         updates.push({ id: h.id, current_streak: next, longest_streak: longest });
@@ -144,7 +153,8 @@ export function buildHabitVisualDescriptors(habits: HabitRow[]) {
     }
   }
 
-  if (allPerfect) descriptors.push('athletic posture, golden hour sunlight, sharp eyes, pristine nature');
+  if (allPerfect)
+    descriptors.push('athletic posture, golden hour sunlight, sharp eyes, pristine nature');
 
   return descriptors.join(', ');
 }
