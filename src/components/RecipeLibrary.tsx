@@ -7,6 +7,7 @@ import toast from '@/lib/toast';
 import {
   Calculator,
   GripVertical,
+  Loader2,
   WandSparkles,
   Plus,
   Save,
@@ -131,17 +132,22 @@ export default function RecipeLibrary() {
     }
 
     setAiBusy(true);
-    const result = await autocompleteRecipeWithAi(prompt);
-    setAiBusy(false);
-    if (!result.success || !result.data) {
-      toast.error(result.error || 'No se pudo rellenar la receta.');
-      return;
-    }
+    try {
+      const result = await autocompleteRecipeWithAi(prompt);
+      if (!result.success || !result.data) {
+        toast.error(`Error al conectar con la IA: ${result.error || 'No se pudo rellenar la receta.'}`);
+        return;
+      }
 
-    setRecipeName(result.data.name);
-    setIngredients(result.data.ingredients_json);
-    setInstructions(result.data.instructions || '');
-    toast.success('Receta rellenada con IA');
+      setRecipeName(result.data.name);
+      setIngredients(result.data.ingredients_json);
+      setInstructions(result.data.instructions || '');
+      toast.success('¡Receta generada!');
+    } catch (error) {
+      toast.error(`Error al conectar con la IA: ${error instanceof Error ? error.message : 'Error inesperado'}`);
+    } finally {
+      setAiBusy(false);
+    }
   };
 
   const removeIngredient = (index: number) => {
@@ -166,33 +172,41 @@ export default function RecipeLibrary() {
       total_fats: totals.fats,
     };
 
-    const result = await saveRecipe(recipeData);
-    if (!result.success || !result.data) {
-      toast.error(result.error || 'Error al guardar la receta');
-      return;
-    }
+    try {
+      const result = await saveRecipe(recipeData);
+      if (!result.success || !result.data) {
+        toast.error(result.error || 'Error al guardar la receta');
+        return;
+      }
 
-    toast.success(editingRecipe ? 'Receta actualizada' : 'Receta creada');
-    setEditingRecipe(result.data);
-    await loadRecipes();
+      toast.success(editingRecipe ? 'Receta actualizada' : 'Receta creada');
+      setEditingRecipe(result.data);
+      await loadRecipes();
+    } catch (error) {
+      toast.error(`Error al guardar la receta: ${error instanceof Error ? error.message : 'Error inesperado'}`);
+    }
   };
 
   const handleDeleteRecipe = async (recipe: Recipe) => {
     if (!recipe.id) return;
     if (!confirm('¿Seguro que quieres eliminar esta receta de tu biblioteca?')) return;
 
-    const result = await deleteRecipe(recipe.id);
-    if (!result.success) {
-      toast.error(result.error || 'Error al eliminar');
-      return;
-    }
+    try {
+      const result = await deleteRecipe(recipe.id);
+      if (!result.success) {
+        toast.error(result.error || 'Error al eliminar');
+        return;
+      }
 
-    toast.success('Receta eliminada');
-    setEditingRecipe(null);
-    setRecipeName('');
-    setInstructions('');
-    setIngredients([]);
-    await loadRecipes();
+      toast.success('Receta eliminada');
+      setEditingRecipe(null);
+      setRecipeName('');
+      setInstructions('');
+      setIngredients([]);
+      await loadRecipes();
+    } catch (error) {
+      toast.error(`Error al eliminar la receta: ${error instanceof Error ? error.message : 'Error inesperado'}`);
+    }
   };
 
   const handleDragStart = (event: React.DragEvent, recipe: Recipe) => {
@@ -372,8 +386,8 @@ export default function RecipeLibrary() {
                 disabled={aiBusy}
                 className="mt-2 inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-cyan-600 text-xs font-black text-white transition-all duration-200 ease-in-out hover:bg-cyan-500 active:scale-95 disabled:opacity-60"
               >
-                <WandSparkles className="h-4 w-4" />
-                {aiBusy ? 'Rellenando...' : 'Rellenar con IA'}
+                {aiBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <WandSparkles className="h-4 w-4" />}
+                {aiBusy ? 'Pensando...' : 'Rellenar con IA'}
               </button>
             </div>
           </div>

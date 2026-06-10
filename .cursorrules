@@ -1,0 +1,1 @@
+Cuando necesites escribir o modificar una consulta a Supabase, o crear una migración SQL, DEBES usar la herramienta MCP de Postgres para leer el esquema actual de la base de datos antes de proponer código. Nunca asumas ni inventes los nombres de las columnas.

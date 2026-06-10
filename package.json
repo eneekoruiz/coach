@@ -10,7 +10,8 @@
     "lint": "eslint .",
     "prebuild": "node ./scripts/prebuild-checks.cjs",
     "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,css,md}\"",
-    "audit:clean-code": "node scripts/clean-code-audit.js"
+    "audit:clean-code": "node scripts/clean-code-audit.js",
+    "supabase:types": "supabase gen types typescript --linked --schema public > types/supabase.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^3.0.78",
@@ -50,6 +51,7 @@
     "eslint": "^9.39.4",
     "eslint-config-next": "^16.2.6",
     "postcss": "^8.5.6",
+    "supabase": "^2.105.0",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.8.3"
   }

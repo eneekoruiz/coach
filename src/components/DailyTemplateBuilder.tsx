@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useMemo, useState, useEffect } from 'react';
-import { getDietTemplates, saveDietTemplate, getRecipes, deleteDietTemplate } from '@/app/nutrition/actions';
+import { getDietTemplates, saveDietTemplate, getRecipes, deleteDietTemplate, generateFullDayTemplateWithAi } from '@/app/nutrition/actions';
 import { type DietTemplate, type Recipe, type MealItem } from '@/lib/schema';
 import toast from '@/lib/toast';
-import { BookOpen, ChevronDown, ChevronRight, Copy, Plus, Save, Search, Sun, Trash2, Utensils, X } from 'lucide-react';
+import { BookOpen, ChevronDown, ChevronRight, Copy, Loader2, Plus, Save, Search, Sparkles, Sun, Trash2, Utensils, X } from 'lucide-react';
 import { triggerVibration } from '@/lib/haptics';
 import BottomSheet from '@/components/BottomSheet';
 import RecipeDrawer from '@/components/RecipeDrawer';
@@ -15,6 +15,9 @@ export default function DailyTemplateBuilder() {
   const [selectedTemplate, setSelectedTemplate] = useState<DietTemplate | null>(null);
   const [expandedTemplateGroups, setExpandedTemplateGroups] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(false);
+  const [aiDayPrompt, setAiDayPrompt] = useState('');
+  const [aiDayBusy, setAiDayBusy] = useState(false);
+  const [aiDaySheetOpen, setAiDaySheetOpen] = useState(false);
 
   // Bottom Sheet state for recipe picker
   const [recipePickerOpen, setRecipePickerOpen] = useState(false);
@@ -137,6 +140,35 @@ export default function DailyTemplateBuilder() {
       setSelectedTemplate(res.data);
     } else {
       toast.error(res.error || 'Fallo al guardar la plantilla');
+    }
+  };
+
+  const handleGenerateDayWithAi = async () => {
+    const prompt = aiDayPrompt.trim();
+    if (!prompt) {
+      toast.error('Describe el tipo de día que quieres generar.');
+      return;
+    }
+
+    setAiDayBusy(true);
+    try {
+      const result = await generateFullDayTemplateWithAi(prompt);
+      if (!result.success || !result.data) {
+        toast.error(`Error al conectar con la IA: ${result.error || 'No se pudo generar el Día Base.'}`);
+        return;
+      }
+
+      setSelectedTemplate({
+        ...result.data,
+        id: undefined,
+        parent_template_id: null,
+      });
+      setAiDaySheetOpen(false);
+      toast.success('¡Día Base generado!');
+    } catch (error) {
+      toast.error(`Error al conectar con la IA: ${error instanceof Error ? error.message : 'Error inesperado'}`);
+    } finally {
+      setAiDayBusy(false);
     }
   };
 
@@ -308,6 +340,15 @@ export default function DailyTemplateBuilder() {
             <Plus className="h-4 w-4" />
           </button>
         </div>
+
+        <button
+          type="button"
+          onClick={() => setAiDaySheetOpen(true)}
+          className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 text-xs font-black text-white shadow-sm transition-all duration-200 ease-in-out hover:bg-emerald-500 active:scale-95"
+        >
+          <Sparkles className="h-4 w-4" />
+          Generar Día Completo con IA
+        </button>
 
         <div className="max-h-[620px] space-y-2 overflow-y-auto pr-1 custom-scrollbar">
           {templateGroups.map(({ root, variations }) => {
@@ -659,6 +700,44 @@ export default function DailyTemplateBuilder() {
         onClose={() => { setRecipeDrawerOpen(false); setViewingRecipe(null); }}
         recipe={viewingRecipe}
       />
+
+      <BottomSheet
+        isOpen={aiDaySheetOpen}
+        onClose={() => setAiDaySheetOpen(false)}
+        title="Generar Día Completo con IA"
+      >
+        <div className="space-y-4">
+          <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-700">
+              AI Auto-Pilot
+            </p>
+            <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">
+              Describe el objetivo y la IA devolverá desayuno, comida, merienda opcional y cena con macros.
+            </p>
+          </div>
+          <label className="block">
+            <span className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
+              ¿Qué tipo de día quieres?
+            </span>
+            <textarea
+              value={aiDayPrompt}
+              onChange={(event) => setAiDayPrompt(event.target.value)}
+              rows={3}
+              placeholder="Ej. Alto en proteínas, sin lactosa, 2500 kcal, fácil de cocinar"
+              className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 outline-none transition focus:border-emerald-300 focus:bg-white"
+            />
+          </label>
+          <button
+            type="button"
+            onClick={handleGenerateDayWithAi}
+            disabled={aiDayBusy}
+            className="inline-flex min-h-[50px] w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 text-sm font-black text-white transition-all duration-200 ease-in-out hover:bg-slate-800 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {aiDayBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+            {aiDayBusy ? 'Pensando...' : 'Generar plantilla'}
+          </button>
+        </div>
+      </BottomSheet>
 
     </div>
   );

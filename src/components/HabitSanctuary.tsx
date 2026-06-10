@@ -70,6 +70,7 @@ export default function HabitSanctuary() {
     saveHabit,
     saveHabitValue,
     createHabitQuick,
+    updateHabitSettings,
     updateHabitValue,
   } = useHabits();
 
@@ -248,6 +249,7 @@ export default function HabitSanctuary() {
                         onValueChange={updateHabitValue}
                         onSave={saveHabit}
                         onSaveValue={saveHabitValue}
+                        onUpdateSettings={updateHabitSettings}
                         recentLogs={recentLogs}
                       />
                     ))}
@@ -284,6 +286,7 @@ export default function HabitSanctuary() {
                         onValueChange={updateHabitValue}
                         onSave={saveHabit}
                         onSaveValue={saveHabitValue}
+                        onUpdateSettings={updateHabitSettings}
                         recentLogs={recentLogs}
                       />
                     ))}

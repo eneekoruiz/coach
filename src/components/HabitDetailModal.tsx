@@ -13,6 +13,7 @@ interface HabitDetailModalProps {
   isPending: boolean;
   onValueChange: (habitId: number, nextValue: number) => void;
   onSaveDirect: (val: number) => void;
+  onUpdateSettings: (habitId: number, settings: { toleranceThreshold?: number; targetValue?: number; unit?: string | null }) => Promise<void>;
   recentLogs: DailyLogRow[];
   streakProgress: number;
   trendLabel: string;
@@ -73,10 +74,12 @@ function HeatMap({
   entries,
   isPositive,
   targetValue,
+  graceLimit,
 }: {
   entries: Array<{ date: string; amount: number; relapseFactor: string | null }>;
   isPositive: boolean;
   targetValue: number;
+  graceLimit: number;
 }) {
   if (entries.length === 0) {
     return <div className="text-sm font-medium text-slate-400">Sin registros para dibujar el mapa.</div>;
@@ -89,12 +92,15 @@ function HeatMap({
         .reverse()
         .map((entry) => {
           const completed = isPositive ? entry.amount >= targetValue : entry.amount === 0;
+          const slipped = !isPositive && entry.amount > 0 && entry.amount <= graceLimit;
           const className = isPositive
             ? completed
               ? 'bg-emerald-500'
               : 'bg-slate-200'
             : completed
             ? 'bg-emerald-400'
+            : slipped
+            ? 'bg-amber-400'
             : 'bg-rose-500';
 
           return (
@@ -117,23 +123,33 @@ export default function HabitDetailModal({
   isPending,
   onValueChange,
   onSaveDirect,
+  onUpdateSettings,
   recentLogs,
   streakProgress,
   trendLabel,
 }: HabitDetailModalProps) {
   const isPositive = habit.type === 'positive';
   const targetValue = habit.target_value ?? habit.tolerance_threshold ?? 1;
+  const graceLimit = Math.max(0, habit.tolerance_threshold ?? 0);
+  const [thresholdDraft, setThresholdDraft] = React.useState(isPositive ? targetValue : graceLimit);
+
+  React.useEffect(() => {
+    setThresholdDraft(isPositive ? targetValue : graceLimit);
+  }, [graceLimit, isPositive, targetValue]);
+
   const last30 = recentLogs.slice(0, 30).map((log) => {
     const record = (log.habit_tracking ?? []).find((entry) => entry.habit_id === habit.id);
     return { date: log.date, amount: record?.amount ?? 0, relapseFactor: record?.relapse_factor ?? null };
   });
   const totalVolume = last30.reduce((sum, entry) => sum + entry.amount, 0);
-  const successfulDays = last30.filter((entry) => isPositive ? entry.amount >= targetValue : entry.amount === 0).length;
-  const relapseDays = last30.filter((entry) => !isPositive && entry.amount > 0).length;
+  const successfulDays = last30.filter((entry) => isPositive ? entry.amount >= targetValue : entry.amount <= graceLimit).length;
+  const slipDays = last30.filter((entry) => !isPositive && entry.amount > 0 && entry.amount <= graceLimit).length;
+  const relapseDays = last30.filter((entry) => !isPositive && entry.amount > graceLimit).length;
+  const relapseUnits = last30.reduce((sum, entry) => sum + (!isPositive ? entry.amount : 0), 0);
   const savedMoney = relapseDays === 0
     ? Math.round((habit.relapse_unit_cost ?? 0) * Math.max(1, last30.length))
-    : Math.max(0, Math.round((habit.relapse_unit_cost ?? 0) * (last30.length - relapseDays)));
-  const savedMinutes = Math.max(0, Math.round((habit.relapse_unit_minutes ?? 0) * (last30.length - relapseDays)));
+    : Math.max(0, Math.round((habit.relapse_unit_cost ?? 0) * Math.max(0, last30.length - relapseUnits)));
+  const savedMinutes = Math.max(0, Math.round((habit.relapse_unit_minutes ?? 0) * Math.max(0, last30.length - relapseUnits)));
   const factorLabels: Record<string, string> = {
     stress: 'Estrés',
     social: 'Social',
@@ -167,15 +183,40 @@ export default function HabitDetailModal({
             <>
               <MetricPill label="Ahorro €" value={savedMoney} />
               <MetricPill label="Min ahorro" value={savedMinutes} />
-              <MetricPill label="Recaídas" value={relapseDays} />
+              <MetricPill label="Deslices" value={slipDays} />
             </>
           )}
         </div>
 
         {!isPositive && (
-          <div className="rounded-2xl border border-rose-100 bg-rose-50 p-4">
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-rose-500">Detonante dominante 30d</p>
-            <p className="mt-1 text-lg font-black text-slate-950">{topFactorLabel}</p>
+          <div className="grid gap-3">
+            <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4">
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-600">Límite flexible</p>
+              <div className="mt-2 flex items-center gap-2">
+                <input
+                  type="number"
+                  min={0}
+                  value={thresholdDraft}
+                  onChange={(event) => setThresholdDraft(toNumber(event.target.value))}
+                  className="h-11 w-24 rounded-xl border border-amber-200 bg-white px-3 text-center text-lg font-black text-slate-950 outline-none"
+                />
+                <button
+                  type="button"
+                  disabled={isPending}
+                  onClick={() => onUpdateSettings(habit.id, { toleranceThreshold: Math.max(0, Math.floor(thresholdDraft)) })}
+                  className="h-11 rounded-xl bg-slate-950 px-4 text-xs font-black uppercase tracking-wider text-white transition-all duration-200 ease-in-out active:scale-95 disabled:opacity-60"
+                >
+                  Guardar
+                </button>
+              </div>
+              <p className="mt-2 text-xs font-semibold leading-5 text-amber-800">
+                0 mantiene día perfecto. Hasta este límite conserva la racha con penalización. Por encima, recaída roja.
+              </p>
+            </div>
+            <div className="rounded-2xl border border-rose-100 bg-rose-50 p-4">
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-rose-500">Detonante dominante 30d</p>
+              <p className="mt-1 text-lg font-black text-slate-950">{topFactorLabel}</p>
+            </div>
           </div>
         )}
 
@@ -275,9 +316,10 @@ export default function HabitDetailModal({
             </div>
           ) : (
             <div className="w-full overflow-hidden rounded-xl border border-slate-100 bg-white p-3 mb-4 shadow-sm">
-              <HeatMap entries={last30} isPositive={isPositive} targetValue={targetValue} />
+              <HeatMap entries={last30} isPositive={isPositive} targetValue={targetValue} graceLimit={graceLimit} />
               <div className="mt-3 flex items-center gap-4 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">
                 <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded bg-emerald-400" /> limpio</span>
+                <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded bg-amber-400" /> desliz</span>
                 <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded bg-rose-500" /> recaída</span>
               </div>
             </div>

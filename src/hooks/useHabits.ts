@@ -125,7 +125,7 @@ export function useHabits() {
             name: 'Sin comida basura',
             type: 'negative',
             is_custom: false,
-            tolerance_threshold: 0,
+            tolerance_threshold: 1,
             target_value: 0,
             unit: 'recaídas',
             relapse_unit_cost: 8,
@@ -322,6 +322,58 @@ export function useHabits() {
     [saveHabitValue, values]
   );
 
+  const updateHabitSettings = useCallback(
+    async (
+      habitId: number,
+      settings: { toleranceThreshold?: number; targetValue?: number; unit?: string | null }
+    ) => {
+      const token = await getTokenOrThrow();
+      const previousHabits = habits;
+
+      setHabits((current) =>
+        current.map((habit) =>
+          habit.id === habitId
+            ? {
+                ...habit,
+                tolerance_threshold: settings.toleranceThreshold ?? habit.tolerance_threshold,
+                target_value: settings.targetValue ?? habit.target_value,
+                unit: settings.unit !== undefined ? settings.unit : habit.unit,
+              }
+            : habit
+        )
+      );
+
+      try {
+        const response = await fetch('/api/habits/update-settings', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            habit_id: habitId,
+            tolerance_threshold: settings.toleranceThreshold,
+            target_value: settings.targetValue,
+            unit: settings.unit,
+          }),
+        });
+        const payload = await parseJsonResponse<{ data?: unknown; error?: string }>(response);
+        if (!response.ok) throw new Error(payload?.error || 'Error guardando ajustes.');
+
+        const updatedHabit = payload?.data;
+        if (isHabitRow(updatedHabit)) {
+          setHabits((current) => current.map((habit) => (habit.id === habitId ? updatedHabit : habit)));
+        }
+        toast.success('Ajustes del hábito guardados');
+      } catch (error) {
+        setHabits(previousHabits);
+        toast.error(getSafeMessage(error));
+        throw error;
+      }
+    },
+    [getTokenOrThrow, habits]
+  );
+
   const createHabitQuick = useCallback(
     async (name: string, type: HabitType) => {
       try {
@@ -382,6 +434,7 @@ export function useHabits() {
     saveHabit,
     saveHabitValue,
     createHabitQuick,
+    updateHabitSettings,
     updateHabitValue,
     selectedDate,
     setSelectedDate,

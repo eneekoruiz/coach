@@ -76,6 +76,15 @@ export interface UpdateTodayHabitParams {
   relapseFactor?: HabitTrackingEntry['relapse_factor'];
 }
 
+export interface UpdateHabitSettingsParams {
+  supabase: SupabaseClient;
+  userId: string;
+  habitId: number;
+  toleranceThreshold?: number;
+  targetValue?: number;
+  unit?: string | null;
+}
+
 type HabitTrackingEntry = {
   habit_id: number;
   amount: number;
@@ -221,6 +230,39 @@ export async function updateTodayHabit(params: UpdateTodayHabitParams) {
   });
 
   return updatedLog;
+}
+
+export async function updateHabitSettings(params: UpdateHabitSettingsParams) {
+  const { supabase, userId, habitId, toleranceThreshold, targetValue, unit } = params;
+  const updates: Record<string, number | string | null> = {};
+
+  if (typeof toleranceThreshold === 'number') {
+    updates.tolerance_threshold = Math.max(0, Math.floor(toleranceThreshold));
+  }
+  if (typeof targetValue === 'number') {
+    updates.target_value = Math.max(0, targetValue);
+  }
+  if (unit !== undefined) {
+    updates.unit = unit;
+  }
+
+  if (Object.keys(updates).length === 0) {
+    throw new Error('No hay ajustes que guardar.');
+  }
+
+  const { data, error } = await supabase
+    .from('user_habits')
+    .update(updates)
+    .eq('id', habitId)
+    .eq('user_id', userId)
+    .select('*')
+    .single();
+
+  if (error) {
+    throw new Error(error.message || 'No se pudieron guardar los ajustes del hábito.');
+  }
+
+  return data;
 }
 
 export async function parseHabitFromText(text: string): Promise<ParsedHabit> {

@@ -31,6 +31,7 @@ function createSupabaseClient(authHeader?: string) {
 export function computeHabitOutcome(habit: HabitRow, amount: number) {
   if (habit.type === 'negative') {
     if (amount === 0) return 'perfect';
+    if (amount <= Math.max(0, habit.tolerance_threshold ?? 0)) return 'slip';
     return 'broken';
   }
 
@@ -68,6 +69,11 @@ export async function evaluateAndUpdateStreaks(
         const next = (h.current_streak ?? 0) + 1;
         const longest = Math.max(h.longest_streak ?? 0, next);
         updates.push({ id: h.id, current_streak: next, longest_streak: longest });
+      } else if (amount <= Math.max(0, h.tolerance_threshold ?? 0)) {
+        updates.push({
+          id: h.id,
+          current_streak: Math.max(0, (h.current_streak ?? 0) - Math.ceil(amount)),
+        });
       } else {
         updates.push({ id: h.id, current_streak: 0 });
       }

@@ -50,6 +50,7 @@ export default function HabitTracker() {
     saveHabit,
     saveHabitValue,
     createHabitQuick,
+    updateHabitSettings,
     updateHabitValue,
     selectedDate,
     setSelectedDate,
@@ -147,6 +148,7 @@ export default function HabitTracker() {
               onValueChange={updateHabitValue}
               onSave={saveHabit}
               onSaveValue={saveHabitValue}
+              onUpdateSettings={updateHabitSettings}
               recentLogs={recentLogs}
             />
           ))}

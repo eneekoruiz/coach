@@ -6,7 +6,7 @@ import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { dailyLogSchema } from '@/lib/schema';
 import { z } from 'zod';
 
-import { dietTemplateSchema, type DietTemplate, defaultTemplate } from '@/lib/schema';
+import { dietTemplateSchema, type DietTemplate, defaultTemplate, type MealItem } from '@/lib/schema';
 
 export async function getDietTemplates(): Promise<DietTemplate[]> {
   try {
@@ -254,25 +254,159 @@ export async function assignTemplateToDates(templateId: string, dates: string[])
   }
 }
 
+export async function markMealAsEaten(
+  meal: MealItem,
+  date: string,
+  templateId?: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { success: false, error: 'Usuario no autenticado.' };
+
+    const parsedMeal = z.object({
+      id: z.string().min(1),
+      name: z.string().min(1),
+      text: z.string().default(''),
+      target_kcal: z.number().min(0).default(0),
+      target_protein: z.number().min(0).default(0),
+      target_carbs: z.number().min(0).default(0),
+      target_fats: z.number().min(0).default(0),
+    }).safeParse(meal);
+
+    if (!parsedMeal.success || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return { success: false, error: 'Comida o fecha inválida.' };
+    }
+
+    const mealData = parsedMeal.data;
+    const completionPayload = {
+      user_id: user.id,
+      date,
+      meal_id: mealData.id,
+      meal_name: mealData.name,
+      template_id: templateId ?? null,
+      kcal: Math.round(mealData.target_kcal),
+      protein_g: Math.round(mealData.target_protein),
+      carbs_g: Math.round(mealData.target_carbs),
+      fats_g: Math.round(mealData.target_fats),
+    };
+
+    const { error: completionError } = await supabase
+      .from('nutrition_meal_completions')
+      .upsert(completionPayload, { onConflict: 'user_id,date,meal_id' });
+
+    if (completionError && completionError.code !== '42P01') {
+      return { success: false, error: completionError.message };
+    }
+
+    const { data: existing, error: fetchError } = await supabase
+      .from('daily_logs')
+      .select('health_momentum, ai_data, habit_tracking')
+      .eq('user_id', user.id)
+      .eq('date', date)
+      .maybeSingle();
+
+    if (fetchError) {
+      return { success: false, error: fetchError.message };
+    }
+
+    const existingAiData = existing?.ai_data && typeof existing.ai_data === 'object'
+      ? existing.ai_data
+      : {};
+
+    const existingLog = dailyLogSchema.safeParse(existingAiData);
+    const baseLog = existingLog.success
+      ? existingLog.data
+      : {
+          date,
+          comidas: [],
+          hidratacion_ml: 0,
+          toxinas: [],
+          bio_avatar: {
+            estado_fisiologico: 'Estable',
+            energia_fisica: 3,
+            claridad_mental: 3,
+          },
+          metricas: {
+            variacion_inercia: 0,
+            aciertos: [],
+            error_clave: 'ninguno',
+            accion_manana: 'Ninguna',
+          },
+          water_ml: 0,
+          total_kcal: 0,
+          protein_g: 0,
+          carbs_g: 0,
+          fats_g: 0,
+          habits_count: {},
+          propuestas_habitos: [],
+        };
+
+    const alreadyRegistered = baseLog.comidas.some(
+      (item) => item.hora === mealData.name && item.descripcion === mealData.text
+    );
+
+    const nextLog = {
+      ...baseLog,
+      date,
+      comidas: alreadyRegistered
+        ? baseLog.comidas
+        : [
+            ...baseLog.comidas,
+            {
+              hora: mealData.name,
+              descripcion: mealData.text || mealData.name,
+              calidad_nutricional: 'buena' as const,
+            },
+          ],
+      total_kcal: alreadyRegistered ? baseLog.total_kcal : baseLog.total_kcal + Math.round(mealData.target_kcal),
+      protein_g: alreadyRegistered ? baseLog.protein_g : baseLog.protein_g + Math.round(mealData.target_protein),
+      carbs_g: alreadyRegistered ? baseLog.carbs_g : baseLog.carbs_g + Math.round(mealData.target_carbs),
+      fats_g: alreadyRegistered ? baseLog.fats_g : baseLog.fats_g + Math.round(mealData.target_fats),
+    };
+
+    const validatedLog = dailyLogSchema.parse(nextLog);
+    const { error: upsertError } = await supabase
+      .from('daily_logs')
+      .upsert({
+        user_id: user.id,
+        date,
+        health_momentum: existing?.health_momentum ?? 70,
+        ai_data: validatedLog,
+        habit_tracking: existing?.habit_tracking ?? [],
+      }, { onConflict: 'user_id,date' });
+
+    if (upsertError) {
+      return { success: false, error: upsertError.message };
+    }
+
+    return { success: true };
+  } catch (err) {
+    console.error('markMealAsEaten server action error:', err);
+    return { success: false, error: err instanceof Error ? err.message : 'Error inesperado.' };
+  }
+}
+
 export async function autocompleteDietWithAi(context: string): Promise<{ success: boolean; data?: DietTemplate; error?: string }> {
   try {
     const prompt = 
-      `El usuario actual solicita una plantilla nutricional dinámica basándose en este contexto:\n` +
+      `El usuario solicita un menú para HOY basándose en este contexto:\n` +
       `"${context}"\n\n` +
       `Tu rol: Nutricionista deportivo experto.\n` +
-      `Genera un objeto JSON que cumpla el esquema dietTemplateSchema.\n` +
+      `Devuelve únicamente un objeto que cumpla el esquema dietTemplateSchema.\n` +
       `Debe incluir:\n` +
-      `- name (ej. Día de Pierna, Volumen, Descanso)\n` +
+      `- name: "Menú de Hoy IA"\n` +
       `- target_kcal (1200-4000)\n` +
       `- target_protein, target_carbs, target_fats (balanceados P*4+C*4+F*9 ~= kcal)\n` +
-      `- meals: Array de objetos con { id: "m1", name: "Desayuno", text: "descripción o alimentos" }\n\n` +
-      `Haz las comidas variadas y creativas.`;
+      `- meals: exactamente 3 o 4 comidas con id estable, name, text y macros por comida.\n` +
+      `Prioriza alimentos cotidianos, cantidades claras y cero texto fuera del JSON.`;
 
     const result = await generateObject({
       model: google('gemini-2.5-flash'),
-      system: 'Eres un nutricionista experto y devuelves planes precisos en JSON.',
+      system: 'Eres un nutricionista experto. Responde con JSON determinista y sin prosa.',
       prompt,
       schema: dietTemplateSchema,
+      temperature: 0,
     });
 
     const rawObject = result.object as any;
@@ -581,7 +715,7 @@ export async function saveRecipe(recipe: Recipe): Promise<{ success: boolean; da
 const recipeAiSchema = z.object({
   name: z.string().min(1).max(100),
   ingredients_json: z.array(ingredientItemSchema).min(1).max(30),
-  instructions: z.string().default(''),
+  instructions: z.string().min(12).describe('Instrucciones paso a paso de la preparación.'),
   total_kcal: z.number().min(0),
   total_protein: z.number().min(0),
   total_carbs: z.number().min(0),
@@ -601,7 +735,8 @@ export async function autocompleteRecipeWithAi(context: string): Promise<{ succe
         'Eres un dietista clínico. Devuelve solo datos estructurados. Estima macros por ingrediente con valores realistas para la cantidad indicada.',
       prompt:
         `Estructura esta receta en español: "${context}". ` +
-        'Si no hay nombre, crea uno breve. Usa unidades g, ml o unidad. Calcula totales sumando ingredientes.',
+        'Si no hay nombre, crea uno breve. Usa unidades g, ml o unidad. Calcula totales sumando ingredientes. ' +
+        'Incluye instrucciones claras de preparación en pasos cortos, con timing, orden y textura esperada.',
       schema: recipeAiSchema,
     });
 
@@ -630,6 +765,58 @@ export async function autocompleteRecipeWithAi(context: string): Promise<{ succe
   } catch (err) {
     console.error('autocompleteRecipeWithAi error:', err);
     return { success: false, error: err instanceof Error ? err.message : 'Error IA al rellenar receta.' };
+  }
+}
+
+export async function generateFullDayTemplateWithAi(context: string): Promise<{ success: boolean; data?: DietTemplate; error?: string }> {
+  try {
+    if (!context.trim()) {
+      return { success: false, error: 'Describe qué tipo de día quieres generar.' };
+    }
+
+    const result = await generateObject({
+      model: google('gemini-2.5-flash'),
+      temperature: 0,
+      system:
+        'Eres un dietista clínico. Devuelve solo un objeto JSON válido para una plantilla diaria. No incluyas prosa.',
+      prompt:
+        `Genera un Día Base completo para este objetivo: "${context}". ` +
+        'Incluye 3 o 4 comidas tipo receta completa para desayuno, comida, merienda opcional y cena. ' +
+        'En cada meal.text escribe ingredientes con cantidades y una mini preparación accionable. ' +
+        'Calcula macros por comida y totales coherentes.',
+      schema: dietTemplateSchema,
+    });
+
+    const rawObject = result.object;
+    const sanitizedTemplate: DietTemplate = {
+      id: rawObject.id,
+      parent_template_id: rawObject.parent_template_id ?? null,
+      name: rawObject.name || `Día IA - ${context.slice(0, 32)}`,
+      target_kcal: Math.round(Number(rawObject.target_kcal || 2000)),
+      target_protein: Math.round(Number(rawObject.target_protein || 140)),
+      target_carbs: Math.round(Number(rawObject.target_carbs || 220)),
+      target_fats: Math.round(Number(rawObject.target_fats || 65)),
+      meals: rawObject.meals.map((meal, index) => ({
+        id: meal.id ? String(meal.id) : `ai-meal-${index + 1}-${Date.now()}`,
+        name: meal.name,
+        text: meal.text,
+        target_kcal: Math.round(Number(meal.target_kcal || 0)),
+        target_protein: Math.round(Number(meal.target_protein || 0)),
+        target_carbs: Math.round(Number(meal.target_carbs || 0)),
+        target_fats: Math.round(Number(meal.target_fats || 0)),
+        recipe_id: meal.recipe_id,
+      })),
+    };
+
+    const parsed = dietTemplateSchema.safeParse(sanitizedTemplate);
+    if (!parsed.success) {
+      return { success: false, error: 'La IA devolvió un Día Base incompleto.' };
+    }
+
+    return { success: true, data: parsed.data };
+  } catch (err) {
+    console.error('generateFullDayTemplateWithAi error:', err);
+    return { success: false, error: err instanceof Error ? err.message : 'Error IA al generar el Día Base.' };
   }
 }
 

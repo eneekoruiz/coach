@@ -1,13 +1,14 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import DietCalendarView from './DietCalendarView';
 import RecipeLibrary from './RecipeLibrary';
 import DailyTemplateBuilder from './DailyTemplateBuilder';
 import WeeklyPlanBuilder from './WeeklyPlanBuilder';
+import TodayNutritionView from './TodayNutritionView';
 import { useNutritionPlan, type NutritionTab } from '@/hooks/useNutritionPlan';
-import { BookOpen, Calendar, ClipboardList, Sun } from 'lucide-react';
+import { BookOpen, Calendar, ClipboardList, LayoutGrid, Sun } from 'lucide-react';
 
 const nutritionTabs: Array<{
   id: NutritionTab;
@@ -23,6 +24,7 @@ const nutritionTabs: Array<{
 ];
 
 export default function NutritionContainer({ initialTab }: { initialTab?: NutritionTab }) {
+  const [isPlannerOpen, setIsPlannerOpen] = useState(Boolean(initialTab && initialTab !== 'calendar'));
   const {
     activeTab,
     setActiveTab,
@@ -34,7 +36,12 @@ export default function NutritionContainer({ initialTab }: { initialTab?: Nutrit
     overrides,
     activeProgram,
     activeProgramDays,
+    realLog,
+    isGeneratingAi,
+    todayTemplate,
     loadData,
+    handleAiGenerate,
+    handleMarkMealAsEaten,
   } = useNutritionPlan(initialTab);
 
   if (loading) {
@@ -71,24 +78,58 @@ export default function NutritionContainer({ initialTab }: { initialTab?: Nutrit
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <div>
             <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">
-              Nutrition Hub Pro
+              Nutrition Hub
             </div>
             <h2 className="mt-0.5 text-xl font-black tracking-tight text-slate-900 sm:text-2xl">
-              Arquitectura Matryoshka Nutricional
+              Menú de hoy primero
             </h2>
             <p className="mt-0.5 text-xs font-semibold text-slate-500">
-              Construye de menor a mayor complejidad: receta, día base, semana y mes del paciente.
+              El usuario ve qué toca comer ahora; el builder profesional queda a un toque.
             </p>
           </div>
-          <Link
-            href="/"
-            className="inline-flex h-10 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-xs font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 active:scale-95"
-          >
-            Volver al Inicio
-          </Link>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab('calendar');
+                setIsPlannerOpen(false);
+              }}
+              className={`inline-flex h-11 items-center justify-center gap-2 rounded-xl px-4 text-xs font-black transition-all duration-200 ease-in-out active:scale-95 ${
+                !isPlannerOpen
+                  ? 'bg-slate-950 text-white'
+                  : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              <Sun className="h-4 w-4" />
+              Hoy
+            </button>
+            <Link
+              href="/"
+              className="inline-flex h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-xs font-bold text-slate-700 shadow-sm transition-all duration-200 ease-in-out hover:bg-slate-50 active:scale-95"
+            >
+              Inicio
+            </Link>
+          </div>
         </div>
 
-        <div className="mt-3 grid grid-cols-2 gap-2 xl:grid-cols-4">
+        <div className="mt-3">
+          <button
+            type="button"
+            onClick={() => setIsPlannerOpen((current) => !current)}
+            className="inline-flex min-h-[44px] w-full items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 text-left text-xs font-black text-slate-700 transition-all duration-200 ease-in-out hover:bg-white active:scale-[0.99]"
+          >
+            <span className="flex items-center gap-2">
+              <LayoutGrid className="h-4 w-4" />
+              Planificador PRO
+            </span>
+            <span className="text-[10px] uppercase tracking-[0.16em] text-slate-400">
+              {isPlannerOpen ? 'Ocultar' : 'Recetario · Días · Semanas'}
+            </span>
+          </button>
+        </div>
+
+        {isPlannerOpen && (
+          <div className="mt-3 grid grid-cols-2 gap-2 xl:grid-cols-4">
           {nutritionTabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -123,23 +164,34 @@ export default function NutritionContainer({ initialTab }: { initialTab?: Nutrit
             );
           })}
           </div>
+        )}
       </div>
 
       <div className="min-h-0 flex-1 overflow-hidden">
-      {activeTab === 'recipes' && <RecipeLibrary />}
-      {activeTab === 'days' && <DailyTemplateBuilder />}
-      {activeTab === 'programs' && <WeeklyPlanBuilder />}
-      {activeTab === 'calendar' && (
-        <DietCalendarView
-          templates={templates}
-          calendar={calendar}
-          recipes={recipes}
-          overrides={overrides}
-          activeProgram={activeProgram}
-          activeProgramDays={activeProgramDays}
-          onUpdate={loadData}
-        />
-      )}
+        {!isPlannerOpen && (
+          <TodayNutritionView
+            todayTemplate={todayTemplate}
+            realLog={realLog}
+            isGeneratingAi={isGeneratingAi}
+            onGenerateToday={handleAiGenerate}
+            onMarkMealAsEaten={handleMarkMealAsEaten}
+            onOpenPlanner={() => setIsPlannerOpen(true)}
+          />
+        )}
+        {isPlannerOpen && activeTab === 'recipes' && <RecipeLibrary />}
+        {isPlannerOpen && activeTab === 'days' && <DailyTemplateBuilder />}
+        {isPlannerOpen && activeTab === 'programs' && <WeeklyPlanBuilder />}
+        {isPlannerOpen && activeTab === 'calendar' && (
+          <DietCalendarView
+            templates={templates}
+            calendar={calendar}
+            recipes={recipes}
+            overrides={overrides}
+            activeProgram={activeProgram}
+            activeProgramDays={activeProgramDays}
+            onUpdate={loadData}
+          />
+        )}
       </div>
     </div>
   );

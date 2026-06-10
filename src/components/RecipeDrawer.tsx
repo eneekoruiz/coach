@@ -33,6 +33,10 @@ export default function RecipeDrawer({ isOpen, onClose, recipe }: RecipeDrawerPr
         <Drawer.Overlay className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-[100] transition-opacity" />
 
         <Drawer.Content className="bg-white border-t border-slate-200 flex flex-col rounded-t-[2.5rem] h-[85vh] fixed bottom-0 left-0 right-0 z-[150] outline-none shadow-2xl overflow-hidden pb-[env(safe-area-inset-bottom)]">
+          <Drawer.Title className="sr-only">Ficha clínica de receta</Drawer.Title>
+          <Drawer.Description className="sr-only">
+            Panel con ingredientes, macros e instrucciones de preparación de la receta.
+          </Drawer.Description>
           <div className="mx-auto w-12 h-1.5 rounded-full bg-slate-200 my-4 flex-shrink-0" />
 
           <div className="flex-1 overflow-y-auto px-6 pb-6 space-y-6 custom-scrollbar">

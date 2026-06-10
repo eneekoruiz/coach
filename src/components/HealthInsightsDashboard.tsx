@@ -74,6 +74,10 @@ export default function HealthInsightsDashboard({ isOpen, onClose }: HealthInsig
 
         {/* Sliding Panel */}
         <Drawer.Content className="bg-slate-50 border-t border-slate-200 flex flex-col rounded-t-[2.5rem] h-[95vh] fixed bottom-0 left-0 right-0 z-[160] outline-none shadow-2xl overflow-hidden pb-[env(safe-area-inset-bottom)]">
+          <Drawer.Title className="sr-only">Insights y correlaciones clínicas</Drawer.Title>
+          <Drawer.Description className="sr-only">
+            Panel de analítica con correlaciones entre ánimo, nutrición e inercia semanal.
+          </Drawer.Description>
           <div className="mx-auto w-12 h-1.5 rounded-full bg-slate-200 my-4 flex-shrink-0" />
 
           <div className="flex-1 overflow-y-auto px-6 pb-6 space-y-6 custom-scrollbar">

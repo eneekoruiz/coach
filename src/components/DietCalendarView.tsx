@@ -405,7 +405,7 @@ export default function DietCalendarView({
 
       <AnimatePresence>
         {isWeeklyPlanModalOpen && (
-          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[200] flex items-end justify-center">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 0.5 }}
@@ -415,11 +415,13 @@ export default function DietCalendarView({
             />
 
             <motion.div
-              initial={{ scale: 0.96, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.96, opacity: 0 }}
-              className="relative z-10 flex max-h-[88vh] w-full max-w-lg flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl"
+              initial={{ y: '100%', opacity: 1 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: '100%', opacity: 1 }}
+              transition={{ type: 'spring', damping: 28, stiffness: 240 }}
+              className="relative z-10 flex max-h-[88dvh] w-full max-w-2xl flex-col rounded-t-[2.5rem] border-t border-slate-200 bg-white p-5 pb-8 shadow-[0_-18px_60px_rgba(15,23,42,0.14)]"
             >
+              <div className="mx-auto mb-5 h-1.5 w-12 rounded-full bg-slate-200" />
               <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4">
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
-import { dailyLogSchema, type DailyLog, type DietTemplate, type Recipe, type DietProgram, type DietProgramDay, type DailyDietOverride } from '@/lib/schema';
+import { dailyLogSchema, type DailyLog, type DietTemplate, type Recipe, type DietProgram, type DietProgramDay, type DailyDietOverride, type MealItem } from '@/lib/schema';
 import { getNormalizedDate } from '@/lib/date-utils';
 import { 
   getDietTemplates, 
@@ -10,14 +10,15 @@ import {
   autocompleteDietWithAi, 
   getRecipes, 
   getActiveDietProgram, 
-  getDailyDietOverrides 
+  getDailyDietOverrides,
+  markMealAsEaten,
 } from '@/app/nutrition/actions';
 import toast from '@/lib/toast';
 
 export type NutritionTab = 'recipes' | 'days' | 'programs' | 'calendar';
 
 export function useNutritionPlan(initialTab?: NutritionTab) {
-  const [activeTab, setActiveTab] = useState<NutritionTab>(initialTab || 'recipes');
+  const [activeTab, setActiveTab] = useState<NutritionTab>(initialTab || 'calendar');
   const [loading, setLoading] = useState(true);
   const [authRequired, setAuthRequired] = useState(false);
   const [templates, setTemplates] = useState<DietTemplate[]>([]);
@@ -152,7 +153,7 @@ export function useNutritionPlan(initialTab?: NutritionTab) {
 
     (async () => {
       try {
-        const res = await autocompleteDietWithAi('Necesito una dieta balanceada para empezar.');
+        const res = await autocompleteDietWithAi('Genera un menú completo para hoy con desayuno, comida y cena, equilibrado y fácil de seguir.');
         if (res.success && res.data) {
           const { saveDietTemplate, assignTemplateToDates } = await import('@/app/nutrition/actions');
           const saved = await saveDietTemplate(res.data);
@@ -179,6 +180,62 @@ export function useNutritionPlan(initialTab?: NutritionTab) {
     })();
   };
 
+  const handleMarkMealAsEaten = async (meal: MealItem) => {
+    const mealKey = `${meal.name}-${meal.text}`;
+    const wasAlreadyLogged = realLog?.comidas.some(
+      (item) => item.hora === meal.name && item.descripcion === meal.text
+    );
+
+    if (wasAlreadyLogged) {
+      toast.success('Esta comida ya estaba registrada.');
+      return;
+    }
+
+    const optimisticLog: DailyLog = {
+      date: todayStr,
+      comidas: [
+        ...(realLog?.comidas ?? []),
+        {
+          hora: meal.name,
+          descripcion: meal.text || meal.name,
+          calidad_nutricional: 'buena',
+        },
+      ],
+      hidratacion_ml: realLog?.hidratacion_ml ?? 0,
+      toxinas: realLog?.toxinas ?? [],
+      bio_avatar: realLog?.bio_avatar ?? {
+        estado_fisiologico: 'Estable',
+        energia_fisica: 3,
+        claridad_mental: 3,
+      },
+      metricas: realLog?.metricas ?? {
+        variacion_inercia: 0,
+        aciertos: [],
+        error_clave: 'ninguno',
+        accion_manana: 'Ninguna',
+      },
+      water_ml: realLog?.water_ml ?? 0,
+      total_kcal: (realLog?.total_kcal ?? 0) + Math.round(meal.target_kcal),
+      protein_g: (realLog?.protein_g ?? 0) + Math.round(meal.target_protein),
+      carbs_g: (realLog?.carbs_g ?? 0) + Math.round(meal.target_carbs),
+      fats_g: (realLog?.fats_g ?? 0) + Math.round(meal.target_fats),
+      habits_count: realLog?.habits_count ?? {},
+      propuestas_habitos: realLog?.propuestas_habitos ?? [],
+    };
+
+    setRealLog(optimisticLog);
+    toast.success(`${meal.name} registrado`, { description: mealKey });
+
+    const result = await markMealAsEaten(meal, todayStr, todayTemplate?.id);
+    if (!result.success) {
+      toast.error(result.error || 'No se pudo registrar la comida.');
+      await loadData();
+      return;
+    }
+
+    await loadData();
+  };
+
   return {
     activeTab,
     setActiveTab,
@@ -196,5 +253,6 @@ export function useNutritionPlan(initialTab?: NutritionTab) {
     todayTemplate,
     loadData,
     handleAiGenerate,
+    handleMarkMealAsEaten,
   };
 }

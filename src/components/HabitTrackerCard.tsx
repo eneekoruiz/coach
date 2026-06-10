@@ -5,6 +5,7 @@ import HabitDetailModal from './HabitDetailModal';
 import { useHaptic } from '@/hooks/useHaptic';
 import StreakFlame from './StreakFlame';
 import toast from '@/lib/toast';
+import BottomSheet from './BottomSheet';
 
 interface HabitTrackerCardProps {
   habit: HabitRow;
@@ -13,6 +14,7 @@ interface HabitTrackerCardProps {
   onValueChange: (habitId: number, nextValue: number) => void;
   onSave: (habitId: number) => void;
   onSaveValue: (habitId: number, nextValue: number, metadata?: { relapseFactor?: 'stress' | 'social' | 'boredom' | 'craving' | 'other' | null }) => Promise<void>;
+  onUpdateSettings: (habitId: number, settings: { toleranceThreshold?: number; targetValue?: number; unit?: string | null }) => Promise<void>;
   recentLogs: DailyLogRow[];
 }
 
@@ -23,6 +25,7 @@ export default function HabitTrackerCard({
   onValueChange,
   onSave,
   onSaveValue,
+  onUpdateSettings,
   recentLogs,
 }: HabitTrackerCardProps) {
   const haptic = useHaptic();
@@ -44,13 +47,20 @@ export default function HabitTrackerCard({
 
   const isPositive = habit.type === 'positive';
   const targetValue = habit.target_value ?? habit.tolerance_threshold ?? 1;
+  const graceLimit = Math.max(0, habit.tolerance_threshold ?? 0);
   const isGoalMetToday = isPositive
     ? optimisticValue >= targetValue
-    : optimisticValue === 0;
+    : optimisticValue <= graceLimit;
+  const isPerfectNegative = !isPositive && optimisticValue === 0;
+  const isSlipNegative = !isPositive && optimisticValue > 0 && optimisticValue <= graceLimit;
 
   const displayedStreak = isPositive
     ? (isGoalMetToday ? habit.current_streak + 1 : habit.current_streak)
-    : (isGoalMetToday ? habit.current_streak : 0);
+    : isPerfectNegative
+    ? habit.current_streak + 1
+    : isSlipNegative
+    ? Math.max(0, habit.current_streak - Math.ceil(optimisticValue))
+    : 0;
 
   const prevDisplayedStreakRef = useRef(displayedStreak);
 
@@ -184,7 +194,7 @@ export default function HabitTrackerCard({
       : 0;
 
   const trendLabel = habit.type === 'negative' ? 'evitar' : 'cumplir';
-  const isExceededNegative = !isPositive && optimisticValue > habit.tolerance_threshold;
+  const isExceededNegative = !isPositive && optimisticValue > graceLimit;
 
   return (
     <>
@@ -214,7 +224,11 @@ export default function HabitTrackerCard({
           }}
           transition={{ duration: 0.3 }}
           onClick={() => setIsDetailOpen(true)}
-          className={`group flex items-center justify-between p-3 rounded-2xl border shadow-sm hover:shadow-md cursor-pointer transition-shadow duration-300 ${showGlow ? 'ring-2 ring-emerald-400 shadow-emerald-100' : ''}`}
+          className={`group flex items-center justify-between p-3 rounded-2xl border shadow-sm hover:shadow-md cursor-pointer transition-all duration-300 ${
+            isPositive
+              ? 'bg-[linear-gradient(135deg,#ffffff_0%,#f0fdf4_100%)]'
+              : 'bg-[linear-gradient(135deg,#ffffff_0%,#fff1f2_100%)]'
+          } ${showGlow ? 'ring-2 ring-emerald-400 shadow-emerald-100' : ''}`}
         >
           <div className="flex items-center gap-3 min-w-0 flex-1">
             <div className={`flex items-center justify-center w-9 h-9 rounded-xl shrink-0 ${isPositive ? 'bg-emerald-50 text-emerald-500' : 'bg-rose-50 text-rose-500'}`}>
@@ -223,13 +237,22 @@ export default function HabitTrackerCard({
             
             <div className="min-w-0 flex-1">
               <h3 className={`text-sm font-black truncate transition-colors duration-300 ${isExceededNegative ? 'text-rose-900' : 'text-slate-900'}`}>{habit.name}</h3>
+              <span className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-[8px] font-black uppercase tracking-[0.14em] ${
+                isPositive
+                  ? 'bg-emerald-100 text-emerald-700'
+                  : isSlipNegative
+                  ? 'bg-amber-100 text-amber-700'
+                  : 'bg-rose-100 text-rose-700'
+              }`}>
+                {isPositive ? 'Construcción' : isSlipNegative ? 'Desliz controlado' : 'Días limpio'}
+              </span>
               {isPositive ? (
                 <p className="mt-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-400">
                   Meta: {targetValue}{habit.unit ? ` ${habit.unit}` : ''}/día
                 </p>
               ) : (
-                <p className={`text-[9px] font-bold uppercase tracking-wider mt-0.5 transition-colors duration-300 ${isExceededNegative ? 'text-rose-600' : 'text-slate-400'}`}>
-                  Días limpio: mantener 0
+                <p className={`text-[9px] font-bold uppercase tracking-wider mt-0.5 transition-colors duration-300 ${isExceededNegative ? 'text-rose-600' : isSlipNegative ? 'text-amber-600' : 'text-slate-400'}`}>
+                  {graceLimit > 0 ? `Límite flexible: ${graceLimit}/día` : 'Modo estricto: 0/día'}
                 </p>
               )}
               <div className="mt-1 flex items-baseline gap-1">
@@ -259,49 +282,39 @@ export default function HabitTrackerCard({
         </motion.div>
       </div>
 
-      <AnimatePresence>
-        {isRelapseOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[180] flex items-center justify-center bg-slate-950/30 p-4 backdrop-blur-sm"
-            onClick={() => setIsRelapseOpen(false)}
-          >
-            <motion.div
-              initial={{ y: 16, scale: 0.96 }}
-              animate={{ y: 0, scale: 1 }}
-              exit={{ y: 16, scale: 0.96 }}
-              onClick={(event: React.MouseEvent<HTMLDivElement>) => event.stopPropagation()}
-              className="w-full max-w-sm rounded-3xl border border-rose-100 bg-white p-5 shadow-2xl"
-            >
-              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-rose-400">Registrar recaída</p>
-              <h3 className="mt-2 text-xl font-black tracking-tight text-slate-950">{habit.name}</h3>
-              <p className="mt-2 text-sm leading-6 text-slate-500">
-                Elige el detonante. Esto alimenta tus estadísticas de resiliencia, no un juicio.
-              </p>
-              <div className="mt-4 grid grid-cols-2 gap-2">
-                {[
-                  ['stress', 'Estrés'],
-                  ['social', 'Social'],
-                  ['boredom', 'Aburrimiento'],
-                  ['craving', 'Antojo'],
-                  ['other', 'Otro'],
-                ].map(([value, label]) => (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => confirmRelapse(value as 'stress' | 'social' | 'boredom' | 'craving' | 'other')}
-                    className="min-h-[44px] rounded-2xl border border-slate-200 bg-slate-50 px-3 text-sm font-bold text-slate-700 transition-all duration-200 ease-in-out hover:bg-white active:scale-95"
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <BottomSheet
+        isOpen={isRelapseOpen}
+        onClose={() => setIsRelapseOpen(false)}
+        title="Registrar recaída"
+      >
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-rose-400">
+            Resiliencia
+          </p>
+          <h3 className="mt-2 text-xl font-black tracking-tight text-slate-950">{habit.name}</h3>
+          <p className="mt-2 text-sm leading-6 text-slate-500">
+            Elige el detonante. Esto alimenta tus estadísticas de resiliencia, no un juicio.
+          </p>
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            {[
+              ['stress', 'Estrés'],
+              ['social', 'Social'],
+              ['boredom', 'Aburrimiento'],
+              ['craving', 'Antojo'],
+              ['other', 'Otro'],
+            ].map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => confirmRelapse(value as 'stress' | 'social' | 'boredom' | 'craving' | 'other')}
+                className="min-h-[44px] rounded-2xl border border-slate-200 bg-slate-50 px-3 text-sm font-bold text-slate-700 transition-all duration-200 ease-in-out hover:bg-white active:scale-95"
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </BottomSheet>
 
       <HabitDetailModal
         habit={habit}
@@ -311,6 +324,7 @@ export default function HabitTrackerCard({
         isPending={isPending}
         onValueChange={onValueChange}
         onSaveDirect={handleSaveDirect}
+        onUpdateSettings={onUpdateSettings}
         recentLogs={recentLogs}
         streakProgress={streakProgress}
         trendLabel={trendLabel}
