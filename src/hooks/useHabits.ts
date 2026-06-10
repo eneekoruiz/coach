@@ -89,10 +89,60 @@ export function useHabits() {
         throw new Error(getSafeMessage(logsResult.error));
       }
 
-      const nextHabits = Array.isArray(habitsResult.data)
+      let nextHabits = Array.isArray(habitsResult.data)
         ? habitsResult.data.filter(isHabitRow)
         : [];
       const nextLogs = Array.isArray(logsResult.data) ? logsResult.data.filter(isDailyLogRow) : [];
+
+      if (nextHabits.length === 0) {
+        const seedRows = [
+          {
+            user_id: user.id,
+            name: 'Beber 2L de Agua',
+            type: 'positive',
+            is_custom: false,
+            tolerance_threshold: 2000,
+            target_value: 2000,
+            unit: 'ml',
+            current_streak: 0,
+            longest_streak: 0,
+            shields: 1,
+          },
+          {
+            user_id: user.id,
+            name: 'Caminar 8k pasos',
+            type: 'positive',
+            is_custom: false,
+            tolerance_threshold: 8000,
+            target_value: 8000,
+            unit: 'pasos',
+            current_streak: 0,
+            longest_streak: 0,
+            shields: 1,
+          },
+          {
+            user_id: user.id,
+            name: 'Sin comida basura',
+            type: 'negative',
+            is_custom: false,
+            tolerance_threshold: 0,
+            target_value: 0,
+            unit: 'recaídas',
+            relapse_unit_cost: 8,
+            relapse_unit_minutes: 20,
+            current_streak: 0,
+            longest_streak: 0,
+            shields: 0,
+          },
+        ];
+
+        const { data: insertedHabits } = await supabase
+          .from('user_habits')
+          .insert(seedRows)
+          .select('*');
+
+        nextHabits = Array.isArray(insertedHabits) ? insertedHabits.filter(isHabitRow) : nextHabits;
+      }
 
       if (!cancelled) {
         setHabits(nextHabits);
@@ -164,7 +214,11 @@ export function useHabits() {
   }, []);
 
   const saveHabitValue = useCallback(
-    async (habitId: number, nextValue: number) => {
+    async (
+      habitId: number,
+      nextValue: number,
+      metadata?: { relapseFactor?: HabitTrackingEntry['relapse_factor'] }
+    ) => {
       const previousValue = values[habitId] ?? 0;
       setValues((current) => ({ ...current, [habitId]: nextValue }));
 
@@ -172,7 +226,11 @@ export function useHabits() {
         setRecentLogs((currentLogs) => {
           const nextLogs = [...currentLogs];
           const index = nextLogs.findIndex((log) => log.date === selectedDate);
-          const trackingEntry: HabitTrackingEntry = { habit_id: habitId, amount: nextValue };
+          const trackingEntry: HabitTrackingEntry = {
+            habit_id: habitId,
+            amount: nextValue,
+            relapse_factor: metadata?.relapseFactor ?? null,
+          };
 
           if (index >= 0) {
             const existingTracking = nextLogs[index].habit_tracking ?? [];
@@ -197,7 +255,12 @@ export function useHabits() {
       try {
         await executeMutation(
           '/api/habits/update-today',
-          { habit_id: habitId, amount: nextValue, date: selectedDate },
+          {
+            habit_id: habitId,
+            amount: nextValue,
+            date: selectedDate,
+            relapse_factor: metadata?.relapseFactor ?? null,
+          },
           {
             optimisticUpdate: () => {
               hapticLight();

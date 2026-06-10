@@ -2,11 +2,12 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { type IngredientItem, type Recipe } from '@/lib/schema';
-import { deleteRecipe, getRecipes, saveRecipe } from '@/app/nutrition/actions';
+import { autocompleteRecipeWithAi, deleteRecipe, getRecipes, saveRecipe } from '@/app/nutrition/actions';
 import toast from '@/lib/toast';
 import {
   Calculator,
   GripVertical,
+  WandSparkles,
   Plus,
   Save,
   Search,
@@ -44,6 +45,9 @@ export default function RecipeLibrary() {
   const [instructions, setInstructions] = useState('');
   const [ingredients, setIngredients] = useState<IngredientItem[]>([]);
   const [ingredientDraft, setIngredientDraft] = useState(emptyIngredient);
+  const [showAdvancedMacros, setShowAdvancedMacros] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [aiBusy, setAiBusy] = useState(false);
 
   const loadRecipes = async () => {
     setLoading(true);
@@ -119,6 +123,27 @@ export default function RecipeLibrary() {
     setIngredientDraft(emptyIngredient);
   };
 
+  const handleAiFill = async () => {
+    const prompt = aiPrompt.trim() || recipeName.trim();
+    if (!prompt) {
+      toast.error('Escribe una receta o ingredientes para rellenar con IA.');
+      return;
+    }
+
+    setAiBusy(true);
+    const result = await autocompleteRecipeWithAi(prompt);
+    setAiBusy(false);
+    if (!result.success || !result.data) {
+      toast.error(result.error || 'No se pudo rellenar la receta.');
+      return;
+    }
+
+    setRecipeName(result.data.name);
+    setIngredients(result.data.ingredients_json);
+    setInstructions(result.data.instructions || '');
+    toast.success('Receta rellenada con IA');
+  };
+
   const removeIngredient = (index: number) => {
     setIngredients((current) => current.filter((_, itemIndex) => itemIndex !== index));
   };
@@ -176,8 +201,8 @@ export default function RecipeLibrary() {
   };
 
   return (
-    <div className="grid grid-cols-1 gap-5 lg:grid-cols-[320px_minmax(0,1fr)]">
-      <aside className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+    <div className="grid h-full min-h-0 grid-cols-1 gap-3 overflow-hidden lg:grid-cols-[300px_minmax(0,1fr)]">
+      <aside className="flex min-h-0 flex-col rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
@@ -209,7 +234,7 @@ export default function RecipeLibrary() {
           />
         </div>
 
-        <div className="mt-4 max-h-[620px] space-y-2 overflow-y-auto pr-1 custom-scrollbar">
+        <div className="mt-3 min-h-0 flex-1 space-y-2 overflow-y-auto pr-1 scrollbar-hide">
           {loading ? (
             <div className="space-y-2">
               <div className="h-20 rounded-xl border border-slate-100 bg-slate-50 animate-pulse" />
@@ -262,9 +287,9 @@ export default function RecipeLibrary() {
         </div>
       </aside>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <form onSubmit={handleSaveRecipe} className="flex h-full flex-col gap-5">
-          <div className="flex flex-col gap-3 border-b border-slate-100 pb-4 md:flex-row md:items-start md:justify-between">
+      <section className="min-h-0 overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <form onSubmit={handleSaveRecipe} className="flex h-full min-h-0 flex-col gap-3">
+          <div className="flex flex-col gap-3 border-b border-slate-100 pb-3 md:flex-row md:items-start md:justify-between">
             <div className="min-w-0 flex-1">
               <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
                 Lienzo de Trabajo
@@ -274,7 +299,7 @@ export default function RecipeLibrary() {
                 value={recipeName}
                 onChange={(event) => setRecipeName(event.target.value)}
                 placeholder="Selecciona o crea una receta"
-                className="mt-1 w-full rounded-none border-b border-transparent bg-transparent pb-1 text-xl font-black text-slate-900 outline-none transition focus:border-slate-300"
+                className="mt-1 w-full rounded-none border-b border-transparent bg-transparent pb-1 text-lg font-black text-slate-900 outline-none transition focus:border-slate-300"
               />
             </div>
             <div className="flex gap-2">
@@ -314,20 +339,46 @@ export default function RecipeLibrary() {
             ))}
           </div>
 
-          <div>
+          <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_300px]">
+            <div>
             <label className="block text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
               Preparación
             </label>
             <textarea
               value={instructions}
               onChange={(event) => setInstructions(event.target.value)}
-              rows={4}
+              rows={3}
               placeholder="Pasos, timing, textura, sustituciones clínicas..."
               className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-700 outline-none transition focus:border-slate-400 focus:bg-white"
             />
+            </div>
+            <div className="rounded-xl border border-cyan-100 bg-cyan-50/60 p-3">
+              <div className="flex items-center gap-2">
+                <WandSparkles className="h-4 w-4 text-cyan-600" />
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-cyan-700">
+                  Magic Wand
+                </p>
+              </div>
+              <textarea
+                value={aiPrompt}
+                onChange={(event) => setAiPrompt(event.target.value)}
+                rows={2}
+                placeholder="150g pechuga de pollo y 50g arroz"
+                className="mt-2 w-full rounded-xl border border-cyan-100 bg-white px-3 py-2 text-xs font-semibold text-slate-700 outline-none"
+              />
+              <button
+                type="button"
+                onClick={handleAiFill}
+                disabled={aiBusy}
+                className="mt-2 inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-cyan-600 text-xs font-black text-white transition-all duration-200 ease-in-out hover:bg-cyan-500 active:scale-95 disabled:opacity-60"
+              >
+                <WandSparkles className="h-4 w-4" />
+                {aiBusy ? 'Rellenando...' : 'Rellenar con IA'}
+              </button>
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="grid min-h-0 grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_300px]">
             <div>
               <div className="mb-2 flex items-center justify-between">
                 <h4 className="text-xs font-black uppercase tracking-[0.12em] text-slate-800">
@@ -338,12 +389,15 @@ export default function RecipeLibrary() {
                 </span>
               </div>
 
-              <div className="max-h-64 space-y-2 overflow-y-auto pr-1 custom-scrollbar">
+              <div className="max-h-52 space-y-2 overflow-y-auto pr-1 scrollbar-hide">
                 {ingredients.length === 0 ? (
                   <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center">
-                    <Calculator className="mx-auto h-7 w-7 text-slate-300" />
-                    <p className="mt-2 text-xs font-bold text-slate-500">
-                      Añade ingredientes para calcular macros.
+                    <WandSparkles className="mx-auto h-8 w-8 text-cyan-400" />
+                    <p className="mt-2 text-sm font-black text-slate-700">
+                      Recetario mágico listo
+                    </p>
+                    <p className="mt-1 text-xs font-semibold text-slate-500">
+                      Escribe ingredientes simples o usa IA para estructurar macros.
                     </p>
                   </div>
                 ) : (
@@ -400,6 +454,16 @@ export default function RecipeLibrary() {
                     className="h-9 rounded-lg border border-slate-200 bg-white px-2 text-xs font-bold text-slate-700 outline-none focus:border-slate-400"
                   />
                 </div>
+                <label className="flex min-h-[44px] items-center justify-between rounded-xl border border-slate-200 bg-white px-3 text-xs font-black text-slate-600">
+                  Macros avanzados
+                  <input
+                    type="checkbox"
+                    checked={showAdvancedMacros}
+                    onChange={(event) => setShowAdvancedMacros(event.target.checked)}
+                    className="h-4 w-4"
+                  />
+                </label>
+                {showAdvancedMacros && (
                 <div className="grid grid-cols-4 gap-2">
                   {[
                     ['kcal', 'kcal'],
@@ -420,6 +484,7 @@ export default function RecipeLibrary() {
                     </label>
                   ))}
                 </div>
+                )}
                 <button
                   type="button"
                   onClick={addIngredient}

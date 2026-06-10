@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Activity, Flame, Plus, ShieldCheck, Sparkles, Trophy } from 'lucide-react';
+import { Activity, Flame, Plus, ShieldCheck, Sparkles, Trophy, Target, Ban } from 'lucide-react';
 import HabitCreateModal from './HabitCreateModal';
 import HabitTrackerCard from './HabitTrackerCard';
 import { useHabits } from '@/hooks/useHabits';
@@ -77,7 +77,7 @@ export default function HabitSanctuary() {
     const total = habits.length;
     const completed = habits.filter((habit) => {
       const outcome = computeHabitOutcome(habit, values[habit.id] ?? 0);
-      return outcome === 'perfect' || outcome === 'yellow';
+      return outcome === 'perfect';
     }).length;
     const topStreakHabit = habits.reduce<(typeof habits)[number] | null>((top, habit) => {
       if (!top) return habit;
@@ -96,12 +96,14 @@ export default function HabitSanctuary() {
       topStreak: topStreakHabit?.current_streak ?? 0,
     };
   }, [habits, values]);
+  const positiveHabits = useMemo(() => habits.filter((habit) => habit.type === 'positive'), [habits]);
+  const negativeHabits = useMemo(() => habits.filter((habit) => habit.type === 'negative'), [habits]);
 
   if (authRequired) {
     return (
       <div className="flex h-full items-center justify-center bg-slate-50 p-6 text-center">
         <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-          <p className="text-sm font-bold text-slate-600">Inicia sesión para ver tus hábitos.</p>
+          <p className="text-sm text-slate-600">Inicia sesión para ver tus hábitos.</p>
         </div>
       </div>
     );
@@ -114,7 +116,7 @@ export default function HabitSanctuary() {
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.34em] text-slate-400">Habit Sanctuary</p>
             <h1 className="mt-1 text-3xl font-black tracking-tight text-slate-950">Hábitos</h1>
-            <p className="mt-1 text-sm font-semibold text-slate-500">
+            <p className="mt-1 text-sm text-slate-500">
               Rachas, protección y consistencia de largo plazo.
             </p>
           </div>
@@ -135,7 +137,7 @@ export default function HabitSanctuary() {
             </div>
             <button
               onClick={() => setIsCreateOpen(true)}
-              className="inline-flex min-h-[60px] items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-xs font-black uppercase tracking-wider text-white shadow-sm transition active:scale-95"
+              className="inline-flex min-h-[60px] items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-xs font-black uppercase tracking-wider text-white shadow-sm transition-all duration-200 ease-in-out active:scale-95"
             >
               <Plus className="h-4 w-4" />
               Nuevo
@@ -144,8 +146,8 @@ export default function HabitSanctuary() {
         </div>
       </header>
 
-      <section className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6 lg:px-8 custom-scrollbar">
-        <div className="mx-auto grid w-full max-w-7xl gap-5 lg:grid-cols-[390px_minmax(0,1fr)]">
+      <section className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6 lg:px-8 scrollbar-hide">
+        <div className="mx-auto grid min-h-full w-full max-w-7xl gap-5 lg:grid-cols-[390px_minmax(0,1fr)]">
           <aside className="space-y-5">
             <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
               <div className="flex justify-center">
@@ -188,11 +190,11 @@ export default function HabitSanctuary() {
             </div>
           </aside>
 
-          <div className="min-h-0 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+          <div className="flex min-h-0 flex-col rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Sistema de rachas</p>
-                <h2 className="mt-1 text-xl font-black text-slate-950">Hábitos activos</h2>
+                <p className="text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Habit Engine</p>
+                <h2 className="mt-1 text-xl font-black text-slate-950">Construcción y Resiliencia</h2>
               </div>
               <Sparkles className="h-5 w-5 text-emerald-500" />
             </div>
@@ -204,35 +206,94 @@ export default function HabitSanctuary() {
                 ))}
               </div>
             ) : errorMessage ? (
-              <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-700">
+              <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
                 {errorMessage}
               </div>
             ) : habits.length === 0 ? (
               <div className="flex min-h-72 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center">
                 <ShieldCheck className="h-10 w-10 text-slate-300" />
-                <p className="mt-3 text-sm font-bold text-slate-600">Crea tu primer hábito para activar rachas.</p>
+                <p className="mt-3 text-sm text-slate-600">Crea tu primer hábito para activar rachas.</p>
                 <button
                   onClick={() => setIsCreateOpen(true)}
-                  className="mt-4 inline-flex min-h-[44px] items-center gap-2 rounded-full bg-slate-950 px-5 py-2 text-xs font-black uppercase tracking-wider text-white"
+                  className="mt-4 inline-flex min-h-[44px] items-center gap-2 rounded-full bg-slate-950 px-5 py-2 text-xs font-black uppercase tracking-wider text-white transition-all duration-200 ease-in-out active:scale-95"
                 >
                   <Plus className="h-4 w-4" />
                   Crear hábito
                 </button>
               </div>
             ) : (
-              <div className="grid gap-3 lg:grid-cols-2">
-                {habits.map((habit) => (
-                  <HabitTrackerCard
-                    key={habit.id}
-                    habit={habit}
-                    value={values[habit.id] ?? 0}
-                    saving={!!savingMap[habit.id]}
-                    onValueChange={updateHabitValue}
-                    onSave={saveHabit}
-                    onSaveValue={saveHabitValue}
-                    recentLogs={recentLogs}
-                  />
-                ))}
+              <div className="space-y-5 overflow-y-auto pr-1 scrollbar-hide">
+                <section className="rounded-3xl border border-emerald-100 bg-emerald-50/40 p-3">
+                  <div className="mb-3 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-white text-emerald-600 ring-1 ring-emerald-100">
+                        <Target className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600">Construcción</p>
+                        <h3 className="text-sm font-black text-slate-950">Hábitos Positivos</h3>
+                      </div>
+                    </div>
+                    <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-emerald-700 ring-1 ring-emerald-100">
+                      {positiveHabits.length}
+                    </span>
+                  </div>
+                  <div className="grid gap-3 lg:grid-cols-2">
+                    {positiveHabits.map((habit) => (
+                      <HabitTrackerCard
+                        key={habit.id}
+                        habit={habit}
+                        value={values[habit.id] ?? 0}
+                        saving={!!savingMap[habit.id]}
+                        onValueChange={updateHabitValue}
+                        onSave={saveHabit}
+                        onSaveValue={saveHabitValue}
+                        recentLogs={recentLogs}
+                      />
+                    ))}
+                    {positiveHabits.length === 0 && (
+                      <div className="rounded-2xl border border-dashed border-emerald-200 bg-white p-5 text-sm text-slate-500">
+                        Añade un hábito de construcción: agua, lectura, pasos o proteína.
+                      </div>
+                    )}
+                  </div>
+                </section>
+
+                <section className="rounded-3xl border border-rose-100 bg-rose-50/40 p-3">
+                  <div className="mb-3 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-white text-rose-600 ring-1 ring-rose-100">
+                        <Ban className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-rose-600">Resiliencia</p>
+                        <h3 className="text-sm font-black text-slate-950">Hábitos Negativos</h3>
+                      </div>
+                    </div>
+                    <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-rose-700 ring-1 ring-rose-100">
+                      {negativeHabits.length}
+                    </span>
+                  </div>
+                  <div className="grid gap-3 lg:grid-cols-2">
+                    {negativeHabits.map((habit) => (
+                      <HabitTrackerCard
+                        key={habit.id}
+                        habit={habit}
+                        value={values[habit.id] ?? 0}
+                        saving={!!savingMap[habit.id]}
+                        onValueChange={updateHabitValue}
+                        onSave={saveHabit}
+                        onSaveValue={saveHabitValue}
+                        recentLogs={recentLogs}
+                      />
+                    ))}
+                    {negativeHabits.length === 0 && (
+                      <div className="rounded-2xl border border-dashed border-rose-200 bg-white p-5 text-sm text-slate-500">
+                        Añade un hábito de resiliencia: tabaco, alcohol, ultraprocesados o scrolling.
+                      </div>
+                    )}
+                  </div>
+                </section>
               </div>
             )}
           </div>

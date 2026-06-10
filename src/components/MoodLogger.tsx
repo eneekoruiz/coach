@@ -17,8 +17,8 @@ interface MoodLoggerProps {
 /* ─── Config ───────────────────────────────────────────────────── */
 
 const MOOD_CONFIG: Record<number, { bg: string; text: string; label: string; emoji: string }> = {
-  1: { bg: 'linear-gradient(135deg, #1e1b4b, #581c87, #0f172a)', text: 'text-white',     label: 'Muy Desagradable', emoji: '😔' },
-  2: { bg: 'linear-gradient(135deg, #475569, #1d4ed8, #334155)', text: 'text-white',     label: 'Desagradable',     emoji: '😕' },
+  1: { bg: 'linear-gradient(135deg, #7f1d1d, #be123c, #431407)', text: 'text-white',     label: 'Muy Desagradable', emoji: '😔' },
+  2: { bg: 'linear-gradient(135deg, #c2410c, #fb7185, #7c2d12)', text: 'text-white',     label: 'Desagradable',     emoji: '😕' },
   3: { bg: 'linear-gradient(135deg, #e2e8f0, #d1fae5, #e2e8f0)', text: 'text-slate-800', label: 'Neutral',          emoji: '😐' },
   4: { bg: 'linear-gradient(135deg, #fde68a, #ffedd5, #fef3c7)', text: 'text-slate-800', label: 'Agradable',        emoji: '😊' },
   5: { bg: 'linear-gradient(135deg, #fb923c, #fcd34d, #fde047)', text: 'text-slate-900', label: 'Muy Agradable',    emoji: '😄' },
@@ -31,8 +31,8 @@ const IMPACT_FACTORS = [
 
 /* Dot ring colors per score (outer glow / ring) */
 const DOT_RING: Record<number, string> = {
-  1: 'rgba(139,92,246,0.5)',
-  2: 'rgba(59,130,246,0.5)',
+  1: 'rgba(190,18,60,0.5)',
+  2: 'rgba(249,115,22,0.5)',
   3: 'rgba(16,185,129,0.45)',
   4: 'rgba(245,158,11,0.45)',
   5: 'rgba(249,115,22,0.5)',

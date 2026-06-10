@@ -29,15 +29,13 @@ function createSupabaseClient(authHeader?: string) {
 }
 
 export function computeHabitOutcome(habit: HabitRow, amount: number) {
-  // returns state: 'perfect' | 'yellow' | 'broken' | 'no-data'
   if (habit.type === 'negative') {
     if (amount === 0) return 'perfect';
-    if (amount > 0 && amount < habit.tolerance_threshold) return 'yellow';
     return 'broken';
   }
 
   // positive
-  if (amount > 0) return 'perfect';
+  if (amount >= (habit.target_value ?? habit.tolerance_threshold ?? 1)) return 'perfect';
   return 'missed';
 }
 
@@ -67,25 +65,18 @@ export async function evaluateAndUpdateStreaks(
 
     if (h.type === 'negative') {
       if (amount === 0) {
-        // increment streak
         const next = (h.current_streak ?? 0) + 1;
         const longest = Math.max(h.longest_streak ?? 0, next);
         updates.push({ id: h.id, current_streak: next, longest_streak: longest });
-      } else if (amount > 0 && amount < h.tolerance_threshold) {
-        // freeze: no change
-        updates.push({ id: h.id });
       } else {
-        // broken
         updates.push({ id: h.id, current_streak: 0 });
       }
     } else {
-      // positive
-      if (amount > 0) {
+      if (amount >= (h.target_value ?? h.tolerance_threshold ?? 1)) {
         const next = (h.current_streak ?? 0) + 1;
         const longest = Math.max(h.longest_streak ?? 0, next);
         updates.push({ id: h.id, current_streak: next, longest_streak: longest });
       } else {
-        // missed: consume shield if any, else break
         if ((h.shields ?? 0) > 0) {
           updates.push({ id: h.id, shields: (h.shields ?? 0) - 1 });
         } else {

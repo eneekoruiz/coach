@@ -33,14 +33,14 @@ interface MoodCalendarProps {
 
 const MOOD_ORBS: Record<number, { gradient: string; glow: string; ring: string }> = {
   1: {
-    gradient: 'radial-gradient(circle, rgba(99,102,241,0.55) 0%, rgba(67,56,202,0.3) 50%, transparent 80%)',
-    glow: 'shadow-[0_0_18px_rgba(99,102,241,0.4)]',
-    ring: 'ring-indigo-400/30',
+    gradient: 'radial-gradient(circle, rgba(190,18,60,0.58) 0%, rgba(127,29,29,0.32) 50%, transparent 80%)',
+    glow: 'shadow-[0_0_18px_rgba(190,18,60,0.38)]',
+    ring: 'ring-rose-500/30',
   },
   2: {
-    gradient: 'radial-gradient(circle, rgba(96,165,250,0.45) 0%, rgba(59,130,246,0.2) 50%, transparent 80%)',
-    glow: 'shadow-[0_0_16px_rgba(96,165,250,0.35)]',
-    ring: 'ring-blue-400/25',
+    gradient: 'radial-gradient(circle, rgba(249,115,22,0.5) 0%, rgba(251,113,133,0.24) 50%, transparent 80%)',
+    glow: 'shadow-[0_0_16px_rgba(249,115,22,0.35)]',
+    ring: 'ring-orange-400/25',
   },
   3: {
     gradient: 'radial-gradient(circle, rgba(167,243,208,0.5) 0%, rgba(110,231,183,0.25) 50%, transparent 80%)',
@@ -68,16 +68,16 @@ const MOOD_LABELS: Record<number, { label: string; emoji: string }> = {
 };
 
 const MOOD_CONFIG: Record<number, { bg: string; text: string; label: string; emoji: string }> = {
-  1: { bg: 'linear-gradient(135deg, #1e1b4b, #581c87, #0f172a)', text: 'text-white',     label: 'Muy Desagradable', emoji: '😔' },
-  2: { bg: 'linear-gradient(135deg, #475569, #1d4ed8, #334155)', text: 'text-white',     label: 'Desagradable',     emoji: '😕' },
+  1: { bg: 'linear-gradient(135deg, #7f1d1d, #be123c, #431407)', text: 'text-white',     label: 'Muy Desagradable', emoji: '😔' },
+  2: { bg: 'linear-gradient(135deg, #c2410c, #fb7185, #7c2d12)', text: 'text-white',     label: 'Desagradable',     emoji: '😕' },
   3: { bg: 'linear-gradient(135deg, #e2e8f0, #d1fae5, #e2e8f0)', text: 'text-slate-800', label: 'Neutral',          emoji: '😐' },
   4: { bg: 'linear-gradient(135deg, #fde68a, #ffedd5, #fef3c7)', text: 'text-slate-800', label: 'Agradable',        emoji: '😊' },
   5: { bg: 'linear-gradient(135deg, #fb923c, #fcd34d, #fde047)', text: 'text-slate-900', label: 'Muy Agradable',    emoji: '😄' },
 };
 
 const DOT_RING: Record<number, string> = {
-  1: 'rgba(139,92,246,0.5)',
-  2: 'rgba(59,130,246,0.5)',
+  1: 'rgba(190,18,60,0.5)',
+  2: 'rgba(249,115,22,0.5)',
   3: 'rgba(16,185,129,0.45)',
   4: 'rgba(245,158,11,0.45)',
   5: 'rgba(249,115,22,0.5)',

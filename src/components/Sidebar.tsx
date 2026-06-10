@@ -80,7 +80,7 @@ export default function Sidebar() {
   ];
 
   return (
-    <aside className="hidden md:flex flex-col w-20 lg:w-64 bg-white border-r border-slate-100 shadow-sm h-full overflow-y-auto z-40">
+    <aside className="hidden md:flex h-[100dvh] w-20 flex-col overflow-hidden border-r border-slate-100 bg-white shadow-sm z-40 lg:w-64">
       <div className="flex-1 flex flex-col pt-8 pb-6 px-4 lg:px-6 gap-4">
         <Link
           href="/profile"
@@ -101,7 +101,7 @@ export default function Sidebar() {
               <Link
                 key={tab.name}
                 href={tab.href}
-                className={`relative flex items-center p-3 rounded-2xl group transition-colors duration-200 ${!isActive ? 'hover:bg-slate-50' : ''}`}
+                className={`relative flex min-h-[44px] items-center p-3 rounded-2xl group transition-all duration-200 ease-in-out ${!isActive ? 'hover:bg-slate-50' : ''}`}
               >
                 {isActive && (
                   <motion.div

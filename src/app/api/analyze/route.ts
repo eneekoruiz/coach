@@ -3,13 +3,10 @@ import { z } from 'zod';
 
 import { resolveAuthenticatedClient } from '@/services/authService';
 import {
-  analyzeAndPersistDailyLog,
   streamAnalyzeAndPersistDailyLog,
-  createSafeDemoResponse,
   ImageTooLargeError,
-  AiServiceError,
-  DatabaseError,
 } from '@/services/analyzeService';
+import { createFallbackDailyLog, withTimeout } from '@/services/aiRuntime';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'edge';
@@ -97,11 +94,6 @@ function checkRateLimit(userId: string): boolean {
 
 export async function POST(request: Request) {
   try {
-    // 1) Verify presence of Gemini API key immediately
-    if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
-      throw new Error('La variable de entorno GOOGLE_GENERATIVE_AI_API_KEY no está configurada.');
-    }
-
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
       throw new Error('Las variables de entorno de Supabase no están configuradas.');
     }
@@ -149,18 +141,30 @@ export async function POST(request: Request) {
 
     const body: AnalyzeRequestBody = parsedBody.data;
 
+    if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
+      return new Response(
+        JSON.stringify(createFallbackDailyLog(body.local_date || new Date().toISOString().slice(0, 10), 'ai_key_missing')),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
+    }
+
     try {
-      const result = await streamAnalyzeAndPersistDailyLog({
-        text: body.text ?? '',
-        rawImage: body.image,
-        habitReports: body.habit_tracking ?? [],
-        localDate: body.local_date,
-        authHeader,
-        supabase,
-        user,
-        history: body.history,
-        sessionId: body.session_id,
-      });
+      const result = await withTimeout(
+        streamAnalyzeAndPersistDailyLog({
+          text: body.text ?? '',
+          rawImage: body.image,
+          habitReports: body.habit_tracking ?? [],
+          localDate: body.local_date,
+          authHeader,
+          supabase,
+          user,
+          history: body.history,
+          sessionId: body.session_id,
+        })
+      );
 
       return result.toTextStreamResponse();
     } catch (err) {
@@ -170,31 +174,10 @@ export async function POST(request: Request) {
         return jsonError(413, 'image_too_large', err.message);
       }
 
-      // Resilient Fallback: Return a clean fallback matching dailyLogSchema so the app never crashes
-      const today = body.local_date || new Date().toISOString().slice(0, 10);
-      const fallbackData = {
-        date: today,
-        comidas: [],
-        hidratacion_ml: 0,
-        water_ml: 0,
-        total_kcal: 0,
-        protein_g: 0,
-        carbs_g: 0,
-        fats_g: 0,
-        habits_count: {},
-        toxinas: [],
-        bio_avatar: {
-          estado_fisiologico: 'Estable',
-          energia_fisica: 3,
-          claridad_mental: 3,
-        },
-        metricas: {
-          variacion_inercia: 0,
-          aciertos: [],
-          error_clave: 'error_ia',
-          accion_manana: 'He tenido un problema procesando esos macros, ¿podrías repetirme qué comiste exactamente?',
-        },
-      };
+      const fallbackData = createFallbackDailyLog(
+        body.local_date || new Date().toISOString().slice(0, 10),
+        err instanceof Error && err.message.includes('timeout') ? 'ai_timeout' : 'error_ia'
+      );
 
       // Return a simulated structured JSON response matching the schema contract
       return new Response(JSON.stringify(fallbackData), {

@@ -12,7 +12,7 @@ interface HabitTrackerCardProps {
   saving: boolean;
   onValueChange: (habitId: number, nextValue: number) => void;
   onSave: (habitId: number) => void;
-  onSaveValue: (habitId: number, nextValue: number) => Promise<void>;
+  onSaveValue: (habitId: number, nextValue: number, metadata?: { relapseFactor?: 'stress' | 'social' | 'boredom' | 'craving' | 'other' | null }) => Promise<void>;
   recentLogs: DailyLogRow[];
 }
 
@@ -38,13 +38,15 @@ export default function HabitTrackerCard({
   const flameControls = useAnimation();
   const [showGlow, setShowGlow] = useState(false);
   const [showPerfectWeek, setShowPerfectWeek] = useState(false);
+  const [isRelapseOpen, setIsRelapseOpen] = useState(false);
 
   const prevStreakRef = useRef(habit.current_streak);
 
   const isPositive = habit.type === 'positive';
+  const targetValue = habit.target_value ?? habit.tolerance_threshold ?? 1;
   const isGoalMetToday = isPositive
-    ? (habit.tolerance_threshold > 0 ? optimisticValue >= habit.tolerance_threshold : optimisticValue >= 1)
-    : (optimisticValue <= habit.tolerance_threshold);
+    ? optimisticValue >= targetValue
+    : optimisticValue === 0;
 
   const displayedStreak = isPositive
     ? (isGoalMetToday ? habit.current_streak + 1 : habit.current_streak)
@@ -110,6 +112,10 @@ export default function HabitTrackerCard({
   const handleIncrement = (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
+    if (!isPositive) {
+      setIsRelapseOpen(true);
+      return;
+    }
     haptic.success();
     
     buttonControls.start({
@@ -135,6 +141,24 @@ export default function HabitTrackerCard({
       setOptimisticValue(nextVal);
       try {
         await onSaveValue(habit.id, nextVal);
+      } catch {
+        onValueChange(habit.id, value);
+      }
+    });
+  };
+
+  const confirmRelapse = (factor: 'stress' | 'social' | 'boredom' | 'craving' | 'other') => {
+    haptic.warning();
+    const nextVal = optimisticValue + 1;
+    setIsRelapseOpen(false);
+    onValueChange(habit.id, nextVal);
+    startTransition(async () => {
+      setOptimisticValue(nextVal);
+      try {
+        await onSaveValue(habit.id, nextVal, { relapseFactor: factor });
+        toast.warning('Recaída registrada', {
+          description: 'No rompe tu progreso: ahora sabemos qué detonante vigilar.',
+        });
       } catch {
         onValueChange(habit.id, value);
       }
@@ -199,9 +223,13 @@ export default function HabitTrackerCard({
             
             <div className="min-w-0 flex-1">
               <h3 className={`text-sm font-black truncate transition-colors duration-300 ${isExceededNegative ? 'text-rose-900' : 'text-slate-900'}`}>{habit.name}</h3>
-              {!isPositive && (
+              {isPositive ? (
+                <p className="mt-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-400">
+                  Meta: {targetValue}{habit.unit ? ` ${habit.unit}` : ''}/día
+                </p>
+              ) : (
                 <p className={`text-[9px] font-bold uppercase tracking-wider mt-0.5 transition-colors duration-300 ${isExceededNegative ? 'text-rose-600' : 'text-slate-400'}`}>
-                  Objetivo: Máx {habit.tolerance_threshold}/día
+                  Días limpio: mantener 0
                 </p>
               )}
               <div className="mt-1 flex items-baseline gap-1">
@@ -223,13 +251,57 @@ export default function HabitTrackerCard({
               whileTap={{ scale: 0.90 }}
               onClick={handleIncrement}
               disabled={isPending}
-              className={`flex items-center justify-center w-9 h-9 rounded-full text-white font-black text-lg shadow-sm transition-colors disabled:opacity-50 ${isPositive ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-rose-500 hover:bg-rose-600'}`}
+              className={`flex h-11 w-11 items-center justify-center rounded-full text-white font-black text-lg shadow-sm transition-all duration-200 ease-in-out disabled:opacity-50 ${isPositive ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-rose-500 hover:bg-rose-600'}`}
             >
-              +
+              {isPositive ? '+' : '!'}
             </motion.button>
           </div>
         </motion.div>
       </div>
+
+      <AnimatePresence>
+        {isRelapseOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[180] flex items-center justify-center bg-slate-950/30 p-4 backdrop-blur-sm"
+            onClick={() => setIsRelapseOpen(false)}
+          >
+            <motion.div
+              initial={{ y: 16, scale: 0.96 }}
+              animate={{ y: 0, scale: 1 }}
+              exit={{ y: 16, scale: 0.96 }}
+              onClick={(event: React.MouseEvent<HTMLDivElement>) => event.stopPropagation()}
+              className="w-full max-w-sm rounded-3xl border border-rose-100 bg-white p-5 shadow-2xl"
+            >
+              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-rose-400">Registrar recaída</p>
+              <h3 className="mt-2 text-xl font-black tracking-tight text-slate-950">{habit.name}</h3>
+              <p className="mt-2 text-sm leading-6 text-slate-500">
+                Elige el detonante. Esto alimenta tus estadísticas de resiliencia, no un juicio.
+              </p>
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                {[
+                  ['stress', 'Estrés'],
+                  ['social', 'Social'],
+                  ['boredom', 'Aburrimiento'],
+                  ['craving', 'Antojo'],
+                  ['other', 'Otro'],
+                ].map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => confirmRelapse(value as 'stress' | 'social' | 'boredom' | 'craving' | 'other')}
+                    className="min-h-[44px] rounded-2xl border border-slate-200 bg-slate-50 px-3 text-sm font-bold text-slate-700 transition-all duration-200 ease-in-out hover:bg-white active:scale-95"
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <HabitDetailModal
         habit={habit}

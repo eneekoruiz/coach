@@ -475,7 +475,7 @@ export async function importDailyLogsBulk(
 }
 
 // ── Recipe Actions ──────────────────────────────────────────────────────────
-import { recipeSchema, type Recipe, type DietProgram, type DailyDietOverride, dietProgramSchema, dailyDietOverrideSchema, weeklyPlanSchema, weeklyPlanDaySchema, type WeeklyPlan, type WeeklyPlanDay } from '@/lib/schema';
+import { recipeSchema, ingredientItemSchema, type Recipe, type DietProgram, type DailyDietOverride, dietProgramSchema, dailyDietOverrideSchema, weeklyPlanSchema, weeklyPlanDaySchema, type WeeklyPlan, type WeeklyPlanDay } from '@/lib/schema';
 
 export async function getRecipes(): Promise<Recipe[]> {
   try {
@@ -575,6 +575,61 @@ export async function saveRecipe(recipe: Recipe): Promise<{ success: boolean; da
   } catch (err) {
     console.error('saveRecipe server action error:', err);
     return { success: false, error: err instanceof Error ? err.message : 'Error inesperado.' };
+  }
+}
+
+const recipeAiSchema = z.object({
+  name: z.string().min(1).max(100),
+  ingredients_json: z.array(ingredientItemSchema).min(1).max(30),
+  instructions: z.string().default(''),
+  total_kcal: z.number().min(0),
+  total_protein: z.number().min(0),
+  total_carbs: z.number().min(0),
+  total_fats: z.number().min(0),
+});
+
+export async function autocompleteRecipeWithAi(context: string): Promise<{ success: boolean; data?: Recipe; error?: string }> {
+  try {
+    if (!context.trim()) {
+      return { success: false, error: 'Describe la receta o los ingredientes.' };
+    }
+
+    const result = await generateObject({
+      model: google('gemini-2.5-flash'),
+      temperature: 0,
+      system:
+        'Eres un dietista clínico. Devuelve solo datos estructurados. Estima macros por ingrediente con valores realistas para la cantidad indicada.',
+      prompt:
+        `Estructura esta receta en español: "${context}". ` +
+        'Si no hay nombre, crea uno breve. Usa unidades g, ml o unidad. Calcula totales sumando ingredientes.',
+      schema: recipeAiSchema,
+    });
+
+    const parsed = recipeSchema.safeParse({
+      ...result.object,
+      ingredients_json: result.object.ingredients_json.map((ingredient) => ({
+        name: ingredient.name,
+        amount: Math.round(Number(ingredient.amount || 0)),
+        unit: ingredient.unit || 'g',
+        kcal: Math.round(Number(ingredient.kcal || 0)),
+        protein: Math.round(Number(ingredient.protein || 0)),
+        carbs: Math.round(Number(ingredient.carbs || 0)),
+        fats: Math.round(Number(ingredient.fats || 0)),
+      })),
+      total_kcal: Math.round(Number(result.object.total_kcal || 0)),
+      total_protein: Math.round(Number(result.object.total_protein || 0)),
+      total_carbs: Math.round(Number(result.object.total_carbs || 0)),
+      total_fats: Math.round(Number(result.object.total_fats || 0)),
+    });
+
+    if (!parsed.success) {
+      return { success: false, error: 'La IA devolvió una receta incompleta.' };
+    }
+
+    return { success: true, data: parsed.data };
+  } catch (err) {
+    console.error('autocompleteRecipeWithAi error:', err);
+    return { success: false, error: err instanceof Error ? err.message : 'Error IA al rellenar receta.' };
   }
 }
 

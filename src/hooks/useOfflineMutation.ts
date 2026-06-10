@@ -5,9 +5,20 @@ interface QueuedMutation {
   id: string;
   url: string;
   method: string;
-  body: any;
+  body: unknown;
   timestamp: number;
 }
+
+type MutationResponse = Record<string, unknown> & {
+  offline?: boolean;
+};
+
+type ExecuteMutationOptions<TResponse extends MutationResponse> = {
+  method?: string;
+  optimisticUpdate?: () => void;
+  onSuccess?: (data: TResponse) => void;
+  onFailure?: (err: unknown) => void;
+};
 
 export function useOfflineMutation() {
   const [isOnline, setIsOnline] = useState(() => {
@@ -93,15 +104,10 @@ export function useOfflineMutation() {
   }, [syncQueue]);
 
   const executeMutation = useCallback(
-    async (
+    async <TResponse extends MutationResponse = MutationResponse>(
       url: string,
-      body: any,
-      options?: {
-        method?: string;
-        optimisticUpdate?: () => void;
-        onSuccess?: (data: any) => void;
-        onFailure?: (err: any) => void;
-      }
+      body: unknown,
+      options?: ExecuteMutationOptions<TResponse>
     ) => {
       const method = options?.method || 'POST';
       
@@ -125,9 +131,9 @@ export function useOfflineMutation() {
         toast.success('Guardado localmente (sin conexión). Se sincronizará al recuperar internet.');
         
         if (options?.onSuccess) {
-          options.onSuccess({ offline: true });
+          options.onSuccess({ offline: true } as TResponse);
         }
-        return { offline: true };
+        return { offline: true } as TResponse;
       }
 
       try {
@@ -158,16 +164,16 @@ export function useOfflineMutation() {
           throw new Error(text || 'Error en la petición.');
         }
 
-        let data = {};
+        let data: TResponse = {} as TResponse;
         try {
-          data = await response.json();
+          data = (await response.json()) as TResponse;
         } catch {}
 
         if (options?.onSuccess) {
           options.onSuccess(data);
         }
         return data;
-      } catch (err: any) {
+      } catch (err: unknown) {
         if (options?.onFailure) {
           options.onFailure(err);
         }

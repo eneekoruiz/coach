@@ -34,7 +34,7 @@ export default async function RoutinesPage() {
           <h1 className="mt-2 text-3xl font-black tracking-tight">Modo local sin Supabase</h1>
           <Link
             href="/"
-            className="mt-5 inline-flex min-h-[44px] items-center rounded-full bg-slate-950 px-5 text-sm font-bold text-white"
+            className="mt-5 inline-flex min-h-[44px] items-center rounded-full bg-slate-950 px-5 text-sm font-semibold text-white transition-all duration-200 ease-in-out active:scale-95"
           >
             Volver al inicio
           </Link>
@@ -82,7 +82,7 @@ export default async function RoutinesPage() {
 
           <Link
             href="/"
-            className="inline-flex min-h-[44px] shrink-0 items-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
+            className="inline-flex min-h-[44px] shrink-0 items-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition-all duration-200 ease-in-out hover:bg-slate-50 active:scale-95"
           >
             <ChevronLeftIcon className="h-4 w-4" />
             Volver
@@ -90,7 +90,7 @@ export default async function RoutinesPage() {
         </div>
       </header>
 
-      <section className="min-h-0 flex-1 overflow-y-auto px-4 py-5 pb-28 sm:px-6 md:pb-8 lg:px-8 custom-scrollbar">
+      <section className="min-h-0 flex-1 overflow-y-auto px-4 py-5 pb-28 sm:px-6 md:pb-8 lg:px-8 scrollbar-hide">
         <div className="mx-auto w-full max-w-4xl">
           <DailyChecklist isDedicatedPage={true} />
         </div>

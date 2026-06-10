@@ -69,6 +69,46 @@ function RecentMiniList({ logs, habitId }: { logs: DailyLogRow[]; habitId: numbe
   );
 }
 
+function HeatMap({
+  entries,
+  isPositive,
+  targetValue,
+}: {
+  entries: Array<{ date: string; amount: number; relapseFactor: string | null }>;
+  isPositive: boolean;
+  targetValue: number;
+}) {
+  if (entries.length === 0) {
+    return <div className="text-sm font-medium text-slate-400">Sin registros para dibujar el mapa.</div>;
+  }
+
+  return (
+    <div className="grid grid-cols-10 gap-1.5">
+      {entries
+        .slice()
+        .reverse()
+        .map((entry) => {
+          const completed = isPositive ? entry.amount >= targetValue : entry.amount === 0;
+          const className = isPositive
+            ? completed
+              ? 'bg-emerald-500'
+              : 'bg-slate-200'
+            : completed
+            ? 'bg-emerald-400'
+            : 'bg-rose-500';
+
+          return (
+            <div
+              key={entry.date}
+              title={`${entry.date}: ${entry.amount}`}
+              className={`h-7 rounded-lg border border-white shadow-sm ${className}`}
+            />
+          );
+        })}
+    </div>
+  );
+}
+
 export default function HabitDetailModal({
   habit,
   isOpen,
@@ -81,6 +121,34 @@ export default function HabitDetailModal({
   streakProgress,
   trendLabel,
 }: HabitDetailModalProps) {
+  const isPositive = habit.type === 'positive';
+  const targetValue = habit.target_value ?? habit.tolerance_threshold ?? 1;
+  const last30 = recentLogs.slice(0, 30).map((log) => {
+    const record = (log.habit_tracking ?? []).find((entry) => entry.habit_id === habit.id);
+    return { date: log.date, amount: record?.amount ?? 0, relapseFactor: record?.relapse_factor ?? null };
+  });
+  const totalVolume = last30.reduce((sum, entry) => sum + entry.amount, 0);
+  const successfulDays = last30.filter((entry) => isPositive ? entry.amount >= targetValue : entry.amount === 0).length;
+  const relapseDays = last30.filter((entry) => !isPositive && entry.amount > 0).length;
+  const savedMoney = relapseDays === 0
+    ? Math.round((habit.relapse_unit_cost ?? 0) * Math.max(1, last30.length))
+    : Math.max(0, Math.round((habit.relapse_unit_cost ?? 0) * (last30.length - relapseDays)));
+  const savedMinutes = Math.max(0, Math.round((habit.relapse_unit_minutes ?? 0) * (last30.length - relapseDays)));
+  const factorLabels: Record<string, string> = {
+    stress: 'Estrés',
+    social: 'Social',
+    boredom: 'Aburrimiento',
+    craving: 'Antojo',
+    other: 'Otro',
+  };
+  const topFactor = Object.entries(
+    last30.reduce<Record<string, number>>((acc, entry) => {
+      if (entry.relapseFactor) acc[entry.relapseFactor] = (acc[entry.relapseFactor] ?? 0) + 1;
+      return acc;
+    }, {})
+  ).sort((a, b) => b[1] - a[1])[0]?.[0];
+  const topFactorLabel = topFactor ? factorLabels[topFactor] ?? topFactor : 'Sin patrón';
+
   return (
     <BottomSheet isOpen={isOpen} onClose={onClose} title={habit.name}>
       <div className="space-y-6 pb-6">
@@ -88,12 +156,28 @@ export default function HabitDetailModal({
           {habit.type === 'negative' ? 'Hábito a evitar' : 'Hábito positivo'}
         </div>
 
-        {/* Métricas Principales */}
         <div className="grid grid-cols-3 gap-3">
-          <MetricPill label="Actual" value={habit.current_streak} />
-          <MetricPill label="Récord" value={habit.longest_streak} />
-          <MetricPill label="Escudos" value={habit.shields} />
+          {isPositive ? (
+            <>
+              <MetricPill label={`Volumen ${habit.unit ?? ''}`} value={Math.round(totalVolume)} />
+              <MetricPill label="Consistencia" value={last30.length ? Math.round((successfulDays / last30.length) * 100) : 0} />
+              <MetricPill label="Récord" value={habit.longest_streak} />
+            </>
+          ) : (
+            <>
+              <MetricPill label="Ahorro €" value={savedMoney} />
+              <MetricPill label="Min ahorro" value={savedMinutes} />
+              <MetricPill label="Recaídas" value={relapseDays} />
+            </>
+          )}
         </div>
+
+        {!isPositive && (
+          <div className="rounded-2xl border border-rose-100 bg-rose-50 p-4">
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-rose-500">Detonante dominante 30d</p>
+            <p className="mt-1 text-lg font-black text-slate-950">{topFactorLabel}</p>
+          </div>
+        )}
 
         {/* Progreso */}
         <div className="space-y-2 bg-slate-50 p-4 rounded-2xl border border-slate-100">
@@ -183,11 +267,21 @@ export default function HabitDetailModal({
         {/* Sparkline & MiniList */}
         <div className="rounded-2xl bg-slate-50 p-5 border border-slate-100">
           <div className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500 mb-4">
-            Histórico reciente
+            {isPositive ? 'Histórico reciente' : 'Mapa inverso de resiliencia'}
           </div>
-          <div className="w-full overflow-hidden bg-white rounded-xl p-3 border border-slate-100 mb-4 shadow-sm">
-             <Sparkline data={buildMiniSeries(recentLogs, habit.id)} width={400} height={60} />
-          </div>
+          {isPositive ? (
+            <div className="w-full overflow-hidden bg-white rounded-xl p-3 border border-slate-100 mb-4 shadow-sm">
+              <Sparkline data={buildMiniSeries(recentLogs, habit.id)} width={400} height={60} />
+            </div>
+          ) : (
+            <div className="w-full overflow-hidden rounded-xl border border-slate-100 bg-white p-3 mb-4 shadow-sm">
+              <HeatMap entries={last30} isPositive={isPositive} targetValue={targetValue} />
+              <div className="mt-3 flex items-center gap-4 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">
+                <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded bg-emerald-400" /> limpio</span>
+                <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded bg-rose-500" /> recaída</span>
+              </div>
+            </div>
+          )}
           <RecentMiniList logs={recentLogs} habitId={habit.id} />
         </div>
       </div>

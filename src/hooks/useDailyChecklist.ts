@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useTransition } from 'react';
 import toast from '@/lib/toast';
 import { supabase } from '@/lib/supabase';
+import { getNormalizedDate } from '@/lib/date-utils';
 import { hapticSuccess, hapticError } from '@/utils/haptics';
 import {
   getRoutineTemplates,
@@ -40,7 +41,7 @@ export function useDailyChecklist() {
       try {
         const [fetchedTemplates, fetchedLogs] = await Promise.all([
           getRoutineTemplates(),
-          getTodayRoutineLogs(),
+          getTodayRoutineLogs(getNormalizedDate(new Date())),
         ]);
         setTemplates(fetchedTemplates);
         setCompletedIds(new Set(fetchedLogs.map((log) => log.routine_id)));
@@ -84,10 +85,10 @@ export function useDailyChecklist() {
 
     try {
       if (wasCompleted) {
-        const res = await unmarkRoutineComplete(routineId);
+        const res = await unmarkRoutineComplete(routineId, getNormalizedDate(new Date()));
         if (!res.success) throw new Error(res.error);
       } else {
-        const res = await markRoutineComplete(routineId);
+        const res = await markRoutineComplete(routineId, getNormalizedDate(new Date()));
         if (!res.success) throw new Error(res.error);
       }
     } catch (err) {

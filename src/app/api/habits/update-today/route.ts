@@ -59,6 +59,12 @@ export async function POST(request: Request) {
       date = body.date;
     }
 
+    const allowedRelapseFactors = ['stress', 'social', 'boredom', 'craving', 'other'] as const;
+    type RelapseFactor = (typeof allowedRelapseFactors)[number];
+    const relapseFactor = typeof body.relapse_factor === 'string' && allowedRelapseFactors.includes(body.relapse_factor as RelapseFactor)
+      ? body.relapse_factor
+      : undefined;
+
     try {
       const data = await updateTodayHabit({
         supabase,
@@ -67,6 +73,7 @@ export async function POST(request: Request) {
         amount,
         delta,
         date,
+        relapseFactor,
       });
 
       // Purge cache of the dashboard/home path to ensure fresh data

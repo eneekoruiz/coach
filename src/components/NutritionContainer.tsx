@@ -66,17 +66,17 @@ export default function NutritionContainer({ initialTab }: { initialTab?: Nutrit
   }
 
   return (
-    <div className="space-y-5">
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+    <div className="mx-auto flex h-full min-h-0 w-full max-w-7xl flex-col gap-3 overflow-hidden">
+      <div className="shrink-0 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <div>
             <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">
               Nutrition Hub Pro
             </div>
-            <h2 className="mt-1 text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">
+            <h2 className="mt-0.5 text-xl font-black tracking-tight text-slate-900 sm:text-2xl">
               Arquitectura Matryoshka Nutricional
             </h2>
-            <p className="mt-1 text-xs font-semibold text-slate-500">
+            <p className="mt-0.5 text-xs font-semibold text-slate-500">
               Construye de menor a mayor complejidad: receta, día base, semana y mes del paciente.
             </p>
           </div>
@@ -88,7 +88,7 @@ export default function NutritionContainer({ initialTab }: { initialTab?: Nutrit
           </Link>
         </div>
 
-        <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="mt-3 grid grid-cols-2 gap-2 xl:grid-cols-4">
           {nutritionTabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -101,7 +101,7 @@ export default function NutritionContainer({ initialTab }: { initialTab?: Nutrit
                   isActive
                     ? 'border-slate-900 bg-slate-900 text-white shadow-sm'
                     : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300 hover:bg-white'
-                }`}
+                } min-h-[54px]`}
               >
                 <span
                   className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[11px] font-black ${
@@ -125,6 +125,7 @@ export default function NutritionContainer({ initialTab }: { initialTab?: Nutrit
           </div>
       </div>
 
+      <div className="min-h-0 flex-1 overflow-hidden">
       {activeTab === 'recipes' && <RecipeLibrary />}
       {activeTab === 'days' && <DailyTemplateBuilder />}
       {activeTab === 'programs' && <WeeklyPlanBuilder />}
@@ -139,6 +140,7 @@ export default function NutritionContainer({ initialTab }: { initialTab?: Nutrit
           onUpdate={loadData}
         />
       )}
+      </div>
     </div>
   );
 }

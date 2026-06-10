@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { motion, type Variants } from 'framer-motion';
+import { AnimatePresence, motion, type Variants } from 'framer-motion';
 import {
   Battery,
   Brain,
@@ -10,9 +10,9 @@ import {
   Droplets,
   Loader2,
   MessageCircle,
-  Moon,
   Utensils,
   Zap,
+  X,
 } from 'lucide-react';
 import { type DailyLog } from '@/lib/schema';
 import { triggerVibration } from '@/lib/haptics';
@@ -45,6 +45,7 @@ type DashboardMainProps = {
     carbs: number;
     fats: number;
   };
+  updateWaterSettings: (target: number, glass: number) => Promise<boolean>;
   addWaterIntake: () => Promise<void>;
   pendingSyncCount: number;
   onChatOpen?: () => void;
@@ -93,13 +94,145 @@ function MetricTile({
   icon: React.ReactNode;
 }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-xl bg-slate-50 text-slate-600">
+    <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+      <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-xl bg-slate-50 text-slate-600">
         {icon}
       </div>
       <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">{label}</p>
-      <p className="mt-1 text-xl font-black tracking-tight text-slate-900">{value}</p>
+      <p className="mt-0.5 text-base font-black tracking-tight text-slate-900">{value}</p>
     </div>
+  );
+}
+
+function WaterIntakeModal({
+  open,
+  amount,
+  max,
+  glass,
+  busy,
+  onClose,
+  onConfirm,
+  onSaveSettings,
+}: {
+  open: boolean;
+  amount: number;
+  max: number;
+  glass: number;
+  busy: boolean;
+  onClose: () => void;
+  onConfirm: () => Promise<void>;
+  onSaveSettings: (target: number, glass: number) => Promise<boolean>;
+}) {
+  const [targetInput, setTargetInput] = useState(max);
+  const [glassInput, setGlassInput] = useState(glass);
+  const nextAmount = amount + glass;
+  const currentPercent = clampPercent(amount, max);
+  const nextPercent = clampPercent(nextAmount, max);
+
+  useEffect(() => {
+    setTargetInput(max);
+    setGlassInput(glass);
+  }, [glass, max]);
+
+  return (
+    <AnimatePresence>
+      {open ? (
+        <motion.div
+          className="fixed inset-0 z-[170] flex items-center justify-center bg-slate-950/25 p-4 backdrop-blur-sm"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={onClose}
+        >
+          <motion.div
+            className="w-full max-w-sm rounded-[2rem] border border-white/70 bg-white/95 p-5 shadow-2xl backdrop-blur-2xl"
+            initial={{ y: 20, scale: 0.96 }}
+            animate={{ y: 0, scale: 1 }}
+            exit={{ y: 20, scale: 0.96 }}
+            onClick={(event: React.MouseEvent<HTMLDivElement>) => event.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-cyan-500">Hidratación</p>
+                <h2 className="mt-1 text-2xl font-black tracking-tight text-slate-950">Registrar agua</h2>
+              </div>
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition-all duration-200 ease-in-out hover:bg-slate-200"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="mt-6 flex flex-col items-center">
+              <div className="relative h-44 w-28 overflow-hidden rounded-b-[2rem] rounded-t-xl border-[7px] border-slate-100 bg-white shadow-inner">
+                <motion.div
+                  className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-cyan-500 to-sky-300"
+                  initial={{ height: `${currentPercent}%` }}
+                  animate={{ height: `${nextPercent}%` }}
+                  transition={{ type: 'spring', stiffness: 55, damping: 16 }}
+                />
+                <motion.div
+                  className="absolute inset-x-0 top-1/3 h-12 bg-white/20"
+                  animate={{ x: [-24, 24, -24] }}
+                  transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+                />
+                <div className="absolute inset-0 flex items-center justify-center text-center">
+                  <p className="rounded-full bg-white/85 px-3 py-1 text-xs font-black text-cyan-700 shadow-sm">
+                    {nextPercent}%
+                  </p>
+                </div>
+              </div>
+              <p className="mt-4 text-3xl font-black tracking-tight text-slate-950">
+                {amount} <span className="text-sm font-bold text-slate-400">ml</span>
+              </p>
+              <p className="text-xs font-semibold text-slate-500">+{glass}ml ahora · meta {max}ml</p>
+            </div>
+
+            <div className="mt-5 grid grid-cols-2 gap-2">
+              <label className="block">
+                <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Meta</span>
+                <input
+                  type="number"
+                  value={targetInput}
+                  onChange={(event) => setTargetInput(Number(event.target.value))}
+                  className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-bold text-slate-800 outline-none focus:bg-white"
+                />
+              </label>
+              <label className="block">
+                <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Vaso</span>
+                <input
+                  type="number"
+                  value={glassInput}
+                  onChange={(event) => setGlassInput(Number(event.target.value))}
+                  className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-bold text-slate-800 outline-none focus:bg-white"
+                />
+              </label>
+            </div>
+
+            <div className="mt-4 grid grid-cols-[0.8fr_1.2fr] gap-2">
+              <button
+                type="button"
+                onClick={() => void onSaveSettings(targetInput, glassInput)}
+                className="h-12 rounded-2xl border border-slate-200 bg-white text-xs font-black uppercase tracking-wider text-slate-600 transition-all duration-200 ease-in-out hover:bg-slate-50 active:scale-95"
+              >
+                Ajustar
+              </button>
+              <button
+                type="button"
+                onClick={onConfirm}
+                disabled={busy}
+                className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-cyan-500 text-sm font-black text-white shadow-sm transition-all duration-200 ease-in-out hover:bg-cyan-400 active:scale-95 disabled:opacity-70"
+              >
+                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Droplets className="h-4 w-4" />}
+                Confirmar +{glass}ml
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      ) : null}
+    </AnimatePresence>
   );
 }
 
@@ -113,6 +246,7 @@ export default function DashboardMain({
   dailyWaterTarget,
   defaultGlassSize,
   dietTargets,
+  updateWaterSettings,
   addWaterIntake,
   pendingSyncCount,
   onChatOpen,
@@ -120,6 +254,7 @@ export default function DashboardMain({
   const timeContext = useTimeContext();
   const [avatarMotion, setAvatarMotion] = useState<AvatarMotionState>('idle');
   const [waterBusy, setWaterBusy] = useState(false);
+  const [isWaterOpen, setIsWaterOpen] = useState(false);
   const {
     normalizedMomentum,
     waterMl,
@@ -158,6 +293,7 @@ export default function DashboardMain({
     try {
       await addWaterIntake();
       setAvatarMotion('success');
+      setIsWaterOpen(false);
     } finally {
       setWaterBusy(false);
     }
@@ -169,17 +305,15 @@ export default function DashboardMain({
     onChatOpen?.();
   };
 
-  const handleNightLog = () => {
-    triggerVibration('medium');
-    setAvatarMotion('success');
-    onChatOpen?.();
-  };
-
   return (
-    <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col justify-center gap-5 py-5">
-      <section className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
+    <main className="mx-auto flex min-h-0 w-full max-w-4xl flex-1 flex-col justify-center gap-2 overflow-hidden py-1 sm:gap-3">
+      <div className="pointer-events-none absolute left-1/2 top-3 z-20 -translate-x-1/2 rounded-full border border-white/70 bg-white/80 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-slate-600 shadow-sm backdrop-blur-xl">
+        Inercia {normalizedMomentum}%
+      </div>
+
+      <section className="min-h-0 rounded-[1.5rem] border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
         <div className="flex flex-col items-center text-center">
-          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
+          <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.14em] text-slate-500">
             {isLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5 text-emerald-600" />}
             {timeContext.greeting} · {timeContext.label}
           </div>
@@ -187,7 +321,7 @@ export default function DashboardMain({
           <motion.div
             variants={avatarVariants}
             animate={avatarMotion}
-            className={`relative flex h-48 w-48 items-center justify-center overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm sm:h-56 sm:w-56 ${avatar.aura}`}
+            className={`relative flex h-28 w-28 items-center justify-center overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white shadow-sm sm:h-36 sm:w-36 lg:h-40 lg:w-40 ${avatar.aura}`}
           >
             <img
               src={avatar.url}
@@ -206,27 +340,27 @@ export default function DashboardMain({
             />
           </motion.div>
 
-          <div className="mt-5">
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
-              BioAvatar State Machine
-            </p>
-            <h1 className="mt-1 text-4xl font-black tracking-tight text-slate-900 sm:text-5xl">
+          <div className="mt-2">
+            <h1 className="text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">
               {avatar.label}
             </h1>
-            <p className="mx-auto mt-2 max-w-md text-sm font-semibold leading-6 text-slate-500">
+            <p className="mx-auto mt-1 max-w-md text-xs leading-5 text-slate-500">
               {avatar.subLabel}
             </p>
           </div>
 
-          <div className="mt-6 grid w-full max-w-lg grid-cols-2 gap-3 sm:grid-cols-3">
+          <div className="mt-3 grid w-full max-w-lg grid-cols-3 gap-2">
             <motion.button
               type="button"
               whileTap={{ scale: 0.96 }}
-              onClick={handleWater}
+              onClick={() => {
+                triggerVibration('light');
+                setIsWaterOpen(true);
+              }}
               disabled={waterBusy}
-              className="inline-flex h-14 items-center justify-center gap-2 rounded-2xl bg-cyan-500 px-4 text-sm font-black text-white shadow-sm transition hover:bg-cyan-400 disabled:opacity-70"
+              className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-cyan-500 px-3 text-xs font-black text-white shadow-sm transition-all duration-200 ease-in-out hover:bg-cyan-400 disabled:opacity-70"
             >
-              {waterBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Droplets className="h-4 w-4" />}
+              <Droplets className="h-4 w-4" />
               +{defaultGlassSize}ml
             </motion.button>
 
@@ -234,35 +368,23 @@ export default function DashboardMain({
               type="button"
               whileTap={{ scale: 0.96 }}
               onClick={handleCoach}
-              className="inline-flex h-14 items-center justify-center gap-2 rounded-2xl bg-slate-900 px-4 text-sm font-black text-white shadow-sm transition hover:bg-slate-800"
+              className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-slate-900 px-3 text-xs font-black text-white shadow-sm transition-all duration-200 ease-in-out hover:bg-slate-800"
             >
               <MessageCircle className="h-4 w-4" />
               Coach
             </motion.button>
 
-            {timeContext.block === 'night' ? (
-              <motion.button
-                type="button"
-                whileTap={{ scale: 0.96 }}
-                onClick={handleNightLog}
-                className="col-span-2 inline-flex h-14 items-center justify-center gap-2 rounded-2xl border border-violet-200 bg-violet-50 px-4 text-sm font-black text-violet-700 transition hover:bg-violet-100 sm:col-span-1"
-              >
-                <Moon className="h-4 w-4" />
-                Sueño/Ánimo
-              </motion.button>
-            ) : (
-              <Link
-                href="/nutrition"
-                onClick={() => {
-                  triggerVibration('light');
-                  setAvatarMotion('success');
-                }}
-                className="col-span-2 inline-flex h-14 items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 text-sm font-black text-emerald-700 transition hover:bg-emerald-100 sm:col-span-1"
-              >
-                <Utensils className="h-4 w-4" />
-                {timeContext.mealFocus}
-              </Link>
-            )}
+            <Link
+              href="/nutrition"
+              onClick={() => {
+                triggerVibration('light');
+                setAvatarMotion('success');
+              }}
+              className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-3 text-xs font-black text-emerald-700 transition-all duration-200 ease-in-out hover:bg-emerald-100"
+            >
+              <Utensils className="h-4 w-4" />
+              {timeContext.mealFocus}
+            </Link>
           </div>
 
           {pendingSyncCount > 0 && (
@@ -273,42 +395,36 @@ export default function DashboardMain({
         </div>
       </section>
 
-      <section className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <section className="grid grid-cols-1 gap-2 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
+        <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
           <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
             Foco proactivo
           </p>
-          <h2 className="mt-2 text-2xl font-black tracking-tight text-slate-900">
+          <h2 className="mt-1 text-lg font-black tracking-tight text-slate-900">
             {timeContext.priority}
           </h2>
-          <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">{primaryAction}</p>
-          <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
-              Siguiente comida
-            </p>
-            <p className="mt-1 text-lg font-black text-slate-900">{timeContext.mealFocus}</p>
-          </div>
+          <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-600">{primaryAction}</p>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
           <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
             Coach contextual
           </p>
-          <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">
+          <p className="mt-1 line-clamp-3 text-xs leading-5 text-slate-600">
             {insightText || timeContext.coachPrompt}
           </p>
           <button
             type="button"
-            onClick={timeContext.block === 'night' ? handleNightLog : handleCoach}
-            className="mt-5 inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 px-4 text-sm font-black text-white transition hover:bg-slate-800 active:scale-95"
+            onClick={handleCoach}
+            className="mt-3 inline-flex h-10 w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 px-4 text-xs font-black text-white transition-all duration-200 ease-in-out hover:bg-slate-800 active:scale-95"
           >
-            {timeContext.block === 'night' ? <Moon className="h-4 w-4" /> : <MessageCircle className="h-4 w-4" />}
-            {timeContext.block === 'night' ? 'Registrar Sueño/Ánimo final' : 'Abrir Coach'}
+            <MessageCircle className="h-4 w-4" />
+            Abrir Coach
           </button>
         </div>
       </section>
 
-      <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <section className="grid grid-cols-4 gap-2">
         <MetricTile
           label="Agua"
           value={`${waterMl}ml`}
@@ -331,8 +447,8 @@ export default function DashboardMain({
         />
       </section>
 
-      <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="grid grid-cols-2 gap-2">
+        <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
           <div className="flex items-center justify-between">
             <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Hidratación</p>
             <p className="text-xs font-black text-cyan-600">{waterPercent}%</p>
@@ -341,7 +457,7 @@ export default function DashboardMain({
             <div className="h-full rounded-full bg-cyan-500 transition-all duration-500" style={{ width: `${waterPercent}%` }} />
           </div>
         </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
           <div className="flex items-center justify-between">
             <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Inercia</p>
             <p className="text-xs font-black text-slate-900">{normalizedMomentum}%</p>
@@ -352,10 +468,21 @@ export default function DashboardMain({
         </div>
       </div>
 
-      <div className="flex items-center justify-center gap-2 text-xs font-bold text-slate-400">
+      <div className="hidden items-center justify-center gap-2 text-xs text-slate-400 sm:flex">
         <CheckCircle2 className="h-4 w-4 text-emerald-600" />
         Inicio sin histórico: solo estado del día actual.
       </div>
+
+      <WaterIntakeModal
+        open={isWaterOpen}
+        amount={waterMl}
+        max={dailyWaterTarget}
+        glass={defaultGlassSize}
+        busy={waterBusy}
+        onClose={() => setIsWaterOpen(false)}
+        onConfirm={handleWater}
+        onSaveSettings={updateWaterSettings}
+      />
     </main>
   );
 }

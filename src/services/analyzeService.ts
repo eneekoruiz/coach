@@ -6,6 +6,7 @@ import { dailyLogSchema, type DailyLog } from '@/lib/schema';
 import { evaluateAndUpdateStreaks } from '@/lib/habits';
 import { upsertDailyLog } from '@/services/dailyLogService';
 import { getWeeklyContext, type WeeklyContext } from '@/services/weeklyContextService';
+import { buildDailyLogSystemPrompt, withTimeout } from '@/services/aiRuntime';
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
@@ -369,8 +370,14 @@ export async function analyzeAndPersistDailyLog(params: AnalyzeParams) {
     'Si el mensaje del usuario es un saludo sin contenido nutricional/de hábitos, establece "metricas.error_clave" a "saludo" y responde amablemente en "accion_manana".';
 
   const analysisText = text
-    ? `${systemPrompt}\n\nTexto del usuario:\n${text}`
-    : `${systemPrompt}\n\nAnaliza únicamente la imagen proporcionada y extrae señales nutricionales, fisiológicas y de hidratación.`;
+    ? `Texto del usuario:\n${text}`
+    : 'Analiza únicamente la imagen proporcionada y extrae señales nutricionales, fisiológicas y de hidratación.';
+  const compactSystemPrompt = buildDailyLogSystemPrompt({
+    localDate: today,
+    currentState,
+    habits: (userHabits || []).map((habit) => ({ id: habit.id, name: habit.name, type: habit.type })),
+    weeklyContext,
+  });
 
   const userMessageContent = rawImage
     ? [
@@ -381,13 +388,13 @@ export async function analyzeAndPersistDailyLog(params: AnalyzeParams) {
 
   let analyzedLog: DailyLog;
   try {
-    const result = await generateObject({
+    const result = await withTimeout(generateObject({
       model: google('gemini-1.5-flash'),
-      system: systemPrompt,
+      system: compactSystemPrompt,
       messages: [
-        ...(history || []).slice(-10).map(msg => ({
+        ...(history || []).slice(-4).map(msg => ({
           role: msg.role === 'assistant' ? 'assistant' as const : 'user' as const,
-          content: msg.content,
+          content: msg.content.slice(0, 600),
         })),
         {
           role: 'user',
@@ -395,7 +402,8 @@ export async function analyzeAndPersistDailyLog(params: AnalyzeParams) {
         },
       ],
       schema: dailyLogSchema,
-    });
+      temperature: 0,
+    }));
     const validatedResult = dailyLogSchema.safeParse(result.object);
     if (!validatedResult.success) {
       throw new AiServiceError(
@@ -728,8 +736,14 @@ export async function streamAnalyzeAndPersistDailyLog(params: AnalyzeParams) {
     'Si el mensaje del usuario es un saludo sin contenido nutricional/de hábitos, establece "metricas.error_clave" a "saludo" y responde amablemente en "accion_manana".';
 
   const analysisText = text
-    ? `${systemPrompt}\n\nTexto del usuario:\n${text}`
-    : `${systemPrompt}\n\nAnaliza únicamente la imagen proporcionada y extrae señales nutricionales, fisiológicas y de hidratación.`;
+    ? `Texto del usuario:\n${text}`
+    : 'Analiza únicamente la imagen proporcionada y extrae señales nutricionales, fisiológicas y de hidratación.';
+  const compactSystemPrompt = buildDailyLogSystemPrompt({
+    localDate: today,
+    currentState,
+    habits: (userHabits || []).map((habit) => ({ id: habit.id, name: habit.name, type: habit.type })),
+    weeklyContext,
+  });
 
   const userMessageContent = rawImage
     ? [
@@ -740,11 +754,11 @@ export async function streamAnalyzeAndPersistDailyLog(params: AnalyzeParams) {
 
   const streamResult = await streamObject({
     model: google('gemini-1.5-flash'),
-    system: systemPrompt,
+    system: compactSystemPrompt,
     messages: [
-      ...(history || []).slice(-10).map(msg => ({
+      ...(history || []).slice(-4).map(msg => ({
         role: msg.role === 'assistant' ? 'assistant' as const : 'user' as const,
-        content: msg.content,
+        content: msg.content.slice(0, 600),
       })),
       {
         role: 'user',
@@ -752,6 +766,7 @@ export async function streamAnalyzeAndPersistDailyLog(params: AnalyzeParams) {
       },
     ],
     schema: dailyLogSchema,
+    temperature: 0,
     async onFinish({ object, error }) {
       if (error || !object) {
         console.error('[streamAnalyzeAndPersistDailyLog] Stream error or empty object:', error);

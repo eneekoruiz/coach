@@ -81,9 +81,9 @@ export default function BottomNav() {
   ];
 
   return (
-    <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 px-4 pb-safe pt-2 pointer-events-none">
-      <div className="mx-auto max-w-md pointer-events-auto pb-4 sm:pb-6">
-        <nav className="flex items-center justify-between bg-white/90 backdrop-blur-xl border border-slate-200/50 rounded-full px-2 py-2 shadow-[0_8px_30px_rgb(0,0,0,0.08)]">
+    <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 h-20 px-4 pb-safe pt-2 pointer-events-none">
+      <div className="mx-auto h-16 max-w-md pointer-events-auto">
+        <nav className="flex h-16 items-center justify-between bg-white/90 backdrop-blur-xl border border-slate-200/50 rounded-full px-2 py-2 shadow-[0_8px_30px_rgb(0,0,0,0.08)]">
           {tabs.map((tab) => {
             const isActive = tab.href === '/' ? pathname === '/' : pathname === tab.href || pathname.startsWith(`${tab.href}/`);
             return (
@@ -91,7 +91,7 @@ export default function BottomNav() {
                 key={tab.name}
                 href={tab.href}
                 onClick={() => triggerVibration('light')}
-                className="relative flex flex-1 flex-col items-center justify-center py-2"
+                className="relative flex min-h-[44px] flex-1 flex-col items-center justify-center py-2"
               >
                 {isActive && (
                   <motion.div

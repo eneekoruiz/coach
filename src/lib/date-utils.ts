@@ -11,6 +11,14 @@ export function getNormalizedDate(date?: Date): string {
   return `${year}-${month}-${day}`;
 }
 
+export function isIsoDate(value: string | undefined | null): value is string {
+  return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+export function getSafeLocalDate(value?: string | null, fallback = new Date()): string {
+  return isIsoDate(value) ? value : getNormalizedDate(fallback);
+}
+
 export function formatSpanishDate(dateValue: string) {
   return new Intl.DateTimeFormat('es-ES', {
     day: 'numeric',

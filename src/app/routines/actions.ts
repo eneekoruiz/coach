@@ -1,6 +1,7 @@
 'use server';
 
 import { createSupabaseServerClient } from '@/lib/supabase-server';
+import { getSafeLocalDate } from '@/lib/date-utils';
 
 export interface RoutineTemplate {
   id: string;
@@ -51,13 +52,30 @@ export async function getRoutineTemplates(): Promise<RoutineTemplate[]> {
 /**
  * Fetch today's completed routine logs
  */
-export async function getTodayRoutineLogs(): Promise<RoutineLog[]> {
+async function assertLinkedHabitOwnership(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  userId: string,
+  habitId: number | null
+) {
+  if (!habitId) return true;
+
+  const { data, error } = await supabase
+    .from('user_habits')
+    .select('id')
+    .eq('id', habitId)
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  return !error && Boolean(data);
+}
+
+export async function getTodayRoutineLogs(localDate?: string): Promise<RoutineLog[]> {
   try {
     const supabase = await createSupabaseServerClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return [];
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = getSafeLocalDate(localDate);
 
     const { data, error } = await supabase
       .from('routine_logs')
@@ -91,6 +109,10 @@ export async function createRoutineTemplate(
     const supabase = await createSupabaseServerClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { success: false, error: 'No autenticado.' };
+
+    if (!(await assertLinkedHabitOwnership(supabase, user.id, linked_habit_id))) {
+      return { success: false, error: 'El hábito vinculado no pertenece a este usuario.' };
+    }
 
     const { data, error } = await supabase
       .from('routine_templates')
@@ -150,14 +172,15 @@ export async function deleteRoutineTemplate(
  * Mark a routine as completed for today
  */
 export async function markRoutineComplete(
-  routineId: string
+  routineId: string,
+  localDate?: string
 ): Promise<{ success: boolean; data?: RoutineLog; error?: string }> {
   try {
     const supabase = await createSupabaseServerClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { success: false, error: 'No autenticado.' };
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = getSafeLocalDate(localDate);
 
     // Fetch the template details first to check if there is a linked habit
     const { data: template, error: templateError } = await supabase
@@ -195,6 +218,7 @@ export async function markRoutineComplete(
           userId: user.id,
           habitId: template.linked_habit_id,
           delta: template.habit_increment_amount,
+          date: today,
         });
       } catch (habitErr) {
         console.error('[markRoutineComplete] Failed to cascade update to habit:', habitErr);
@@ -212,14 +236,15 @@ export async function markRoutineComplete(
  * Unmark a routine as completed for today
  */
 export async function unmarkRoutineComplete(
-  routineId: string
+  routineId: string,
+  localDate?: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const supabase = await createSupabaseServerClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { success: false, error: 'No autenticado.' };
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = getSafeLocalDate(localDate);
 
     // Fetch the template details first to check if there is a linked habit
     const { data: template, error: templateError } = await supabase
@@ -254,6 +279,7 @@ export async function unmarkRoutineComplete(
           userId: user.id,
           habitId: template.linked_habit_id,
           delta: -template.habit_increment_amount,
+          date: today,
         });
       } catch (habitErr) {
         console.error('[unmarkRoutineComplete] Failed to cascade update to habit:', habitErr);

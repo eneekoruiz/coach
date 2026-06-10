@@ -3,7 +3,7 @@
 import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Edit2, Plus, Trash2, Check, Sparkles, Loader2, ListTodo, Sun, CloudSun, Moon, Link2 } from 'lucide-react';
+import { Plus, Trash2, Check, Sparkles, Loader2, ListTodo, Sun, CloudSun, Moon, Link2 } from 'lucide-react';
 import BottomSheet from './BottomSheet';
 import { useDailyChecklist } from '@/hooks/useDailyChecklist';
 
@@ -11,28 +11,22 @@ interface DailyChecklistProps {
   isDedicatedPage?: boolean;
 }
 
+type TimeOfDay = 'morning' | 'afternoon' | 'night';
+
 export default function DailyChecklist({ isDedicatedPage = false }: DailyChecklistProps) {
   const router = useRouter();
 
   const {
     templates,
     completedIds,
-    userHabits,
     isLoading,
     isEditOpen,
     setIsEditOpen,
     newTitle,
     setNewTitle,
-    newIcon,
-    setNewIcon,
     timeOfDay,
     setTimeOfDay,
-    linkedHabitId,
-    setLinkedHabitId,
-    habitIncrementAmount,
-    setHabitIncrementAmount,
     isPending,
-    iconsList,
     handleToggle,
     handleAddTemplate,
     handleDeleteTemplate,
@@ -51,15 +45,12 @@ export default function DailyChecklist({ isDedicatedPage = false }: DailyCheckli
   const progressPercentage = total > 0 ? (completed / total) * 100 : 0;
   const pendingCount = total - completed;
 
-  // Smart Reminder batch notifier check simulated for client feedback
   useEffect(() => {
-    const checkSmartReminder = () => {
-      const now = new Date();
-      if (now.getHours() >= 20 && pendingCount > 0) {
-        console.log(`[Smart Reminder] Te faltan ${pendingCount} tareas diarias, ¡casi cierras el día!`);
-      }
-    };
-    checkSmartReminder();
+    if (pendingCount <= 0) return;
+    const now = new Date();
+    if (now.getHours() >= 20) {
+      document.documentElement.dataset.pendingDailyTasks = String(pendingCount);
+    }
   }, [pendingCount]);
 
   if (isLoading) {
@@ -106,7 +97,7 @@ export default function DailyChecklist({ isDedicatedPage = false }: DailyCheckli
               <motion.div
                 key={template.id}
                 onClick={() => handleToggle(template.id)}
-                className="flex items-center gap-3.5 p-4 rounded-2xl bg-white border border-slate-200 cursor-pointer hover:bg-slate-50/80 transition active:scale-[0.99] select-none shadow-sm min-h-[48px]"
+                className="flex min-h-[48px] items-center gap-3.5 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-all duration-200 ease-in-out cursor-pointer select-none hover:bg-slate-50/80 active:scale-[0.99]"
               >
                 {/* Custom Circular Checkbox */}
                 <div
@@ -177,10 +168,10 @@ export default function DailyChecklist({ isDedicatedPage = false }: DailyCheckli
 
         <button
           onClick={handleEditClick}
-          className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-slate-500 hover:text-slate-800 bg-white border border-slate-200 hover:bg-slate-100 py-2.5 px-4 rounded-full transition active:scale-95 shadow-sm min-h-[44px] min-w-[44px] justify-center"
+          className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center gap-1.5 rounded-full bg-indigo-600 px-4 py-2.5 text-xs font-black uppercase tracking-wider text-white shadow-sm transition-all duration-200 ease-in-out hover:bg-indigo-500 active:scale-95"
         >
-          <Edit2 className="w-3.5 h-3.5" />
-          <span>Editar</span>
+          <Plus className="w-3.5 h-3.5" />
+          <span>Nueva Tarea</span>
         </button>
       </div>
 
@@ -229,10 +220,10 @@ export default function DailyChecklist({ isDedicatedPage = false }: DailyCheckli
 
       {/* Drawer for Editing Templates (Only on Dedicated Page) */}
       {isEditOpen && isDedicatedPage && (
-        <BottomSheet isOpen={isEditOpen} onClose={() => setIsEditOpen(false)} title="Gestionar Plantillas">
+        <BottomSheet isOpen={isEditOpen} onClose={() => setIsEditOpen(false)} title="Nueva Tarea">
           <div className="space-y-4">
             {/* List of current templates */}
-            <div className="max-h-48 overflow-y-auto mb-4 space-y-2 pr-1 custom-scrollbar">
+            <div className="max-h-48 overflow-y-auto mb-4 space-y-2 pr-1 scrollbar-hide">
               {templates.length === 0 ? (
                 <p className="text-xs font-bold text-slate-400 text-center py-6">
                   Aún no hay tareas creadas.
@@ -274,11 +265,11 @@ export default function DailyChecklist({ isDedicatedPage = false }: DailyCheckli
             <form onSubmit={handleAddTemplate} className="space-y-4 pt-4 border-t border-slate-100">
               <div>
                 <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1.5">
-                  Nueva Tarea
+                  ¿Qué quieres recordar?
                 </label>
                 <input
                   type="text"
-                  placeholder="Ej. Meditación 10 min, Beber té..."
+                  placeholder="Ej. Meditación 10 min"
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
                   className="w-full px-4 py-3 text-xs border border-slate-200 rounded-xl bg-white text-slate-700 font-bold focus:ring-2 focus:ring-indigo-500 outline-none min-h-[44px]"
@@ -288,72 +279,17 @@ export default function DailyChecklist({ isDedicatedPage = false }: DailyCheckli
 
               <div>
                 <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1.5">
-                  Momento del Día
+                  Hora / momento del día
                 </label>
                 <select
                   value={timeOfDay}
-                  onChange={(e) => setTimeOfDay(e.target.value as any)}
+                  onChange={(e) => setTimeOfDay(e.target.value as TimeOfDay)}
                   className="w-full px-4 py-3 text-xs border border-slate-200 rounded-xl bg-white text-slate-700 font-bold focus:ring-2 focus:ring-indigo-500 outline-none min-h-[44px]"
                 >
                   <option value="morning">☀️ Mañana</option>
                   <option value="afternoon">⛅ Tarde</option>
                   <option value="night">🌙 Noche</option>
                 </select>
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1.5">
-                  ¿Alimenta algún hábito?
-                </label>
-                <select
-                  value={linkedHabitId || ''}
-                  onChange={(e) => setLinkedHabitId(e.target.value ? Number(e.target.value) : null)}
-                  className="w-full px-4 py-3 text-xs border border-slate-200 rounded-xl bg-white text-slate-700 font-bold focus:ring-2 focus:ring-indigo-500 outline-none min-h-[44px]"
-                >
-                  <option value="">No alimenta ningún hábito</option>
-                  {userHabits.map((habit) => (
-                    <option key={habit.id} value={habit.id}>
-                      {habit.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {linkedHabitId !== null && (
-                <div>
-                  <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1.5">
-                    Cantidad a sumar al completar
-                  </label>
-                  <input
-                    type="number"
-                    min={1}
-                    value={habitIncrementAmount}
-                    onChange={(e) => setHabitIncrementAmount(Number(e.target.value))}
-                    className="w-full px-4 py-3 text-xs border border-slate-200 rounded-xl bg-white text-slate-700 font-bold focus:ring-2 focus:ring-indigo-500 outline-none min-h-[44px]"
-                  />
-                </div>
-              )}
-
-              <div>
-                <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1.5">
-                  Selecciona un Icono
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {iconsList.map((ico) => (
-                    <button
-                      key={ico}
-                      type="button"
-                      onClick={() => setNewIcon(ico)}
-                      className={`w-8 h-8 rounded-lg text-base flex items-center justify-center transition border min-h-[44px] min-w-[44px] ${
-                        newIcon === ico
-                          ? 'border-indigo-600 bg-indigo-50'
-                          : 'border-slate-200 hover:bg-slate-50'
-                      }`}
-                    >
-                      {ico}
-                    </button>
-                  ))}
-                </div>
               </div>
 
               <button
@@ -366,7 +302,7 @@ export default function DailyChecklist({ isDedicatedPage = false }: DailyCheckli
                 ) : (
                   <>
                     <Plus className="w-4 h-4" />
-                    <span>Añadir Tarea</span>
+                    <span>Guardar Tarea</span>
                   </>
                 )}
               </button>

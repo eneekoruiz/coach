@@ -14,5 +14,6 @@ export function useHaptic() {
   return {
     light: () => vibrate(10),
     success: () => vibrate([10, 50, 10]),
+    warning: () => vibrate([20, 35, 20, 35, 20]),
   };
 }

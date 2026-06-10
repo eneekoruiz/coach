@@ -5,7 +5,6 @@ import { useMemo, useState } from 'react';
 
 import ChatInput from '@/components/ChatInput';
 import { useDashboard } from '@/hooks/useDashboard';
-import DashboardHeader from '@/components/DashboardHeader';
 import DashboardMain from '@/components/DashboardMain';
 import FloatingChatButton from '@/components/FloatingChatButton';
 import type { DailyLog } from '@/lib/schema';
@@ -44,6 +43,7 @@ export default function HomeDashboard() {
     dailyWaterTarget,
     defaultGlassSize,
     dietTargets,
+    updateWaterSettings,
     addWaterIntake,
     hasLoggedToday,
     pendingSyncCount,
@@ -65,13 +65,7 @@ export default function HomeDashboard() {
     <div className={`relative flex min-h-0 flex-1 flex-col overflow-hidden ${theme.background} ${theme.text}`}>
       <div className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${theme.accent}`} />
 
-      <div className="relative z-10 flex h-full flex-1 flex-col px-3 py-3 sm:px-6 lg:px-8">
-        <DashboardHeader
-          theme={theme}
-          momentum={momentum}
-          pendingSyncCount={pendingSyncCount}
-        />
-
+      <div className="relative z-10 flex h-full min-h-0 flex-1 flex-col overflow-hidden px-2 py-2 sm:px-4">
         <DashboardMain
           isLoading={isLoading}
           theme={theme}
@@ -83,6 +77,7 @@ export default function HomeDashboard() {
           dailyWaterTarget={dailyWaterTarget}
           defaultGlassSize={defaultGlassSize}
           dietTargets={dietTargets}
+          updateWaterSettings={updateWaterSettings}
           addWaterIntake={addWaterIntake}
           pendingSyncCount={pendingSyncCount}
           onChatOpen={() => setIsChatOpen(true)}
@@ -121,14 +116,14 @@ export default function HomeDashboard() {
             </motion.aside>
 
             <motion.aside
-              className="flex md:hidden fixed bottom-0 left-0 right-0 z-[150] flex-col bg-white/95 backdrop-blur-2xl border-t border-slate-200/60 rounded-t-[2rem] shadow-2xl"
+              className="flex md:hidden fixed bottom-0 left-0 right-0 z-[150] max-h-[78dvh] flex-col bg-white/95 backdrop-blur-2xl border-t border-slate-200/60 rounded-t-[2rem] shadow-2xl"
               initial={{ y: '100%' }}
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
               transition={{ type: 'spring', stiffness: 300, damping: 30 }}
             >
               <div className="mx-auto my-3 h-1.5 w-12 shrink-0 rounded-full bg-slate-200" />
-              <div className="flex-1 px-4 pb-4 overflow-hidden" style={{ height: '70vh' }}>
+              <div className="flex-1 px-4 pb-4 overflow-hidden">
                 <ChatInput
                   momentum={momentum}
                   onClose={() => setIsChatOpen(false)}

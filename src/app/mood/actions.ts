@@ -20,9 +20,7 @@ export async function saveMoodEntry(
     const today = new Date().toISOString().split('T')[0];
     const targetDate = date || today;
 
-    const { error } = await supabase
-      .from('mood_logs')
-      .insert({
+    const payload = {
         user_id: user.id,
         date: targetDate,
         mood_score: moodScore, // Compatibility field
@@ -32,7 +30,35 @@ export async function saveMoodEntry(
         is_daily_summary: isDailySummary || false,
         created_at_timestamp: new Date().toISOString(),
         logged_at: new Date().toISOString(), // Compatibility field
-      });
+      };
+
+    let error: { message: string } | null = null;
+    if (isDailySummary) {
+      const { data: existingSummary, error: lookupError } = await supabase
+        .from('mood_logs')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('date', targetDate)
+        .eq('is_daily_summary', true)
+        .maybeSingle();
+
+      if (lookupError) {
+        error = lookupError;
+      } else if (existingSummary?.id) {
+        const updateResult = await supabase
+          .from('mood_logs')
+          .update(payload)
+          .eq('id', existingSummary.id)
+          .eq('user_id', user.id);
+        error = updateResult.error;
+      } else {
+        const insertResult = await supabase.from('mood_logs').insert(payload);
+        error = insertResult.error;
+      }
+    } else {
+      const insertResult = await supabase.from('mood_logs').insert(payload);
+      error = insertResult.error;
+    }
 
     if (error) {
       console.error('[saveMoodEntry] Supabase error:', error.message);

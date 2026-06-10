@@ -4,7 +4,7 @@ import { type SupabaseClient } from '@supabase/supabase-js';
 import { z } from 'zod';
 
 import { isMissingHabitTableError } from '@/lib/habits';
-import { getNormalizedDate } from '@/lib/date-utils';
+import { getSafeLocalDate } from '@/lib/date-utils';
 import { upsertDailyLog } from '@/services/dailyLogService';
 import { dailyLogSchema, type DailyLog } from '@/lib/schema';
 
@@ -32,7 +32,7 @@ export interface CreateHabitParams {
 }
 
 export async function createHabit(params: CreateHabitParams) {
-  const { supabase, userId, name, type, tolerance } = params;
+  const { supabase, userId, name, type, target_number, unit, tolerance } = params;
 
   const { data, error } = await supabase
     .from('user_habits')
@@ -42,6 +42,8 @@ export async function createHabit(params: CreateHabitParams) {
       type,
       is_custom: true,
       tolerance_threshold: tolerance,
+      target_value: target_number,
+      unit: unit ?? null,
       current_streak: 0,
       longest_streak: 0,
       shields: 0,
@@ -71,11 +73,13 @@ export interface UpdateTodayHabitParams {
   amount?: number;
   delta?: number;
   date?: string;
+  relapseFactor?: HabitTrackingEntry['relapse_factor'];
 }
 
 type HabitTrackingEntry = {
   habit_id: number;
   amount: number;
+  relapse_factor?: 'stress' | 'social' | 'boredom' | 'craving' | 'other' | null;
 };
 
 function parseHabitTracking(value: unknown): HabitTrackingEntry[] {
@@ -101,14 +105,15 @@ function normalizeHabitKey(name: string): string {
 }
 
 export async function updateTodayHabit(params: UpdateTodayHabitParams) {
-  const { supabase, userId, habitId, amount, delta, date } = params;
-  const targetDate = date || getNormalizedDate(new Date());
+  const { supabase, userId, habitId, amount, delta, date, relapseFactor } = params;
+  const targetDate = getSafeLocalDate(date);
 
   // 1) Fetch habit to get its name and type
   const { data: habit, error: habitError } = await supabase
     .from('user_habits')
     .select('name, type')
     .eq('id', habitId)
+    .eq('user_id', userId)
     .single();
 
   if (habitError || !habit) {
@@ -186,8 +191,9 @@ export async function updateTodayHabit(params: UpdateTodayHabitParams) {
   // Update tracking entry
   if (existingEntry) {
     existingEntry.amount = newAmount;
+    existingEntry.relapse_factor = relapseFactor ?? existingEntry.relapse_factor ?? null;
   } else {
-    currentTracking.push({ habit_id: habitId, amount: newAmount });
+    currentTracking.push({ habit_id: habitId, amount: newAmount, relapse_factor: relapseFactor ?? null });
   }
 
   // 5) Sincronizar ai_data
