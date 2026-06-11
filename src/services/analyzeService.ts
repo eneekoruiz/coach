@@ -389,7 +389,7 @@ export async function analyzeAndPersistDailyLog(params: AnalyzeParams) {
   let analyzedLog: DailyLog;
   try {
     const result = await withTimeout(generateObject({
-      model: google('gemini-1.5-flash'),
+      model: google('gemini-2.5-flash'),
       system: compactSystemPrompt,
       messages: [
         ...(history || []).slice(-8).map(msg => ({
@@ -753,7 +753,7 @@ export async function streamAnalyzeAndPersistDailyLog(params: AnalyzeParams) {
     : [{ type: 'text' as const, text: analysisText }];
 
   const streamResult = await streamObject({
-    model: google('gemini-1.5-flash'),
+    model: google('gemini-2.5-flash'),
     system: compactSystemPrompt,
     messages: [
       ...(history || []).slice(-8).map(msg => ({

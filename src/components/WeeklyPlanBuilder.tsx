@@ -50,7 +50,7 @@ export default function WeeklyPlanBuilder() {
   const [loading, setLoading] = useState(false);
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
 
-  const [isDetailActiveMobile, setIsDetailActiveMobile] = useState(false);
+  const [isDetailActive, setIsDetailActive] = useState(false);
 
   const assignedCount = useMemo(
     () => DAYS_OF_WEEK.filter((day) => Boolean(dayMappings[day.value])).length,
@@ -158,7 +158,7 @@ export default function WeeklyPlanBuilder() {
     }
 
     if (isUserClick) {
-      setIsDetailActiveMobile(true);
+      setIsDetailActive(true);
     }
   };
 
@@ -169,7 +169,7 @@ export default function WeeklyPlanBuilder() {
     setDayMappings({});
     setIsActive(true);
     setSelectedPlanId(null);
-    setIsDetailActiveMobile(true);
+    setIsDetailActive(true);
   };
 
   const handleSave = async () => {
@@ -202,6 +202,7 @@ export default function WeeklyPlanBuilder() {
     toast.success('Plan semanal guardado');
     setPlanId(result.data.id);
     setSelectedPlanId(result.data.id);
+    setIsDetailActive(false);
     const fetchedPlans = await getWeeklyPlans();
     setWeeklyPlans(fetchedPlans);
   };
@@ -218,267 +219,268 @@ export default function WeeklyPlanBuilder() {
 
     toast.success('Plan semanal eliminado');
     handleCreateNew();
+    setIsDetailActive(false);
     const fetchedPlans = await getWeeklyPlans();
     setWeeklyPlans(fetchedPlans);
   };
 
   return (
-    <div className="grid h-[72dvh] min-h-0 grid-cols-1 gap-4 overflow-y-auto pr-1 md:grid-cols-[280px_1fr] md:overflow-hidden md:pr-0">
-      <aside className={`${isDetailActiveMobile ? 'hidden md:flex' : 'flex'} flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-sm h-fit md:h-full md:overflow-y-auto custom-scrollbar shrink-0`}>
-        <div className="flex items-center gap-2">
-          <ClipboardList className="h-4 w-4 text-emerald-600" />
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
-              Librería
-            </p>
-            <h3 className="text-sm font-black text-slate-900">
-              Planes Semanales
-            </h3>
+    <div className="h-[72dvh] min-h-0 overflow-y-auto pr-1 md:overflow-hidden md:pr-0 select-none">
+      {!isDetailActive ? (
+        /* Library View */
+        <div className="h-full flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm max-w-2xl mx-auto animate-fade-in">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <ClipboardList className="h-5 w-5 text-emerald-600" />
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
+                  Librería
+                </p>
+                <h3 className="text-base font-black text-slate-900">
+                  Planes Semanales
+                </h3>
+              </div>
+            </div>
           </div>
-        </div>
 
-        {/* Prominent Action Button */}
-        <button
-          type="button"
-          onClick={handleCreateNew}
-          className="mt-3 flex w-full min-h-[40px] items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-4 text-xs font-black text-white hover:from-emerald-700 hover:to-teal-700 active:scale-95 transition-all shadow-sm shrink-0"
-        >
-          <Plus className="h-4 w-4" />
-          Nuevo Plan Semanal
-        </button>
-
-        <div className="mt-4 border-t border-slate-100 pt-3 shrink-0">
-          <h4 className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
-            Mis Planes
-          </h4>
-        </div>
-
-        <div className="mt-2 min-h-0 flex-1 space-y-2 overflow-y-auto pr-1 scrollbar-hide md:max-h-none max-h-48">
-          {loading ? (
-            <div className="space-y-2">
-              <div className="h-20 rounded-xl border border-slate-100 bg-slate-50 animate-pulse" />
-              <div className="h-20 rounded-xl border border-slate-100 bg-slate-50 animate-pulse" />
-            </div>
-          ) : weeklyPlans.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-5 text-center">
-              <CalendarDays className="mx-auto h-7 w-7 text-slate-300" />
-              <p className="mt-2 text-xs font-bold text-slate-500">Sin semanas creadas</p>
-            </div>
-          ) : (
-            weeklyPlans.map((plan) => {
-              const isSelected = selectedPlanId === plan.id;
-
-              return (
-                <button
-                  key={plan.id}
-                  type="button"
-                  onClick={() => plan.id && handleSelectPlan(plan.id, weeklyPlans, true)}
-                  className={`w-full rounded-xl border p-3 text-left transition ${
-                    isSelected
-                      ? 'border-slate-900 bg-slate-900 text-white shadow-sm'
-                      : 'border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-300 hover:bg-white'
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="truncate text-xs font-black">{plan.name}</p>
-                      <p className={`mt-1 text-[10px] font-bold ${isSelected ? 'text-slate-300' : 'text-slate-400'}`}>
-                        Bloque Matryoshka de 7 días
-                      </p>
-                    </div>
-                    <span
-                      className={`shrink-0 rounded-md px-1.5 py-0.5 text-[9px] font-black ${
-                        plan.is_active
-                          ? 'bg-emerald-100 text-emerald-700'
-                          : isSelected
-                            ? 'bg-white text-slate-900'
-                            : 'bg-white text-slate-500 border border-slate-200'
-                      }`}
-                    >
-                      {plan.is_active ? 'ACTIVA' : 'SEMANA'}
-                    </span>
-                  </div>
-                </button>
-              );
-            })
-          )}
-        </div>
-      </aside>
-
-      <section className={`${isDetailActiveMobile ? 'flex' : 'hidden md:flex'} flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm flex-1 min-h-0 md:h-full md:overflow-y-auto custom-scrollbar`}>
-        {isDetailActiveMobile && (
+          {/* Prominent Action Button */}
           <button
             type="button"
-            onClick={() => setIsDetailActiveMobile(false)}
-            className="md:hidden self-start mb-4 inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 text-xs font-black uppercase text-slate-700 hover:bg-slate-100 transition"
+            onClick={handleCreateNew}
+            className="mt-4 flex w-full min-h-[52px] items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 px-5 text-sm font-black text-white hover:from-emerald-700 hover:to-teal-700 active:scale-95 transition-all shadow-md shrink-0"
           >
-            <ArrowLeft className="h-4 w-4" />
-            Volver
+            <Plus className="h-5 w-5" />
+            + Nuevo Plan Semanal
           </button>
-        )}
-        <div className="flex flex-col gap-3 border-b border-slate-100 pb-4 md:flex-row md:items-start md:justify-between">
-          <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
-              Lienzo de Trabajo
-            </p>
-            <input
-              type="text"
-              value={planName}
-              onChange={(event) => setPlanName(event.target.value)}
-              className="mt-1 w-full rounded-none border-b border-transparent bg-transparent pb-1 text-xl font-black text-slate-900 outline-none transition focus:border-slate-300"
-            />
-            <p className="mt-1 text-xs font-semibold text-slate-500">
-              Asigna un Día Base a cada día de la semana. Las variaciones se mantienen vinculadas a su día original.
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <ShareAchievementButton
-              payload={{
-                title: planName.trim() || 'Plan semanal',
-                subtitle: 'Semana estructurada en BioAvatar',
-                primaryValue: `${assignedCount}/7`,
-                primaryLabel: 'días asignados',
-                secondaryValue: isActive
-                  ? 'Semana activa lista para proyectarse al calendario.'
-                  : 'Semana guardada como bloque reusable de 7 días.',
-                footer: 'Planificación clínica con fricción cero.',
-                accentFrom: '#38bdf8',
-                accentTo: '#818cf8',
-                badge: 'Weekly Plan',
-                avatarLabel: 'W',
-                filename: `weekly-plan-${(planName.trim() || 'semana').toLowerCase().replace(/\s+/g, '-')}.png`,
-              }}
-              className="border-slate-200 bg-slate-950 text-white"
-            />
-            <button
-              type="button"
-              onClick={handleExportPlan}
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black text-slate-700 transition hover:bg-slate-50 active:scale-95"
-            >
-              <Download className="h-4 w-4" />
-              Exportar
-            </button>
-            {planId && (
-              <button
-                type="button"
-                onClick={() => handleDelete(planId)}
-                className="flex h-10 w-10 items-center justify-center rounded-xl border border-rose-200 bg-white text-rose-500 transition hover:bg-rose-50 active:scale-95"
-                title="Eliminar plan semanal"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={handleSave}
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 text-xs font-black text-white transition hover:bg-slate-800 active:scale-95"
-            >
-              <Save className="h-4 w-4" />
-              Guardar
-            </button>
-          </div>
-        </div>
 
-        <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-7">
-          {DAYS_OF_WEEK.map((day) => {
-            const assignedTemplateId = dayMappings[day.value];
-            const assignedTemplate = templates.find((template) => template.id === assignedTemplateId);
-
-            return (
-              <div
-                key={day.value}
-                className={`flex min-h-[180px] flex-col rounded-xl border p-3 transition ${
-                  assignedTemplate
-                    ? 'border-emerald-200 bg-emerald-50/50'
-                    : 'border-slate-200 bg-slate-50'
-                }`}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <span className={`flex h-8 w-8 items-center justify-center rounded-lg text-xs font-black ${
-                    assignedTemplate ? 'bg-emerald-600 text-white' : 'bg-white text-slate-400 border border-slate-200'
-                  }`}>
-                    {day.short}
-                  </span>
-                  {assignedTemplate && <Check className="h-4 w-4 text-emerald-600" />}
-                </div>
-                <p className="mt-2 text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
-                  {day.label}
-                </p>
-
-                <select
-                  value={assignedTemplateId || ''}
-                  onChange={(event) =>
-                    setDayMappings((current) => ({ ...current, [day.value]: event.target.value }))
-                  }
-                  className="mt-3 h-10 w-full rounded-lg border border-slate-200 bg-white px-2 text-[11px] font-bold text-slate-700 outline-none transition focus:border-slate-400"
-                >
-                  <option value="">Sin Día Base</option>
-                  {templates.map((template) => (
-                    <option key={template.id} value={template.id}>
-                      {isVariation(template) ? 'V2 · ' : ''}{template.name} ({template.target_kcal} kcal)
-                    </option>
-                  ))}
-                </select>
-
-                {assignedTemplate ? (
-                  <div className="mt-auto pt-3">
-                    <div className="rounded-lg border border-white/70 bg-white px-2 py-2">
-                      <div className="flex items-center gap-1.5">
-                        <Sun className="h-3.5 w-3.5 text-amber-500" />
-                        <p className="truncate text-[10px] font-black text-slate-800">
-                          {assignedTemplate.name}
-                        </p>
-                      </div>
-                      <p className="mt-1 text-[9px] font-bold text-slate-400">
-                        {assignedTemplate.target_kcal} kcal · {assignedTemplate.meals.length} comidas
-                      </p>
-                      {isVariation(assignedTemplate) && (
-                        <span className="mt-2 inline-flex rounded-md border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[8px] font-black text-amber-700">
-                          V2 · Modificado
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="mt-auto rounded-lg border border-dashed border-slate-200 bg-white p-3 text-center">
-                    <p className="text-[10px] font-bold text-slate-400">Esperando Día Base</p>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="mt-5 flex flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-2">
-            {DAYS_OF_WEEK.map((day) => (
-              <span
-                key={day.value}
-                className={`flex h-7 w-7 items-center justify-center rounded-lg text-[10px] font-black ${
-                  dayMappings[day.value] ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-300'
-                }`}
-              >
-                {day.short}
-              </span>
-            ))}
-            <span className="ml-2 text-xs font-bold text-slate-500">
-              {assignedCount}/7 días listos
+          <div className="mt-6 border-t border-slate-100 pt-4 shrink-0 flex items-center justify-between">
+            <h4 className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">
+              Mis Planes Guardados
+            </h4>
+            <span className="text-[10px] font-black text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+              {weeklyPlans.length} planes
             </span>
           </div>
 
+          {/* List of plans */}
+          <div className="mt-4 min-h-0 flex-1 space-y-3 overflow-y-auto pr-1 scrollbar-hide">
+            {loading ? (
+              <div className="space-y-3">
+                <div className="h-20 rounded-2xl border border-slate-100 bg-slate-50 animate-pulse" />
+                <div className="h-20 rounded-2xl border border-slate-100 bg-slate-50 animate-pulse" />
+              </div>
+            ) : weeklyPlans.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center">
+                <CalendarDays className="mx-auto h-8 w-8 text-slate-350" />
+                <p className="mt-3 text-xs font-bold text-slate-500">Sin planes semanales guardados</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {weeklyPlans.map((plan) => {
+                  const isSelected = selectedPlanId === plan.id;
+                  return (
+                    <button
+                      key={plan.id}
+                      type="button"
+                      onClick={() => plan.id && handleSelectPlan(plan.id, weeklyPlans, true)}
+                      className="group w-full rounded-2xl border border-slate-200 bg-slate-50/50 p-4 text-left transition hover:border-slate-350 hover:bg-white hover:shadow-sm flex flex-col justify-between gap-3"
+                    >
+                      <div>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="truncate text-xs font-black text-slate-950">{plan.name}</span>
+                          {plan.is_active && (
+                            <span className="shrink-0 rounded-md bg-emerald-50 text-emerald-700 px-1.5 py-0.5 text-[8px] font-black border border-emerald-100 uppercase tracking-wider">
+                              Activa
+                            </span>
+                          )}
+                        </div>
+                        <p className="mt-2 text-[10px] font-bold text-slate-500">
+                          Bloque de 7 días
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
+        /* Editor View */
+        <div className="h-full flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm max-w-6xl mx-auto overflow-y-auto custom-scrollbar animate-fade-in">
           <button
             type="button"
-            onClick={() => setIsActive((current) => !current)}
-            className={`inline-flex h-9 items-center justify-center rounded-xl px-3 text-[10px] font-black transition active:scale-95 ${
-              isActive
-                ? 'bg-emerald-600 text-white'
-                : 'border border-slate-200 bg-white text-slate-500 hover:bg-slate-50'
-            }`}
+            onClick={() => setIsDetailActive(false)}
+            className="self-start mb-4 inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3.5 text-xs font-black uppercase text-slate-700 hover:bg-slate-100 transition"
           >
-            {isActive ? 'Semana activa' : 'Marcar como activa'}
+            <ArrowLeft className="h-4 w-4" />
+            Volver a la Biblioteca
           </button>
+
+          <div className="flex flex-col gap-3 border-b border-slate-100 pb-4 md:flex-row md:items-start md:justify-between">
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
+                Lienzo de Trabajo
+              </p>
+              <input
+                type="text"
+                value={planName}
+                onChange={(event) => setPlanName(event.target.value)}
+                className="mt-1 w-full rounded-none border-b border-transparent bg-transparent pb-1 text-xl font-black text-slate-900 outline-none transition focus:border-slate-300"
+              />
+              <p className="mt-1 text-xs font-semibold text-slate-500">
+                Asigna un Día Base a cada día de la semana. Las variaciones se mantienen vinculadas a su día original.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <ShareAchievementButton
+                payload={{
+                  title: planName.trim() || 'Plan semanal',
+                  subtitle: 'Semana estructurada en BioAvatar',
+                  primaryValue: `${assignedCount}/7`,
+                  primaryLabel: 'días asignados',
+                  secondaryValue: isActive
+                    ? 'Semana activa lista para proyectarse al calendario.'
+                    : 'Semana guardada como bloque reusable de 7 días.',
+                  footer: 'Planificación clínica con fricción cero.',
+                  accentFrom: '#38bdf8',
+                  accentTo: '#818cf8',
+                  badge: 'Weekly Plan',
+                  avatarLabel: 'W',
+                  filename: `weekly-plan-${(planName.trim() || 'semana').toLowerCase().replace(/\s+/g, '-')}.png`,
+                }}
+                className="border-slate-200 bg-slate-950 text-white min-h-[40px]"
+              />
+              <button
+                type="button"
+                onClick={handleExportPlan}
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black text-slate-700 transition hover:bg-slate-50 active:scale-95 min-h-[40px]"
+              >
+                <Download className="h-4 w-4" />
+                Exportar
+              </button>
+              {planId && (
+                <button
+                  type="button"
+                  onClick={() => handleDelete(planId)}
+                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-rose-200 bg-white text-rose-500 transition hover:bg-rose-50 active:scale-95 min-h-[40px]"
+                  title="Eliminar plan semanal"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={handleSave}
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 text-xs font-black text-white transition hover:bg-slate-800 active:scale-95 min-h-[40px]"
+              >
+                <Save className="h-4 w-4" />
+                Guardar
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-7">
+            {DAYS_OF_WEEK.map((day) => {
+              const assignedTemplateId = dayMappings[day.value];
+              const assignedTemplate = templates.find((template) => template.id === assignedTemplateId);
+
+              return (
+                <div
+                  key={day.value}
+                  className={`flex min-h-[180px] flex-col rounded-xl border p-3 transition ${
+                    assignedTemplate
+                      ? 'border-emerald-200 bg-emerald-50/50'
+                      : 'border-slate-200 bg-slate-50'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className={`flex h-8 w-8 items-center justify-center rounded-lg text-xs font-black ${
+                      assignedTemplate ? 'bg-emerald-600 text-white' : 'bg-white text-slate-400 border border-slate-200'
+                    }`}>
+                      {day.short}
+                    </span>
+                    {assignedTemplate && <Check className="h-4 w-4 text-emerald-600" />}
+                  </div>
+                  <p className="mt-2 text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
+                    {day.label}
+                  </p>
+
+                  <select
+                    value={assignedTemplateId || ''}
+                    onChange={(event) =>
+                      setDayMappings((current) => ({ ...current, [day.value]: event.target.value }))
+                    }
+                    className="mt-3 h-10 w-full rounded-lg border border-slate-200 bg-white px-2 text-[11px] font-bold text-slate-700 outline-none transition focus:border-slate-400"
+                  >
+                    <option value="">Sin Día Base</option>
+                    {templates.map((template) => (
+                      <option key={template.id} value={template.id}>
+                        {isVariation(template) ? 'V2 · ' : ''}{template.name} ({template.target_kcal} kcal)
+                      </option>
+                    ))}
+                  </select>
+
+                  {assignedTemplate ? (
+                    <div className="mt-auto pt-3">
+                      <div className="rounded-lg border border-white/70 bg-white px-2 py-2">
+                        <div className="flex items-center gap-1.5">
+                          <Sun className="h-3.5 w-3.5 text-amber-500" />
+                          <p className="truncate text-[10px] font-black text-slate-800">
+                            {assignedTemplate.name}
+                          </p>
+                        </div>
+                        <p className="mt-1 text-[9px] font-bold text-slate-400">
+                          {assignedTemplate.target_kcal} kcal · {assignedTemplate.meals.length} comidas
+                        </p>
+                        {isVariation(assignedTemplate) && (
+                          <span className="mt-2 inline-flex rounded-md border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[8px] font-black text-amber-700">
+                            V2 · Modificado
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="mt-auto rounded-lg border border-dashed border-slate-200 bg-white p-3 text-center">
+                      <p className="text-[10px] font-bold text-slate-400">Esperando Día Base</p>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="mt-5 flex flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-2">
+              {DAYS_OF_WEEK.map((day) => (
+                <span
+                  key={day.value}
+                  className={`flex h-7 w-7 items-center justify-center rounded-lg text-[10px] font-black ${
+                    dayMappings[day.value] ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-300'
+                  }`}
+                >
+                  {day.short}
+                </span>
+              ))}
+              <span className="ml-2 text-xs font-bold text-slate-500">
+                {assignedCount}/7 días listos
+              </span>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsActive((current) => !current)}
+              className={`inline-flex h-9 items-center justify-center rounded-xl px-3 text-[10px] font-black transition active:scale-95 ${
+                isActive
+                  ? 'bg-emerald-600 text-white'
+                  : 'border border-slate-200 bg-white text-slate-500 hover:bg-slate-50'
+              }`}
+            >
+              {isActive ? 'Semana activa' : 'Marcar como activa'}
+            </button>
+          </div>
         </div>
-      </section>
+      )}
     </div>
   );
 }

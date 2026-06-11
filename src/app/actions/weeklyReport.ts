@@ -68,7 +68,7 @@ Cada pantalla debe enfocarse en un aspecto (ej. Sueño/Energía, Hidratación, M
 Los gradientes de fondo de pantalla deben ser degradados oscuros de alta gama (ej. 'from-slate-950 via-purple-950 to-zinc-950', 'from-indigo-950 via-slate-900 to-black', 'from-cyan-950 via-emerald-950 to-slate-950').`;
 
     const { object: report } = await generateObject({
-      model: google('gemini-1.5-pro'),
+      model: google('gemini-2.5-flash'),
       system: systemPrompt,
       prompt: `Datos de la última semana:
 - Logs de hábitos y alimentación: ${JSON.stringify(dailyLogsData, null, 2)}

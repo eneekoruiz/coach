@@ -18,7 +18,7 @@ export default function DailyTemplateBuilder() {
   const [aiDayPrompt, setAiDayPrompt] = useState('');
   const [aiDayBusy, setAiDayBusy] = useState(false);
   const [aiDaySheetOpen, setAiDaySheetOpen] = useState(false);
-  const [isDetailActiveMobile, setIsDetailActiveMobile] = useState(false);
+  const [isDetailActive, setIsDetailActive] = useState(false);
 
   // Bottom Sheet state for recipe picker
   const [recipePickerOpen, setRecipePickerOpen] = useState(false);
@@ -69,7 +69,7 @@ export default function DailyTemplateBuilder() {
       ]
     };
     setSelectedTemplate(newTemp);
-    setIsDetailActiveMobile(true);
+    setIsDetailActive(true);
   };
 
   const handleCreateVariation = async () => {
@@ -96,7 +96,7 @@ export default function DailyTemplateBuilder() {
     if (res.success && res.data) {
       toast.success('Variación creada. Renómbrala y ajusta solo lo necesario.');
       setSelectedTemplate(res.data);
-      setIsDetailActiveMobile(true);
+      setIsDetailActive(true);
       setExpandedTemplateGroups((current) => ({ ...current, [rootParentId]: true }));
       await loadAll();
     } else {
@@ -112,7 +112,7 @@ export default function DailyTemplateBuilder() {
     if (res.success) {
       toast.success('Plantilla eliminada');
       setSelectedTemplate(null);
-      setIsDetailActiveMobile(false);
+      setIsDetailActive(false);
       loadAll();
     } else {
       toast.error(res.error || 'No se pudo eliminar la plantilla');
@@ -142,6 +142,7 @@ export default function DailyTemplateBuilder() {
       toast.success('Plantilla guardada correctamente');
       loadAll();
       setSelectedTemplate(res.data);
+      setIsDetailActive(false);
     } else {
       toast.error(res.error || 'Fallo al guardar la plantilla');
     }
@@ -167,7 +168,7 @@ export default function DailyTemplateBuilder() {
         id: undefined,
         parent_template_id: null,
       });
-      setIsDetailActiveMobile(true);
+      setIsDetailActive(true);
       setAiDaySheetOpen(false);
       toast.success('¡Día Base generado!');
     } catch (error) {
@@ -322,332 +323,343 @@ export default function DailyTemplateBuilder() {
     : null;
 
   return (
-    <div className="grid h-[72dvh] min-h-0 grid-cols-1 gap-4 overflow-y-auto pr-1 md:grid-cols-[280px_1fr] md:overflow-hidden md:pr-0 select-none">
-
-      {/* Columna Izquierda: Lista de Plantillas Diarias */}
-      <div className={`${isDetailActiveMobile ? 'hidden md:flex' : 'flex'} flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm h-fit md:h-full md:overflow-y-auto custom-scrollbar shrink-0`}>
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
-              Librería
-            </p>
-            <h3 className="mt-1 flex items-center gap-2 text-sm font-black text-slate-900">
-              <Sun className="h-4 w-4 text-amber-500" />
-              Días Base
-            </h3>
+    <div className="h-[72dvh] min-h-0 overflow-y-auto pr-1 md:overflow-hidden md:pr-0 select-none">
+      {!isDetailActive ? (
+        /* Library View */
+        <div className="h-full flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm max-w-2xl mx-auto animate-fade-in">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <Sun className="h-5 w-5 text-amber-500" />
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
+                  Librería
+                </p>
+                <h3 className="text-base font-black text-slate-900">
+                  Días Base
+                </h3>
+              </div>
+            </div>
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              handleCreateNew();
-              setIsDetailActiveMobile(true);
-            }}
-            className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-990 bg-slate-900 text-white shadow-sm transition hover:bg-slate-800 active:scale-95"
-            title="Nuevo Día Base"
-          >
-            <Plus className="h-4 w-4" />
-          </button>
-        </div>
 
-        <button
-          type="button"
-          onClick={() => setAiDaySheetOpen(true)}
-          className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 text-xs font-black text-white shadow-sm transition-all duration-200 ease-in-out hover:bg-emerald-500 active:scale-95"
-        >
-          <Sparkles className="h-4 w-4" />
-          Generar Día Completo con IA
-        </button>
+          {/* Prominent Action Buttons */}
+          <div className="mt-4 grid grid-cols-2 gap-3 shrink-0">
+            <button
+              type="button"
+              onClick={handleCreateNew}
+              className="flex min-h-[52px] items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-slate-900 to-slate-800 px-5 text-xs font-black text-white hover:from-slate-800 hover:to-slate-700 active:scale-95 transition-all shadow-md"
+            >
+              <Plus className="h-4 w-4" />
+              + Nuevo Día Base
+            </button>
+            <button
+              type="button"
+              onClick={() => setAiDaySheetOpen(true)}
+              className="flex min-h-[52px] items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 px-5 text-xs font-black text-white hover:from-emerald-700 hover:to-teal-700 active:scale-95 transition-all shadow-md"
+            >
+              <Sparkles className="h-4 w-4" />
+              Generar con IA
+            </button>
+          </div>
 
-        <div className="max-h-[620px] space-y-2 overflow-y-auto pr-1 custom-scrollbar">
-          {templateGroups.map(({ root, variations }) => {
-            const rootId = root.id || root.name;
-            const isExpanded = expandedTemplateGroups[rootId] ?? true;
-            const rootSelected = selectedTemplate?.id === root.id;
+          <div className="mt-6 border-t border-slate-100 pt-4 shrink-0 flex items-center justify-between">
+            <h4 className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">
+              Mis Días Base Guardados
+            </h4>
+            <span className="text-[10px] font-black text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+              {templates.length} plantillas
+            </span>
+          </div>
 
-            return (
-              <div key={rootId} className="space-y-1.5">
-                <div className="grid grid-cols-[28px_minmax(0,1fr)] gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setExpandedTemplateGroups((current) => ({ ...current, [rootId]: !isExpanded }))
-                    }
-                    className="flex h-full min-h-[52px] items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-400 transition hover:bg-white"
-                    title={isExpanded ? 'Contraer variaciones' : 'Expandir variaciones'}
-                  >
-                    {variations.length > 0 ? (
-                      isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />
-                    ) : (
-                      <Sun className="h-3.5 w-3.5" />
-                    )}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedTemplate(root);
-                      setIsDetailActiveMobile(true);
-                    }}
-                    className={`min-w-0 rounded-xl border p-3 text-left transition ${
-                      rootSelected
-                        ? 'border-slate-900 bg-slate-900 text-white shadow-sm'
-                        : 'border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-300 hover:bg-white'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="truncate text-xs font-black">{root.name}</span>
-                      <span className={`shrink-0 rounded-md px-1.5 py-0.5 text-[9px] font-black ${
-                        rootSelected ? 'bg-white text-slate-900' : 'bg-white text-slate-500 border border-slate-200'
-                      }`}>
-                        DÍA
-                      </span>
-                    </div>
-                    <p className={`mt-1 text-[10px] font-bold ${rootSelected ? 'text-slate-300' : 'text-slate-400'}`}>
-                      {root.target_kcal} kcal · {root.meals.length} comidas · {variations.length} variaciones
-                    </p>
-                  </button>
-                </div>
+          {/* List of days */}
+          <div className="mt-4 min-h-0 flex-1 space-y-3 overflow-y-auto pr-1 scrollbar-hide">
+            {loading ? (
+              <div className="space-y-3">
+                <div className="h-20 rounded-2xl border border-slate-100 bg-slate-50 animate-pulse" />
+                <div className="h-20 rounded-2xl border border-slate-100 bg-slate-50 animate-pulse" />
+              </div>
+            ) : templates.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center">
+                <Sun className="mx-auto h-8 w-8 text-slate-350" />
+                <p className="mt-3 text-xs font-bold text-slate-500">Sin plantillas guardadas</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {templateGroups.map(({ root, variations }) => {
+                  const rootId = root.id || root.name;
+                  const isExpanded = expandedTemplateGroups[rootId] ?? true;
 
-                {isExpanded && variations.length > 0 && (
-                  <div className="ml-8 space-y-1.5 border-l border-slate-200 pl-2">
-                    {variations.map((variation, index) => {
-                      const isSelected = selectedTemplate?.id === variation.id;
-                      return (
+                  return (
+                    <div key={rootId} className="space-y-2 border border-slate-100 bg-slate-50/50 rounded-2xl p-3">
+                      {/* Root Template Card */}
+                      <div className="flex items-stretch gap-2">
+                        {variations.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setExpandedTemplateGroups((current) => ({ ...current, [rootId]: !isExpanded }))
+                            }
+                            className="flex w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-400 transition hover:bg-slate-50"
+                          >
+                            {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                          </button>
+                        )}
                         <button
-                          key={variation.id}
                           type="button"
                           onClick={() => {
-                            setSelectedTemplate(variation);
-                            setIsDetailActiveMobile(true);
+                            setSelectedTemplate(root);
+                            setIsDetailActive(true);
                           }}
-                          className={`w-full min-w-0 rounded-xl border p-3 text-left transition ${
-                            isSelected
-                              ? 'border-amber-400 bg-amber-50 text-slate-900 shadow-sm'
-                              : 'border-slate-200 bg-white text-slate-700 hover:border-amber-200 hover:bg-amber-50/50'
-                          }`}
+                          className="flex-1 rounded-xl border border-slate-200 bg-white p-3.5 text-left transition hover:border-slate-350 hover:shadow-sm"
                         >
                           <div className="flex items-center justify-between gap-2">
-                            <span className="truncate text-xs font-black">{variation.name}</span>
-                            <span className="shrink-0 rounded-md border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[9px] font-black text-amber-700">
-                              V{index + 2}
+                            <span className="text-xs font-black text-slate-900">{root.name}</span>
+                            <span className="shrink-0 rounded-md bg-slate-100 px-1.5 py-0.5 text-[8px] font-black border border-slate-200 uppercase tracking-wider">
+                              Día Base
                             </span>
                           </div>
-                          <p className="mt-1 text-[10px] font-bold text-slate-400">
-                            Modificado · {variation.target_kcal} kcal
+                          <p className="mt-1.5 text-[10px] font-bold text-slate-500">
+                            {root.target_kcal} kcal · {root.meals.length} comidas · {variations.length} variaciones
                           </p>
                         </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
+                      </div>
 
-      {/* Editor Central: Esqueleto del Día */}
-      <div className={`${isDetailActiveMobile ? 'flex' : 'hidden md:flex'} rounded-2xl border border-slate-200 bg-white p-5 shadow-sm flex flex-col gap-5 flex-1 min-h-0 md:h-full md:overflow-y-auto custom-scrollbar`}>
-        {isDetailActiveMobile && (
+                      {/* Variations */}
+                      {isExpanded && variations.length > 0 && (
+                        <div className="ml-6 pl-3 border-l border-slate-200 space-y-2">
+                          {variations.map((variation, index) => (
+                            <button
+                              key={variation.id}
+                              type="button"
+                              onClick={() => {
+                                setSelectedTemplate(variation);
+                                setIsDetailActive(true);
+                              }}
+                              className="w-full rounded-xl border border-slate-200 bg-white p-3 text-left transition hover:border-amber-300 hover:shadow-sm"
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="text-xs font-black text-slate-900">{variation.name}</span>
+                                <span className="shrink-0 rounded-md border border-amber-250 bg-amber-50 px-1.5 py-0.5 text-[8px] font-black text-amber-700 tracking-wider">
+                                  V{index + 2}
+                                </span>
+                              </div>
+                              <p className="mt-1 text-[10px] font-bold text-slate-400">
+                                {variation.target_kcal} kcal · {variation.meals.length} comidas
+                              </p>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
+        /* Editor View */
+        <div className="h-full flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm max-w-4xl mx-auto overflow-y-auto custom-scrollbar animate-fade-in">
           <button
             type="button"
-            onClick={() => setIsDetailActiveMobile(false)}
-            className="md:hidden self-start mb-2 inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 text-xs font-black uppercase text-slate-700 hover:bg-slate-100 transition animate-fade-in"
+            onClick={() => setIsDetailActive(false)}
+            className="self-start mb-4 inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3.5 text-xs font-black uppercase text-slate-700 hover:bg-slate-100 transition"
           >
             <ArrowLeft className="h-4 w-4" />
-            Volver
+            Volver a la Biblioteca
           </button>
-        )}
-        {selectedTemplate ? (
-          <>
-            <div className="flex flex-col gap-3 border-b border-slate-100 pb-3 md:flex-row md:items-start md:justify-between">
-              <div className="min-w-0 flex-1">
-                <div className="mb-1 flex flex-wrap items-center gap-2">
-                  <span className="rounded-md bg-slate-100 px-2 py-1 text-[9px] font-black uppercase tracking-[0.12em] text-slate-500">
-                    Día Base
-                  </span>
-                  {selectedTemplate.parent_template_id && (
-                    <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[9px] font-black uppercase tracking-[0.12em] text-amber-700">
-                      V2 · Modificado
+
+          {selectedTemplate ? (
+            <>
+              <div className="flex flex-col gap-3 border-b border-slate-100 pb-3 md:flex-row md:items-start md:justify-between">
+                <div className="min-w-0 flex-1">
+                  <div className="mb-1 flex flex-wrap items-center gap-2">
+                    <span className="rounded-md bg-slate-100 px-2 py-1 text-[9px] font-black uppercase tracking-[0.12em] text-slate-500">
+                      Día Base
                     </span>
-                  )}
-                  {selectedParent && (
-                    <span className="truncate rounded-md border border-slate-200 bg-white px-2 py-1 text-[9px] font-bold text-slate-500">
-                      Hereda de {selectedParent.name}
-                    </span>
-                  )}
+                    {selectedTemplate.parent_template_id && (
+                      <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[9px] font-black uppercase tracking-[0.12em] text-amber-700">
+                        V2 · Modificado
+                      </span>
+                    )}
+                    {selectedParent && (
+                      <span className="truncate rounded-md border border-slate-200 bg-white px-2 py-1 text-[9px] font-bold text-slate-500">
+                        Hereda de {selectedParent.name}
+                      </span>
+                    )}
+                  </div>
+                  <input
+                    type="text"
+                    value={selectedTemplate.name}
+                    onChange={(e) => setSelectedTemplate({ ...selectedTemplate, name: e.target.value })}
+                    className="w-full bg-transparent text-xl font-black text-slate-900 outline-none border-b border-transparent focus:border-slate-300"
+                  />
                 </div>
-                <input
-                  type="text"
-                  value={selectedTemplate.name}
-                  onChange={(e) => setSelectedTemplate({ ...selectedTemplate, name: e.target.value })}
-                  className="w-full bg-transparent text-xl font-black text-slate-900 outline-none border-b border-transparent focus:border-slate-300"
-                />
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={handleCreateVariation}
-                  disabled={!selectedTemplate.id}
-                  className="inline-flex min-h-[40px] items-center justify-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 text-xs font-black text-amber-800 transition hover:bg-amber-100 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <Copy className="h-4 w-4" />
-                  Crear Variación
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSave}
-                  className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-1.5 transition active:scale-95 shadow-sm min-h-[40px]"
-                >
-                  <Save className="w-3.5 h-3.5" /> Guardar
-                </button>
-                {selectedTemplate.id && (
+                <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
-                    onClick={() => handleDelete(selectedTemplate.id)}
-                    className="p-2.5 border border-red-200 text-red-500 rounded-xl hover:bg-red-50 transition min-h-[40px] min-w-[40px] flex items-center justify-center"
+                    onClick={handleCreateVariation}
+                    disabled={!selectedTemplate.id}
+                    className="inline-flex min-h-[40px] items-center justify-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 text-xs font-black text-amber-800 transition hover:bg-amber-100 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Copy className="h-4 w-4" />
+                    Crear Variación
                   </button>
-                )}
-              </div>
-            </div>
-
-            {/* List of Meal Slots (Esqueleto del día) */}
-            <div className="space-y-4 max-h-[450px] overflow-y-auto pr-1 custom-scrollbar">
-              {selectedTemplate.meals.map((meal) => {
-                const assignedRecipe = meal.recipe_id
-                  ? recipes.find(r => r.id === meal.recipe_id)
-                  : null;
-
-                return (
-                  <div
-                    key={meal.id}
-                    onDragOver={(event) => event.preventDefault()}
-                    onDrop={(event) => handleRecipeDrop(event, meal.id)}
-                    className="p-4 border border-slate-200 rounded-xl bg-slate-50 flex flex-col gap-3 transition hover:border-emerald-200"
+                  <button
+                    type="button"
+                    onClick={handleSave}
+                    className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-1.5 transition active:scale-95 shadow-sm min-h-[40px]"
                   >
-                    {/* Meal Header with [+ Añadir] button */}
-                    <div className="flex justify-between items-center">
-                      <input
-                        type="text"
-                        value={meal.name}
-                        onChange={(e) => updateMealField(meal.id, 'name', e.target.value)}
-                        className="font-black text-slate-800 text-xs tracking-wider uppercase bg-transparent outline-none max-w-[120px]"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => removeMealSlot(meal.id)}
-                        className="text-red-400 hover:text-red-600 text-xs font-bold"
-                      >
-                        Remover
-                      </button>
-                    </div>
+                    <Save className="w-3.5 h-3.5" /> Guardar
+                  </button>
+                  {selectedTemplate.id && (
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(selectedTemplate.id)}
+                      className="p-2.5 border border-red-200 text-red-500 rounded-xl hover:bg-red-50 transition min-h-[40px] min-w-[40px] flex items-center justify-center"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
 
-                    {/* Interactive Recipe Assignment Area */}
-                    {assignedRecipe ? (
-                      <div className="flex items-center gap-3">
-                        {/* Clickable recipe chip */}
+              {/* List of Meal Slots (Esqueleto del día) */}
+              <div className="mt-4 space-y-4 max-h-[450px] overflow-y-auto pr-1 custom-scrollbar">
+                {selectedTemplate.meals.map((meal) => {
+                  const assignedRecipe = meal.recipe_id
+                    ? recipes.find(r => r.id === meal.recipe_id)
+                    : null;
+
+                  return (
+                    <div
+                      key={meal.id}
+                      onDragOver={(event) => event.preventDefault()}
+                      onDrop={(event) => handleRecipeDrop(event, meal.id)}
+                      className="p-4 border border-slate-200 rounded-xl bg-slate-50 flex flex-col gap-3 transition hover:border-emerald-200"
+                    >
+                      {/* Meal Header with [+ Añadir] button */}
+                      <div className="flex justify-between items-center">
+                        <input
+                          type="text"
+                          value={meal.name}
+                          onChange={(e) => updateMealField(meal.id, 'name', e.target.value)}
+                          className="font-black text-slate-800 text-xs tracking-wider uppercase bg-transparent outline-none max-w-[120px]"
+                        />
                         <button
                           type="button"
-                          onClick={() => openRecipeDrawer(assignedRecipe.id!)}
-                          className="flex-1 text-left bg-white border border-emerald-200 hover:border-emerald-300 px-4 py-3 rounded-2xl transition group"
+                          onClick={() => removeMealSlot(meal.id)}
+                          className="text-red-400 hover:text-red-600 text-xs font-bold"
                         >
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="text-xs font-black text-slate-800 flex items-center gap-2">
-                                <BookOpen className="w-3.5 h-3.5 text-emerald-500" />
-                                {assignedRecipe.name}
-                              </p>
-                              <p className="text-[10px] text-slate-400 font-bold mt-0.5">
-                                🔥 {Math.round(assignedRecipe.total_kcal)} kcal • P:{Math.round(assignedRecipe.total_protein)}g • C:{Math.round(assignedRecipe.total_carbs)}g • G:{Math.round(assignedRecipe.total_fats)}g
-                              </p>
+                          Remover
+                        </button>
+                      </div>
+
+                      {/* Interactive Recipe Assignment Area */}
+                      {assignedRecipe ? (
+                        <div className="flex items-center gap-3">
+                          {/* Clickable recipe chip */}
+                          <button
+                            type="button"
+                            onClick={() => openRecipeDrawer(assignedRecipe.id!)}
+                            className="flex-1 text-left bg-white border border-emerald-200 hover:border-emerald-300 px-4 py-3 rounded-2xl transition group"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-xs font-black text-slate-800 flex items-center gap-2">
+                                  <BookOpen className="w-3.5 h-3.5 text-emerald-500" />
+                                  {assignedRecipe.name}
+                                </p>
+                                <p className="text-[10px] text-slate-400 font-bold mt-0.5">
+                                  🔥 {Math.round(assignedRecipe.total_kcal)} kcal • P:{Math.round(assignedRecipe.total_protein)}g • C:{Math.round(assignedRecipe.total_carbs)}g • G:{Math.round(assignedRecipe.total_fats)}g
+                                </p>
+                              </div>
+                              <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-100 group-hover:bg-emerald-100 transition">
+                                Ver Receta →
+                              </span>
                             </div>
-                            <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-100 group-hover:bg-emerald-100 transition">
-                              Ver Receta →
-                            </span>
-                          </div>
-                        </button>
-                        {/* Clear button */}
+                          </button>
+                          {/* Clear button */}
+                          <button
+                            type="button"
+                            onClick={() => clearRecipeFromMeal(meal.id)}
+                            className="p-2 text-slate-300 hover:text-red-500 transition"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
                         <button
                           type="button"
-                          onClick={() => clearRecipeFromMeal(meal.id)}
-                          className="p-2 text-slate-300 hover:text-red-500 transition"
+                          onClick={() => openRecipePicker(meal.id)}
+                          className="w-full py-3 border-2 border-dashed border-slate-200 hover:border-emerald-300 text-slate-400 hover:text-emerald-600 rounded-2xl flex items-center justify-center gap-2 font-bold text-xs transition-all active:scale-[0.99] bg-white/50"
                         >
-                          <X className="w-4 h-4" />
+                          <Plus size={16} /> Añadir receta a {meal.name}
                         </button>
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => openRecipePicker(meal.id)}
-                        className="w-full py-3 border-2 border-dashed border-slate-200 hover:border-emerald-300 text-slate-400 hover:text-emerald-600 rounded-2xl flex items-center justify-center gap-2 font-bold text-xs transition-all active:scale-[0.99] bg-white/50"
-                      >
-                        <Plus size={16} /> Añadir receta a {meal.name}
-                      </button>
-                    )}
+                      )}
 
-                    {/* Target Macros inputs */}
-                    <div className="grid grid-cols-4 gap-2">
-                      <div>
-                        <label className="text-[8px] font-black uppercase text-slate-400">kcal</label>
-                        <input
-                          type="number"
-                          value={meal.target_kcal}
-                          onChange={(e) => updateMealField(meal.id, 'target_kcal', Number(e.target.value))}
-                          className="w-full bg-white border border-slate-200 rounded-lg p-1.5 text-xs text-center font-bold text-slate-700"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[8px] font-black uppercase text-slate-400">P (g)</label>
-                        <input
-                          type="number"
-                          value={meal.target_protein}
-                          onChange={(e) => updateMealField(meal.id, 'target_protein', Number(e.target.value))}
-                          className="w-full bg-white border border-slate-200 rounded-lg p-1.5 text-xs text-center font-bold text-slate-700"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[8px] font-black uppercase text-slate-400">C (g)</label>
-                        <input
-                          type="number"
-                          value={meal.target_carbs}
-                          onChange={(e) => updateMealField(meal.id, 'target_carbs', Number(e.target.value))}
-                          className="w-full bg-white border border-slate-200 rounded-lg p-1.5 text-xs text-center font-bold text-slate-700"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[8px] font-black uppercase text-slate-400">G (g)</label>
-                        <input
-                          type="number"
-                          value={meal.target_fats}
-                          onChange={(e) => updateMealField(meal.id, 'target_fats', Number(e.target.value))}
-                          className="w-full bg-white border border-slate-200 rounded-lg p-1.5 text-xs text-center font-bold text-slate-700"
-                        />
+                      {/* Target Macros inputs */}
+                      <div className="grid grid-cols-4 gap-2">
+                        <div>
+                          <label className="text-[8px] font-black uppercase text-slate-400">kcal</label>
+                          <input
+                            type="number"
+                            value={meal.target_kcal}
+                            onChange={(e) => updateMealField(meal.id, 'target_kcal', Number(e.target.value))}
+                            className="w-full bg-white border border-slate-200 rounded-lg p-1.5 text-xs text-center font-bold text-slate-700"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[8px] font-black uppercase text-slate-400">P (g)</label>
+                          <input
+                            type="number"
+                            value={meal.target_protein}
+                            onChange={(e) => updateMealField(meal.id, 'target_protein', Number(e.target.value))}
+                            className="w-full bg-white border border-slate-200 rounded-lg p-1.5 text-xs text-center font-bold text-slate-700"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[8px] font-black uppercase text-slate-400">C (g)</label>
+                          <input
+                            type="number"
+                            value={meal.target_carbs}
+                            onChange={(e) => updateMealField(meal.id, 'target_carbs', Number(e.target.value))}
+                            className="w-full bg-white border border-slate-200 rounded-lg p-1.5 text-xs text-center font-bold text-slate-700"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[8px] font-black uppercase text-slate-400">G (g)</label>
+                          <input
+                            type="number"
+                            value={meal.target_fats}
+                            onChange={(e) => updateMealField(meal.id, 'target_fats', Number(e.target.value))}
+                            className="w-full bg-white border border-slate-200 rounded-lg p-1.5 text-xs text-center font-bold text-slate-700"
+                          />
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
 
-              <button
-                type="button"
-                onClick={addMealSlot}
-                className="w-full py-4 border border-dashed border-slate-300 hover:border-slate-400 text-slate-400 hover:text-slate-600 rounded-xl flex items-center justify-center font-bold text-xs gap-1 transition-all active:scale-[0.99]"
-              >
-                <Plus size={16} /> Agregar comida
-              </button>
+                <button
+                  type="button"
+                  onClick={addMealSlot}
+                  className="w-full py-4 border border-dashed border-slate-300 hover:border-slate-400 text-slate-400 hover:text-slate-600 rounded-xl flex items-center justify-center font-bold text-xs gap-1 transition-all active:scale-[0.99]"
+                >
+                  <Plus size={16} /> Agregar comida
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+              <Utensils className="w-12 h-12 text-slate-300 mb-3" />
+              <p className="text-sm font-bold">Selecciona o crea una plantilla para empezar</p>
             </div>
-          </>
-        ) : (
-          <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-            <Utensils className="w-12 h-12 text-slate-300 mb-3" />
-            <p className="text-sm font-bold">Selecciona o crea una plantilla para empezar</p>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
 
       {/* ═══════════════════════════════════════════════════════════ */}
-      {/* Bottom Sheet: Recipe Picker (Pillar 2)                     */}
+      {/* Bottom Sheets and Drawer                                   */}
       {/* ═══════════════════════════════════════════════════════════ */}
       <BottomSheet
         isOpen={recipePickerOpen}
@@ -716,9 +728,6 @@ export default function DailyTemplateBuilder() {
         </div>
       </BottomSheet>
 
-      {/* ═══════════════════════════════════════════════════════════ */}
-      {/* Recipe Drawer: Deep Linking (Pillar 2)                      */}
-      {/* ═══════════════════════════════════════════════════════════ */}
       <RecipeDrawer
         isOpen={recipeDrawerOpen}
         onClose={() => { setRecipeDrawerOpen(false); setViewingRecipe(null); }}
@@ -762,7 +771,6 @@ export default function DailyTemplateBuilder() {
           </button>
         </div>
       </BottomSheet>
-
     </div>
   );
 }

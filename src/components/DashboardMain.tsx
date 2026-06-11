@@ -256,9 +256,9 @@ export default function DashboardMain({
   return (
     <main className="mx-auto flex h-[100dvh] w-full max-w-4xl flex-col justify-start gap-2 overflow-hidden px-2 py-2 pb-[calc(5.5rem+env(safe-area-inset-bottom))] sm:px-3 md:pb-4">
       {/* Hero Avatar Section */}
-      <section className="relative w-full rounded-[1.25rem] border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
+      <section className="relative w-full rounded-[1.25rem] border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
         <div className="flex flex-col items-center text-center">
-          <div className="mb-2 flex w-full flex-wrap items-center justify-center gap-1.5">
+          <div className="mb-3 flex w-full flex-wrap items-center justify-center gap-1.5">
             <div className="inline-flex min-h-[22px] items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-[8px] font-black uppercase tracking-[0.14em] text-slate-500">
               {isLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Zap className="h-3 w-3 text-emerald-600" />}
               {timeContext.greeting} · {timeContext.label}
@@ -268,15 +268,16 @@ export default function DashboardMain({
             </div>
           </div>
 
+          {/* Large Floating Avatar (80% Visual Impact, No Borders) */}
           <motion.div
             variants={avatarVariants}
             animate={avatarMotion}
-            className={`relative flex h-32 w-full max-w-[22rem] items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm sm:h-36 lg:h-40 ${avatar.aura}`}
+            className={`relative flex h-56 w-56 sm:h-64 sm:w-64 items-center justify-center overflow-visible bg-transparent transition-all duration-300 ${avatar.aura}`}
           >
             <img
               src={avatar.url}
               alt="Bio-Avatar"
-              className="h-full w-full object-cover"
+              className="h-full w-full object-contain filter drop-shadow-[0_12px_24px_rgba(0,0,0,0.07)]"
               loading="eager"
               onError={(event) => {
                 (event.target as HTMLImageElement).src = '/default-avatar.png';
@@ -284,13 +285,44 @@ export default function DashboardMain({
             />
           </motion.div>
 
-          <div className="mt-2">
-            <h1 className="text-lg font-black tracking-tight text-slate-900 sm:text-xl">
+          <div className="mt-3">
+            <h1 className="text-xl font-black tracking-tight text-slate-900 sm:text-2xl">
               {avatar.label}
             </h1>
-            <p className="mx-auto mt-0.5 max-w-md text-[10px] leading-snug text-slate-500">
+            <p className="mx-auto mt-0.5 max-w-md text-[10px] font-bold leading-snug text-slate-400">
               {avatar.subLabel}
             </p>
+          </div>
+
+          {/* Micro-minimalist horizontal compact pills */}
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+            <div className="inline-flex items-center gap-1 rounded-full bg-slate-50 border border-slate-150 px-2.5 py-1 text-[10px] font-black text-slate-700 shadow-sm">
+              <span>⚡</span>
+              <span className="text-[9px] font-black uppercase text-slate-400">Energía:</span>
+              <span>{energyLevel}/5</span>
+            </div>
+            <div className="inline-flex items-center gap-1 rounded-full bg-slate-50 border border-slate-150 px-2.5 py-1 text-[10px] font-black text-slate-700 shadow-sm">
+              <span>🧠</span>
+              <span className="text-[9px] font-black uppercase text-slate-400">Claridad:</span>
+              <span>{mentalClarity}/5</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                triggerVibration('light');
+                setIsWaterOpen(true);
+              }}
+              className="inline-flex items-center gap-1 rounded-full bg-cyan-50 border border-cyan-200 px-2.5 py-1 text-[10px] font-black text-cyan-700 shadow-sm hover:bg-cyan-100 transition active:scale-95"
+            >
+              <span>💧</span>
+              <span className="text-[9px] font-black uppercase text-cyan-600/80">Agua:</span>
+              <span>{waterMl}ml</span>
+            </button>
+            <div className="inline-flex items-center gap-1 rounded-full bg-slate-50 border border-slate-150 px-2.5 py-1 text-[10px] font-black text-slate-700 shadow-sm">
+              <span>🥗</span>
+              <span className="text-[9px] font-black uppercase text-slate-400">Nutri:</span>
+              <span>{kcalPercent}%</span>
+            </div>
           </div>
 
           {smartTrigger ? (
@@ -298,7 +330,7 @@ export default function DashboardMain({
               key={smartTrigger.id}
               initial={{ opacity: 0, y: 8, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              className="mt-2 w-full max-w-lg rounded-xl border border-cyan-100 bg-cyan-50/80 p-2 text-left shadow-sm"
+              className="mt-4 w-full max-w-lg rounded-2xl border border-cyan-100 bg-cyan-50/80 p-3 text-left shadow-sm animate-fade-in"
             >
               <p className="text-[8px] font-black uppercase tracking-[0.16em] text-cyan-700">
                 {smartTrigger.title}
@@ -314,70 +346,28 @@ export default function DashboardMain({
             </motion.div>
           ) : null}
 
-          <div className="mt-2.5 grid w-full max-w-lg grid-cols-2 gap-2">
+          <div className="mt-4 flex w-full max-w-xs justify-center">
             <motion.button
               type="button"
-              whileTap={{ scale: 0.98 }}
+              whileTap={{ scale: 0.96 }}
               onClick={handleCoach}
-              className="inline-flex min-h-[36px] w-full items-center justify-center gap-1.5 rounded-xl bg-slate-900 px-3 text-xs font-black text-white shadow-sm transition-all duration-200 ease-in-out hover:bg-slate-800"
+              className="inline-flex min-h-[42px] w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 px-6 text-xs font-black uppercase tracking-wider text-white shadow-md transition-all duration-200 ease-in-out hover:bg-slate-800"
             >
-              <MessageCircle className="h-3.5 w-3.5" />
-              Coach
+              <MessageCircle className="h-4 w-4" />
+              Preguntar al Coach
             </motion.button>
-            <button
-              type="button"
-              onClick={() => {
-                triggerVibration('light');
-                setIsWeightOpen(true);
-              }}
-              className="inline-flex min-h-[36px] w-full items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 text-xs font-black text-slate-700 transition-all duration-200 ease-in-out hover:bg-white active:scale-95"
-            >
-              <Scale className="h-3.5 w-3.5" />
-              Peso de hoy
-            </button>
           </div>
 
           {pendingSyncCount > 0 && (
-            <p className="mt-1.5 text-[9px] font-bold text-amber-600">
+            <p className="mt-2 text-[9px] font-bold text-amber-600">
               {pendingSyncCount} acción en cola. Se sincronizará al recuperar conexión.
             </p>
           )}
         </div>
       </section>
 
-      {/* Compressed Stats Pills Row */}
-      <section className="grid w-full grid-cols-4 gap-1.5">
-        <div className="relative w-full rounded-xl border border-slate-200 bg-white p-1.5 text-center shadow-sm flex flex-col items-center justify-center min-h-[52px]">
-          <span className="text-[11px] leading-none">⚡</span>
-          <span className="text-[8px] font-black uppercase tracking-[0.1em] text-slate-400 mt-1">Energía</span>
-          <span className="text-[10px] font-black text-slate-900 mt-0.5">{energyLevel}/5</span>
-        </div>
-        <div className="relative w-full rounded-xl border border-slate-200 bg-white p-1.5 text-center shadow-sm flex flex-col items-center justify-center min-h-[52px]">
-          <span className="text-[11px] leading-none">🧠</span>
-          <span className="text-[8px] font-black uppercase tracking-[0.1em] text-slate-400 mt-1">Claridad</span>
-          <span className="text-[10px] font-black text-slate-900 mt-0.5">{mentalClarity}/5</span>
-        </div>
-        <button
-          type="button"
-          onClick={() => {
-            triggerVibration('light');
-            setIsWaterOpen(true);
-          }}
-          className="relative w-full rounded-xl border border-cyan-200 bg-cyan-50/70 p-1.5 text-center shadow-sm flex flex-col items-center justify-center min-h-[52px] transition hover:bg-cyan-100/60"
-        >
-          <span className="text-[11px] leading-none">💧</span>
-          <span className="text-[8px] font-black uppercase tracking-[0.1em] text-cyan-600 mt-1">Agua</span>
-          <span className="text-[10px] font-black text-slate-900 mt-0.5">{waterMl}ml</span>
-        </button>
-        <div className="relative w-full rounded-xl border border-slate-200 bg-white p-1.5 text-center shadow-sm flex flex-col items-center justify-center min-h-[52px]">
-          <span className="text-[11px] leading-none">🥗</span>
-          <span className="text-[8px] font-black uppercase tracking-[0.1em] text-slate-400 mt-1">Nutri</span>
-          <span className="text-[10px] font-black text-slate-900 mt-0.5">{kcalPercent}%</span>
-        </div>
-      </section>
-
       {/* Foco Proactivo Section */}
-      <section className="relative w-full rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm">
+      <section className="relative w-full rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
         <div className="min-w-0 flex-1">
           <p className="text-[8px] font-black uppercase tracking-[0.14em] text-slate-400">
             Foco proactivo · {timeContext.priority}
@@ -385,8 +375,6 @@ export default function DashboardMain({
           <p className="mt-0.5 truncate text-xs font-semibold text-slate-700">{primaryAction}</p>
         </div>
       </section>
-
-
 
       <WaterIntakeModal
         open={isWaterOpen}

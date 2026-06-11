@@ -69,7 +69,7 @@ Todos los textos deben estar en Español, con un tono motivador e interactivo.`;
       .join('\n')}\n\nGenera un quiz estructurado donde cada pregunta se asocie al concept_id correspondiente.`;
 
     const result = await generateObject({
-      model: google('gemini-1.5-flash'),
+      model: google('gemini-2.5-flash'),
       system: systemPrompt,
       prompt: prompt,
       schema: quizSchema,

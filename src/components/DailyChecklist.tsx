@@ -114,12 +114,14 @@ export default function DailyChecklist({ isDedicatedPage = false }: DailyCheckli
                   isDone ? 'opacity-60' : 'opacity-100'
                 }`}
               >
-                {/* Custom Circular Checkbox */}
+                {/* Custom Circular Checkbox with progress ring */}
                 <div
-                  className={`w-6 h-6 rounded-full flex items-center justify-center border-2 transition-all duration-300 flex-shrink-0 ${
+                  className={`w-6 h-6 rounded-full flex items-center justify-center transition-all duration-300 flex-shrink-0 relative ${
                     isDone
-                      ? 'bg-indigo-650 border-indigo-650 shadow-[0_2px_8px_rgba(79,70,229,0.25)]'
-                      : 'border-slate-350 bg-transparent'
+                      ? 'bg-indigo-600 border-2 border-indigo-600 shadow-[0_2px_8px_rgba(79,70,229,0.25)]'
+                      : targetRepetitions > 1 && currentProgress > 0
+                        ? 'border-none bg-transparent'
+                        : 'border-2 border-slate-350 bg-transparent'
                   }`}
                 >
                   <AnimatePresence initial={false}>
@@ -133,14 +135,38 @@ export default function DailyChecklist({ isDedicatedPage = false }: DailyCheckli
                         <Check className="w-3.5 h-3.5 text-white stroke-[3.5px]" />
                       </motion.div>
                     ) : targetRepetitions > 1 && currentProgress > 0 ? (
-                      <motion.span
-                        initial={{ scale: 0.8, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        exit={{ scale: 0.8, opacity: 0 }}
-                        className="text-[10px] font-black text-indigo-700"
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="relative w-6 h-6 flex items-center justify-center"
                       >
-                        {currentProgress}
-                      </motion.span>
+                        <svg className="w-6 h-6 -rotate-90 absolute inset-0">
+                          <circle
+                            cx="12"
+                            cy="12"
+                            r="9"
+                            className="stroke-slate-100"
+                            strokeWidth="2"
+                            fill="transparent"
+                          />
+                          <motion.circle
+                            cx="12"
+                            cy="12"
+                            r="9"
+                            className="stroke-indigo-600"
+                            strokeWidth="2"
+                            fill="transparent"
+                            strokeDasharray="56.5"
+                            initial={{ strokeDashoffset: 56.5 }}
+                            animate={{ strokeDashoffset: 56.5 * (1 - currentProgress / targetRepetitions) }}
+                            transition={{ duration: 0.3, ease: 'easeOut' }}
+                          />
+                        </svg>
+                        <span className="text-[8px] font-black text-indigo-600 z-10">
+                          {currentProgress}
+                        </span>
+                      </motion.div>
                     ) : null}
                   </AnimatePresence>
                 </div>
