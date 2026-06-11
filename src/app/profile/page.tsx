@@ -9,6 +9,7 @@ import { supabase } from '@/lib/supabase';
 import toast from '@/lib/toast';
 import { FEATURE_FLAGS } from '@/lib/config/features';
 import StatisticsBodySection from '@/components/StatisticsBodySection';
+import BottomSheet from '@/components/BottomSheet';
 import { type BodyMetric } from '@/lib/schema';
 
 export default function ProfilePage() {
@@ -20,6 +21,7 @@ export default function ProfilePage() {
   const [biometricsEnabled, setBiometricsEnabled] = useState(false);
   const [bodyMetrics, setBodyMetrics] = useState<BodyMetric[]>([]);
   const [isLoadingMetrics, setIsLoadingMetrics] = useState(true);
+  const [isBodySheetOpen, setIsBodySheetOpen] = useState(false);
 
   useEffect(() => {
     async function loadUserDataAndMetrics() {
@@ -238,24 +240,24 @@ export default function ProfilePage() {
           <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 pl-1">
             Mi Cuerpo (Evolución)
           </p>
-          <div className="bg-white rounded-2xl border border-slate-200/50 shadow-sm p-4 overflow-hidden">
-            <div className="flex items-center gap-3 mb-4">
+          <button
+            type="button"
+            onClick={() => setIsBodySheetOpen(true)}
+            className="w-full flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-200/50 shadow-sm hover:bg-slate-50 transition text-left animate-fade-in"
+          >
+            <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-emerald-50 text-emerald-600 shrink-0">
                 <Activity className="w-4 h-4" />
               </div>
               <div>
                 <p className="text-xs font-bold text-slate-950">Evolución Corporal</p>
-                <p className="text-[10px] text-slate-400 font-semibold">Mediciones antropométricas y control metabólico</p>
+                <p className="text-[10px] text-slate-400 font-semibold">
+                  {isLoadingMetrics ? 'Cargando mediciones...' : `${bodyMetrics.length} mediciones registradas`}
+                </p>
               </div>
             </div>
-            {isLoadingMetrics ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
-              </div>
-            ) : (
-              <StatisticsBodySection initialMetrics={bodyMetrics} />
-            )}
-          </div>
+            <div className="text-slate-400 text-sm">➔</div>
+          </button>
         </div>
 
         {/* --- SECTION 3: DATOS Y PRIVACIDAD --- */}
@@ -304,6 +306,14 @@ export default function ProfilePage() {
         </div>
 
       </div>
+
+      {isBodySheetOpen && (
+        <BottomSheet isOpen={isBodySheetOpen} onClose={() => setIsBodySheetOpen(false)} title="Evolución Corporal">
+          <div className="text-slate-950 p-1">
+            <StatisticsBodySection initialMetrics={bodyMetrics} />
+          </div>
+        </BottomSheet>
+      )}
     </div>
   );
 }

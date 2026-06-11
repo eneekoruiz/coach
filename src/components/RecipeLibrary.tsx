@@ -5,6 +5,7 @@ import { type IngredientItem, type Recipe } from '@/lib/schema';
 import { autocompleteRecipeWithAi, deleteRecipe, getRecipes, saveRecipe } from '@/app/nutrition/actions';
 import toast from '@/lib/toast';
 import {
+  ArrowLeft,
   Calculator,
   GripVertical,
   Loader2,
@@ -54,6 +55,8 @@ export default function RecipeLibrary() {
   const [aiPrompt, setAiPrompt] = useState('');
   const [aiBusy, setAiBusy] = useState(false);
 
+  const [isDetailActiveMobile, setIsDetailActiveMobile] = useState(false);
+
   const loadRecipes = async () => {
     setLoading(true);
     const data = await getRecipes();
@@ -61,7 +64,7 @@ export default function RecipeLibrary() {
     setLoading(false);
 
     if (!editingRecipe && data.length > 0) {
-      openRecipe(data[0]);
+      openRecipe(data[0], false);
     }
   };
 
@@ -106,12 +109,15 @@ export default function RecipeLibrary() {
     return matchesSearch && matchesTag;
   });
 
-  const openRecipe = (recipe: Recipe) => {
+  const openRecipe = (recipe: Recipe, isUserClick = false) => {
     setEditingRecipe(recipe);
     setRecipeName(recipe.name);
     setInstructions(recipe.instructions || '');
     setIngredients(recipe.ingredients_json || []);
     setIngredientDraft(emptyIngredient);
+    if (isUserClick) {
+      setIsDetailActiveMobile(true);
+    }
   };
 
   const startNewRecipe = () => {
@@ -120,6 +126,7 @@ export default function RecipeLibrary() {
     setInstructions('');
     setIngredients([]);
     setIngredientDraft(emptyIngredient);
+    setIsDetailActiveMobile(true);
   };
 
   const updateIngredientDraft = <K extends keyof IngredientDraft>(field: K, value: IngredientDraft[K]) => {
@@ -248,7 +255,7 @@ export default function RecipeLibrary() {
   return (
     <div className="grid h-[72dvh] min-h-0 grid-cols-1 gap-4 overflow-y-auto pr-1 md:grid-cols-[280px_1fr] md:overflow-hidden md:pr-0">
       {/* Columna Izquierda: Listado de recetas y busqueda */}
-      <aside className="flex min-h-0 flex-col rounded-2xl border border-slate-200 bg-white p-3 shadow-sm h-fit md:h-full">
+      <aside className={`${isDetailActiveMobile ? 'hidden md:flex' : 'flex'} min-h-0 flex-col rounded-2xl border border-slate-200 bg-white p-3 shadow-sm h-fit md:h-full`}>
         <div className="flex items-center gap-2">
           <Soup className="h-4 w-4 text-emerald-600" />
           <div>
@@ -328,7 +335,7 @@ export default function RecipeLibrary() {
                   key={recipe.id}
                   type="button"
                   draggable
-                  onClick={() => openRecipe(recipe)}
+                  onClick={() => openRecipe(recipe, true)}
                   onDragStart={(event) => handleDragStart(event, recipe)}
                   className={`group w-full rounded-xl border p-3 text-left transition ${
                     isSelected
@@ -376,8 +383,18 @@ export default function RecipeLibrary() {
       </aside>
 
       {/* Columna Derecha: Formulario Lienzo de Trabajo */}
-      <section className="min-h-0 flex-1 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-4 shadow-sm custom-scrollbar md:max-h-full">
-        <form onSubmit={handleSaveRecipe} className="flex flex-col gap-4">
+      <section className={`${isDetailActiveMobile ? 'flex' : 'hidden md:flex'} min-h-0 flex-1 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-4 shadow-sm custom-scrollbar md:max-h-full`}>
+        <form onSubmit={handleSaveRecipe} className="flex flex-col gap-4 w-full">
+          {isDetailActiveMobile && (
+            <button
+              type="button"
+              onClick={() => setIsDetailActiveMobile(false)}
+              className="md:hidden self-start mb-2 inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 text-xs font-black uppercase text-slate-700 hover:bg-slate-100 transition"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Volver
+            </button>
+          )}
           <div className="flex flex-col gap-4 border-b border-slate-100 pb-4">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0 flex-1">

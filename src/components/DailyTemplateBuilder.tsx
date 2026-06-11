@@ -4,7 +4,7 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { getDietTemplates, saveDietTemplate, getRecipes, deleteDietTemplate, generateFullDayTemplateWithAi } from '@/app/nutrition/actions';
 import { type DietTemplate, type Recipe, type MealItem } from '@/lib/schema';
 import toast from '@/lib/toast';
-import { BookOpen, ChevronDown, ChevronRight, Copy, Loader2, Plus, Save, Search, Sparkles, Sun, Trash2, Utensils, X } from 'lucide-react';
+import { ArrowLeft, BookOpen, ChevronDown, ChevronRight, Copy, Loader2, Plus, Save, Search, Sparkles, Sun, Trash2, Utensils, X } from 'lucide-react';
 import { triggerVibration } from '@/lib/haptics';
 import BottomSheet from '@/components/BottomSheet';
 import RecipeDrawer from '@/components/RecipeDrawer';
@@ -18,6 +18,7 @@ export default function DailyTemplateBuilder() {
   const [aiDayPrompt, setAiDayPrompt] = useState('');
   const [aiDayBusy, setAiDayBusy] = useState(false);
   const [aiDaySheetOpen, setAiDaySheetOpen] = useState(false);
+  const [isDetailActiveMobile, setIsDetailActiveMobile] = useState(false);
 
   // Bottom Sheet state for recipe picker
   const [recipePickerOpen, setRecipePickerOpen] = useState(false);
@@ -68,6 +69,7 @@ export default function DailyTemplateBuilder() {
       ]
     };
     setSelectedTemplate(newTemp);
+    setIsDetailActiveMobile(true);
   };
 
   const handleCreateVariation = async () => {
@@ -94,6 +96,7 @@ export default function DailyTemplateBuilder() {
     if (res.success && res.data) {
       toast.success('Variación creada. Renómbrala y ajusta solo lo necesario.');
       setSelectedTemplate(res.data);
+      setIsDetailActiveMobile(true);
       setExpandedTemplateGroups((current) => ({ ...current, [rootParentId]: true }));
       await loadAll();
     } else {
@@ -109,6 +112,7 @@ export default function DailyTemplateBuilder() {
     if (res.success) {
       toast.success('Plantilla eliminada');
       setSelectedTemplate(null);
+      setIsDetailActiveMobile(false);
       loadAll();
     } else {
       toast.error(res.error || 'No se pudo eliminar la plantilla');
@@ -163,6 +167,7 @@ export default function DailyTemplateBuilder() {
         id: undefined,
         parent_template_id: null,
       });
+      setIsDetailActiveMobile(true);
       setAiDaySheetOpen(false);
       toast.success('¡Día Base generado!');
     } catch (error) {
@@ -320,7 +325,7 @@ export default function DailyTemplateBuilder() {
     <div className="grid h-[72dvh] min-h-0 grid-cols-1 gap-4 overflow-y-auto pr-1 md:grid-cols-[280px_1fr] md:overflow-hidden md:pr-0 select-none">
 
       {/* Columna Izquierda: Lista de Plantillas Diarias */}
-      <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm h-fit md:h-full md:overflow-y-auto custom-scrollbar shrink-0">
+      <div className={`${isDetailActiveMobile ? 'hidden md:flex' : 'flex'} flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm h-fit md:h-full md:overflow-y-auto custom-scrollbar shrink-0`}>
         <div className="flex items-center justify-between">
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
@@ -333,8 +338,11 @@ export default function DailyTemplateBuilder() {
           </div>
           <button
             type="button"
-            onClick={handleCreateNew}
-            className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-900 text-white shadow-sm transition hover:bg-slate-800 active:scale-95"
+            onClick={() => {
+              handleCreateNew();
+              setIsDetailActiveMobile(true);
+            }}
+            className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-990 bg-slate-900 text-white shadow-sm transition hover:bg-slate-800 active:scale-95"
             title="Nuevo Día Base"
           >
             <Plus className="h-4 w-4" />
@@ -375,7 +383,10 @@ export default function DailyTemplateBuilder() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setSelectedTemplate(root)}
+                    onClick={() => {
+                      setSelectedTemplate(root);
+                      setIsDetailActiveMobile(true);
+                    }}
                     className={`min-w-0 rounded-xl border p-3 text-left transition ${
                       rootSelected
                         ? 'border-slate-900 bg-slate-900 text-white shadow-sm'
@@ -404,7 +415,10 @@ export default function DailyTemplateBuilder() {
                         <button
                           key={variation.id}
                           type="button"
-                          onClick={() => setSelectedTemplate(variation)}
+                          onClick={() => {
+                            setSelectedTemplate(variation);
+                            setIsDetailActiveMobile(true);
+                          }}
                           className={`w-full min-w-0 rounded-xl border p-3 text-left transition ${
                             isSelected
                               ? 'border-amber-400 bg-amber-50 text-slate-900 shadow-sm'
@@ -432,7 +446,17 @@ export default function DailyTemplateBuilder() {
       </div>
 
       {/* Editor Central: Esqueleto del Día */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm flex flex-col gap-5 flex-1 min-h-0 md:h-full md:overflow-y-auto custom-scrollbar">
+      <div className={`${isDetailActiveMobile ? 'flex' : 'hidden md:flex'} rounded-2xl border border-slate-200 bg-white p-5 shadow-sm flex flex-col gap-5 flex-1 min-h-0 md:h-full md:overflow-y-auto custom-scrollbar`}>
+        {isDetailActiveMobile && (
+          <button
+            type="button"
+            onClick={() => setIsDetailActiveMobile(false)}
+            className="md:hidden self-start mb-2 inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 text-xs font-black uppercase text-slate-700 hover:bg-slate-100 transition animate-fade-in"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Volver
+          </button>
+        )}
         {selectedTemplate ? (
           <>
             <div className="flex flex-col gap-3 border-b border-slate-100 pb-3 md:flex-row md:items-start md:justify-between">

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useTransition } from 'react';
+import React, { useEffect, useState, useTransition, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -127,6 +127,17 @@ export default function QuestZone() {
 
   const [maxUnlockedLevel, setMaxUnlockedLevel] = useState(1);
   const [playingLevelNumber, setPlayingLevelNumber] = useState<number | null>(null);
+
+  const activeNodeRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!isLoading && activeNodeRef.current) {
+      const timer = setTimeout(() => {
+        activeNodeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [isLoading]);
 
   useEffect(() => {
     const saved = localStorage.getItem('maxUnlockedLevel');
@@ -476,94 +487,95 @@ export default function QuestZone() {
       {/* SAGA PROGRESSION MAP */}
       <section className="relative mx-auto mt-8 max-w-md px-4 py-6 bg-slate-950">
         <h3 className="text-center text-xs font-black uppercase tracking-[0.25em] text-slate-500 mb-6">Mapa del Saber</h3>
-        <div className="relative w-full h-[800px] bg-slate-900/30 rounded-3xl border border-slate-900 overflow-hidden">
-          
-          {/* Curved SVG line path connecting levels */}
-          <svg className="absolute inset-0 w-full h-full pointer-events-none z-0" viewBox="0 0 100 100" preserveAspectRatio="none">
-            <path
-              d={pathData}
-              fill="none"
-              stroke="#1e1b4b"
-              strokeWidth="0.8"
-              strokeDasharray="2 2"
-            />
-            {activePathData && (
+        <div className="relative w-full h-[50vh] md:h-[65vh] bg-slate-900/30 rounded-3xl border border-slate-900 overflow-y-auto touch-pan-y custom-scrollbar">
+          <div className="relative w-full h-[1200px]">
+            {/* Curved SVG line path connecting levels */}
+            <svg className="absolute inset-0 w-full h-full pointer-events-none z-0" viewBox="0 0 100 100" preserveAspectRatio="none">
               <path
-                d={activePathData}
+                d={pathData}
                 fill="none"
-                stroke="url(#gradient)"
-                strokeWidth="1.2"
+                stroke="#1e1b4b"
+                strokeWidth="0.8"
                 strokeDasharray="2 2"
-                className="animate-pulse"
               />
-            )}
-            <defs>
-              <linearGradient id="gradient" x1="0%" y1="100%" x2="0%" y2="0%">
-                <stop offset="0%" stopColor="#4f46e5" stopOpacity="0.3" />
-                <stop offset="50%" stopColor="#818cf8" stopOpacity="0.8" />
-                <stop offset="100%" stopColor="#c084fc" stopOpacity="1" />
-              </linearGradient>
-            </defs>
-          </svg>
+              {activePathData && (
+                <path
+                  d={activePathData}
+                  fill="none"
+                  stroke="url(#gradient)"
+                  strokeWidth="1.2"
+                  strokeDasharray="2 2"
+                  className="animate-pulse"
+                />
+              )}
+              <defs>
+                <linearGradient id="gradient" x1="0%" y1="100%" x2="0%" y2="0%">
+                  <stop offset="0%" stopColor="#4f46e5" stopOpacity="0.3" />
+                  <stop offset="50%" stopColor="#818cf8" stopOpacity="0.8" />
+                  <stop offset="100%" stopColor="#c084fc" stopOpacity="1" />
+                </linearGradient>
+              </defs>
+            </svg>
 
-          {/* Saga levels nodes */}
-          {SAGA_LEVELS.map((level) => {
-            const isCompleted = level.number < activeLevelNumber;
-            const isActive = level.number === activeLevelNumber;
-            const isLocked = level.number > activeLevelNumber;
+            {/* Saga levels nodes */}
+            {SAGA_LEVELS.map((level) => {
+              const isCompleted = level.number < activeLevelNumber;
+              const isActive = level.number === activeLevelNumber;
+              const isLocked = level.number > activeLevelNumber;
 
-            return (
-              <div 
-                key={level.number} 
-                className="absolute z-10 flex flex-col items-center -translate-x-1/2 -translate-y-1/2"
-                style={{
-                  left: `${level.x}%`,
-                  top: `${level.y}%`,
-                }}
-              >
-                <div className="absolute -top-7 text-[10px] font-black uppercase tracking-wider text-slate-500 whitespace-nowrap bg-slate-950/80 px-2 py-0.5 rounded-full border border-slate-900/60">
-                  {level.name}
-                </div>
-                
-                {isActive ? (
-                  /* Pulsing Active Node */
-                  <button
-                    onClick={() => handleStartLevel(level.number)}
-                    className="group relative flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-tr from-indigo-600 to-purple-500 shadow-xl shadow-indigo-600/40"
-                  >
-                    <motion.div
-                      animate={{ scale: [1, 1.2, 1], opacity: [0.7, 0, 0.7] }}
-                      transition={{ repeat: Infinity, duration: 2, ease: 'easeInOut' }}
-                      className="absolute inset-0 rounded-full bg-indigo-500 border-2 border-indigo-400"
-                    />
-                    <motion.div
-                      whileHover={{ scale: 1.1 }}
-                      whileTap={{ scale: 0.95 }}
-                      className="relative z-10 flex h-14 w-14 items-center justify-center rounded-full bg-slate-950 border-2 border-indigo-400 text-white font-black text-lg"
-                    >
-                      <Sparkles className="h-5 w-5 text-indigo-400 group-hover:rotate-12 transition-transform duration-300" />
-                    </motion.div>
-                  </button>
-                ) : isCompleted ? (
-                  /* Completed Node */
-                  <button
-                    onClick={() => handleStartLevel(level.number)}
-                    className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-600 border border-emerald-400 text-white shadow-lg shadow-emerald-900/20"
-                  >
-                    <Check className="h-5 w-5 font-black" />
-                  </button>
-                ) : (
-                  /* Locked Node */
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-900 border border-slate-800 text-slate-600">
-                    <Lock className="h-4 w-4" />
+              return (
+                <div 
+                  key={level.number} 
+                  ref={isActive ? activeNodeRef : undefined}
+                  className="absolute z-10 flex flex-col items-center -translate-x-1/2 -translate-y-1/2"
+                  style={{
+                    left: `${level.x}%`,
+                    top: `${level.y}%`,
+                  }}
+                >
+                  <div className="absolute -top-7 text-[10px] font-black uppercase tracking-wider text-slate-500 whitespace-nowrap bg-slate-950/80 px-2 py-0.5 rounded-full border border-slate-900/60">
+                    {level.name}
                   </div>
-                )}
-                
-                <span className="mt-2 text-xs font-black text-slate-400">Nivel {level.number}</span>
-              </div>
-            );
-          })}
-
+                  
+                  {isActive ? (
+                    /* Pulsing Active Node */
+                    <button
+                      onClick={() => handleStartLevel(level.number)}
+                      className="group relative flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-tr from-indigo-600 to-purple-500 shadow-xl shadow-indigo-600/40"
+                    >
+                      <motion.div
+                        animate={{ scale: [1, 1.2, 1], opacity: [0.7, 0, 0.7] }}
+                        transition={{ repeat: Infinity, duration: 2, ease: 'easeInOut' }}
+                        className="absolute inset-0 rounded-full bg-indigo-500 border-2 border-indigo-400"
+                      />
+                      <motion.div
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.95 }}
+                        className="relative z-10 flex h-14 w-14 items-center justify-center rounded-full bg-slate-950 border-2 border-indigo-400 text-white font-black text-lg"
+                      >
+                        <Sparkles className="h-5 w-5 text-indigo-400 group-hover:rotate-12 transition-transform duration-300" />
+                      </motion.div>
+                    </button>
+                  ) : isCompleted ? (
+                    /* Completed Node */
+                    <button
+                      onClick={() => handleStartLevel(level.number)}
+                      className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-600 border border-emerald-400 text-white shadow-lg shadow-emerald-900/20"
+                    >
+                      <Check className="h-5 w-5 font-black" />
+                    </button>
+                  ) : (
+                    /* Locked Node */
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-900 border border-slate-800 text-slate-600">
+                      <Lock className="h-4 w-4" />
+                    </div>
+                  )}
+                  
+                  <span className="mt-2 text-xs font-black text-slate-400">Nivel {level.number}</span>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </section>
 

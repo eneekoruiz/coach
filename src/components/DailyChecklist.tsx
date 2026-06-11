@@ -110,7 +110,9 @@ export default function DailyChecklist({ isDedicatedPage = false }: DailyCheckli
                 key={template.id}
                 data-testid={`routine-item-${template.id}`}
                 onClick={() => handleToggle(template.id, targetRepetitions)}
-                className="flex min-h-[48px] items-center gap-3.5 bg-white px-4 py-3.5 transition-all duration-200 ease-in-out cursor-pointer select-none hover:bg-slate-50/80"
+                className={`flex min-h-[48px] items-center gap-3.5 bg-white px-4 py-3.5 transition-all duration-200 ease-in-out cursor-pointer select-none hover:bg-slate-50/80 ${
+                  isDone ? 'opacity-60' : 'opacity-100'
+                }`}
               >
                 {/* Custom Circular Checkbox */}
                 <div
@@ -155,6 +157,17 @@ export default function DailyChecklist({ isDedicatedPage = false }: DailyCheckli
                   >
                     {template.title}
                   </span>
+                  
+                  {/* Premium iOS Progress Bar for partial progress */}
+                  {targetRepetitions > 1 && !isDone && (
+                    <div className="mt-1.5 w-full max-w-[120px] h-1 bg-slate-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full transition-all duration-300"
+                        style={{ width: `${(currentProgress / targetRepetitions) * 100}%` }}
+                      />
+                    </div>
+                  )}
+
                   {template.linked_habit_id && (
                     <span className="text-[9px] font-extrabold text-indigo-650 uppercase tracking-wider mt-0.5 inline-flex items-center gap-1">
                       <Link2 className="h-3 w-3" />

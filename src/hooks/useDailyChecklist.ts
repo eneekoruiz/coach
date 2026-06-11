@@ -217,7 +217,7 @@ export function useDailyChecklist() {
         timeOfDay,
         linkedHabitId,
         habitIncrementAmount,
-        1,
+        habitIncrementAmount,
         notificationsEnabled ? notificationTimes.slice(0, habitIncrementAmount) : null
       );
       if (res.success && res.data) {

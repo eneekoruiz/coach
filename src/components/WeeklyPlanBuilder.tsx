@@ -14,6 +14,7 @@ import { type DietTemplate, type WeeklyPlan } from '@/lib/schema';
 import toast from '@/lib/toast';
 import { triggerVibration } from '@/lib/haptics';
 import {
+  ArrowLeft,
   CalendarDays,
   Check,
   ClipboardList,
@@ -48,6 +49,8 @@ export default function WeeklyPlanBuilder() {
   const [isActive, setIsActive] = useState(true);
   const [loading, setLoading] = useState(false);
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
+
+  const [isDetailActiveMobile, setIsDetailActiveMobile] = useState(false);
 
   const assignedCount = useMemo(
     () => DAYS_OF_WEEK.filter((day) => Boolean(dayMappings[day.value])).length,
@@ -108,7 +111,7 @@ export default function WeeklyPlanBuilder() {
       if (activeResult.plan) {
         hydratePlan(activeResult.plan, activeResult.days);
       } else if (fetchedPlans.length > 0 && fetchedPlans[0].id) {
-        await handleSelectPlan(fetchedPlans[0].id, fetchedPlans);
+        await handleSelectPlan(fetchedPlans[0].id, fetchedPlans, false);
       }
     } catch (error) {
       console.error(error);
@@ -138,7 +141,7 @@ export default function WeeklyPlanBuilder() {
     setDayMappings(mappings);
   };
 
-  const handleSelectPlan = async (id: string, planSource = weeklyPlans) => {
+  const handleSelectPlan = async (id: string, planSource = weeklyPlans, isUserClick = false) => {
     triggerVibration('light');
     setSelectedPlanId(id);
 
@@ -153,6 +156,10 @@ export default function WeeklyPlanBuilder() {
     if (details.plan) {
       hydratePlan(details.plan, details.days);
     }
+
+    if (isUserClick) {
+      setIsDetailActiveMobile(true);
+    }
   };
 
   const handleCreateNew = () => {
@@ -162,6 +169,7 @@ export default function WeeklyPlanBuilder() {
     setDayMappings({});
     setIsActive(true);
     setSelectedPlanId(null);
+    setIsDetailActiveMobile(true);
   };
 
   const handleSave = async () => {
@@ -216,28 +224,36 @@ export default function WeeklyPlanBuilder() {
 
   return (
     <div className="grid h-[72dvh] min-h-0 grid-cols-1 gap-4 overflow-y-auto pr-1 md:grid-cols-[280px_1fr] md:overflow-hidden md:pr-0">
-      <aside className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm h-fit md:h-full md:overflow-y-auto custom-scrollbar shrink-0">
-        <div className="flex items-center justify-between gap-3">
+      <aside className={`${isDetailActiveMobile ? 'hidden md:flex' : 'flex'} flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-sm h-fit md:h-full md:overflow-y-auto custom-scrollbar shrink-0`}>
+        <div className="flex items-center gap-2">
+          <ClipboardList className="h-4 w-4 text-emerald-600" />
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
               Librería
             </p>
-            <h3 className="mt-1 flex items-center gap-2 text-sm font-black text-slate-900">
-              <ClipboardList className="h-4 w-4 text-emerald-600" />
+            <h3 className="text-sm font-black text-slate-900">
               Planes Semanales
             </h3>
           </div>
-          <button
-            type="button"
-            onClick={handleCreateNew}
-            className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-900 text-white transition hover:bg-slate-800 active:scale-95"
-            title="Nuevo plan semanal"
-          >
-            <Plus className="h-4 w-4" />
-          </button>
         </div>
 
-        <div className="mt-4 max-h-[620px] space-y-2 overflow-y-auto pr-1 custom-scrollbar">
+        {/* Prominent Action Button */}
+        <button
+          type="button"
+          onClick={handleCreateNew}
+          className="mt-3 flex w-full min-h-[40px] items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-4 text-xs font-black text-white hover:from-emerald-700 hover:to-teal-700 active:scale-95 transition-all shadow-sm shrink-0"
+        >
+          <Plus className="h-4 w-4" />
+          Nuevo Plan Semanal
+        </button>
+
+        <div className="mt-4 border-t border-slate-100 pt-3 shrink-0">
+          <h4 className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
+            Mis Planes
+          </h4>
+        </div>
+
+        <div className="mt-2 min-h-0 flex-1 space-y-2 overflow-y-auto pr-1 scrollbar-hide md:max-h-none max-h-48">
           {loading ? (
             <div className="space-y-2">
               <div className="h-20 rounded-xl border border-slate-100 bg-slate-50 animate-pulse" />
@@ -256,7 +272,7 @@ export default function WeeklyPlanBuilder() {
                 <button
                   key={plan.id}
                   type="button"
-                  onClick={() => plan.id && handleSelectPlan(plan.id)}
+                  onClick={() => plan.id && handleSelectPlan(plan.id, weeklyPlans, true)}
                   className={`w-full rounded-xl border p-3 text-left transition ${
                     isSelected
                       ? 'border-slate-900 bg-slate-900 text-white shadow-sm'
@@ -289,7 +305,17 @@ export default function WeeklyPlanBuilder() {
         </div>
       </aside>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm flex-1 min-h-0 md:h-full md:overflow-y-auto custom-scrollbar">
+      <section className={`${isDetailActiveMobile ? 'flex' : 'hidden md:flex'} flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm flex-1 min-h-0 md:h-full md:overflow-y-auto custom-scrollbar`}>
+        {isDetailActiveMobile && (
+          <button
+            type="button"
+            onClick={() => setIsDetailActiveMobile(false)}
+            className="md:hidden self-start mb-4 inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 text-xs font-black uppercase text-slate-700 hover:bg-slate-100 transition"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Volver
+          </button>
+        )}
         <div className="flex flex-col gap-3 border-b border-slate-100 pb-4 md:flex-row md:items-start md:justify-between">
           <div className="min-w-0 flex-1">
             <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">

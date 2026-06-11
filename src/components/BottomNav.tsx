@@ -130,21 +130,29 @@ export default function BottomNav() {
                 key={tab.name}
                 href={tab.href}
                 onClick={() => triggerVibration('light')}
-                className="relative flex min-h-[44px] flex-1 flex-col items-center justify-center py-2"
+                className={`relative flex min-h-[44px] flex-col items-center justify-center transition-all duration-300 ${
+                  isActive ? 'flex-[1.6] px-2.5' : 'flex-1'
+                }`}
               >
                 {isActive && (
                   <motion.div
                     layoutId="active-tab"
-                    className="absolute inset-0 bg-slate-100/80 rounded-full"
+                    className="absolute inset-0 bg-slate-100/90 rounded-full"
                     transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                   />
                 )}
-                <div className={`relative z-10 w-6 h-6 mb-1 transition-colors duration-200 ${isActive ? 'text-slate-900' : 'text-slate-400'}`}>
+                <div className={`relative z-10 w-5 h-5 transition-colors duration-200 ${isActive ? 'text-slate-900 mb-0.5' : 'text-slate-400'}`}>
                   {tab.icon}
                 </div>
-                <span className={`relative z-10 text-[10px] font-bold tracking-tight transition-colors duration-200 ${isActive ? 'text-slate-900' : 'text-slate-400'}`}>
-                  {tab.name}
-                </span>
+                {isActive && (
+                  <motion.span
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="relative z-10 text-[9px] font-black uppercase tracking-wider text-slate-900 whitespace-nowrap"
+                  >
+                    {tab.name}
+                  </motion.span>
+                )}
               </Link>
             );
           })}
