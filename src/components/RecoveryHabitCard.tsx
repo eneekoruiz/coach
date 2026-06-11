@@ -144,7 +144,7 @@ export default function RecoveryHabitCard({
     <>
       <motion.article
         layout
-        className="w-full min-w-0 max-w-full overflow-hidden bg-transparent p-5 hover:bg-slate-50/50 dark:hover:bg-zinc-800/20 transition-colors"
+        className="w-full min-w-0 max-w-full overflow-hidden bg-transparent p-5 hover:bg-slate-50/50 transition-colors"
       >
         <div className="flex min-w-0 flex-wrap items-start justify-between gap-4">
           <div className="min-w-0 flex-1">

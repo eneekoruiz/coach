@@ -288,19 +288,32 @@ export async function markRoutineComplete(
     const targetRepetitions = Math.max(1, Number(template?.target_repetitions ?? 1));
     const nextProgress = Math.min(targetRepetitions, currentProgress + 1);
 
-    const { data, error } = await supabase
-      .from('routine_logs')
-      .upsert(
-        {
+    let data, error;
+    if (existingLog) {
+      const updateRes = await supabase
+        .from('routine_logs')
+        .update({
+          progress_count: nextProgress,
+        })
+        .eq('id', existingLog.id)
+        .select()
+        .maybeSingle();
+      data = updateRes.data;
+      error = updateRes.error;
+    } else {
+      const insertRes = await supabase
+        .from('routine_logs')
+        .insert({
           routine_id: routineId,
           user_id: user.id,
           completed_date: today,
           progress_count: nextProgress,
-        },
-        { onConflict: 'routine_id,completed_date' }
-      )
-      .select()
-      .single();
+        })
+        .select()
+        .maybeSingle();
+      data = insertRes.data;
+      error = insertRes.error;
+    }
 
     if (error) {
       console.error('[markRoutineComplete] Supabase error:', error.message);

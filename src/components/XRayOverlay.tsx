@@ -43,7 +43,7 @@ export default function XRayOverlay({
             <button
               type="button"
               onClick={onClose}
-              className="absolute top-4 right-4 w-10 h-10 rounded-full bg-slate-900/90 dark:bg-white/90 text-white dark:text-slate-900 flex items-center justify-center font-bold shadow-lg transition-transform hover:scale-105 active:scale-95 z-30"
+              className="absolute top-4 right-4 w-10 h-10 rounded-full bg-slate-900/90 text-white flex items-center justify-center font-bold shadow-lg transition-transform hover:scale-105 active:scale-95 z-30"
               aria-label="Cerrar"
             >
               ✕

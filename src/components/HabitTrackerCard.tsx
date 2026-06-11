@@ -330,7 +330,7 @@ export default function HabitTrackerCard({
           }}
           transition={{ duration: 0.3 }}
           onClick={() => setIsDetailOpen(true)}
-          className={`group flex w-full min-w-0 items-center justify-between gap-3 p-4 cursor-pointer transition-all duration-300 hover:bg-slate-50 dark:hover:bg-zinc-800/40 ${showGlow ? 'ring-2 ring-emerald-400' : ''}`}
+          className={`group flex w-full min-w-0 items-center justify-between gap-3 p-4 cursor-pointer transition-all duration-300 hover:bg-slate-50 ${showGlow ? 'ring-2 ring-emerald-400' : ''}`}
         >
           <div className="flex items-center gap-3 min-w-0 flex-1">
             <div

@@ -13,17 +13,17 @@ export default function StreakFlame({ streak, weeklyTarget = 7 }: StreakFlamePro
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Color logic
-  let flameColor = 'text-slate-300 dark:text-slate-700';
+  let flameColor = 'text-slate-300';
   let flameEffect = '';
   
   if (streak >= 10) {
-    flameColor = 'text-purple-500 dark:text-purple-400 drop-shadow-[0_0_8px_rgba(168,85,247,0.6)]';
+    flameColor = 'text-purple-500 drop-shadow-[0_0_8px_rgba(168,85,247,0.6)]';
     flameEffect = 'animate-bounce';
   } else if (streak >= 4) {
-    flameColor = 'text-red-500 dark:text-red-400 drop-shadow-[0_0_6px_rgba(239,68,68,0.5)]';
+    flameColor = 'text-red-500 drop-shadow-[0_0_6px_rgba(239,68,68,0.5)]';
     flameEffect = 'animate-pulse';
   } else if (streak >= 1) {
-    flameColor = 'text-orange-400 dark:text-orange-500';
+    flameColor = 'text-orange-400';
   }
 
   // Calculate percentage of progress towards weekly target (max 100%)
@@ -37,7 +37,7 @@ export default function StreakFlame({ streak, weeklyTarget = 7 }: StreakFlamePro
           e.preventDefault();
           setIsModalOpen(true);
         }}
-        className="flex items-center gap-3 bg-white/40 dark:bg-black/20 p-2 px-3 rounded-2xl border border-white/50 backdrop-blur-md shadow-sm select-none hover:bg-white/60 dark:hover:bg-black/30 transition-all cursor-pointer transform hover:scale-[1.03] active:scale-[0.98]"
+        className="flex items-center gap-3 bg-white/40 p-2 px-3 rounded-2xl border border-white/50 backdrop-blur-md shadow-sm select-none hover:bg-white/60 transition-all cursor-pointer transform hover:scale-[1.03] active:scale-[0.98]"
       >
         <div className="relative flex items-center justify-center">
           {/* SVG Circular Progress Bar */}
@@ -48,7 +48,7 @@ export default function StreakFlame({ streak, weeklyTarget = 7 }: StreakFlamePro
               r="16"
               stroke="currentColor"
               strokeWidth="3.5"
-              className="text-slate-100 dark:text-slate-800"
+              className="text-slate-100"
               fill="transparent"
             />
             <circle
@@ -70,7 +70,7 @@ export default function StreakFlame({ streak, weeklyTarget = 7 }: StreakFlamePro
         </div>
 
         <div className="flex flex-col">
-          <span className="text-xs font-black text-slate-700 dark:text-white leading-none">
+          <span className="text-xs font-black text-slate-700 leading-none">
             {streak} {streak === 1 ? 'Día' : 'Días'}
           </span>
           <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">

@@ -215,8 +215,8 @@ export default function WeeklyPlanBuilder() {
   };
 
   return (
-    <div className="grid grid-cols-1 gap-5 lg:grid-cols-[320px_minmax(0,1fr)]">
-      <aside className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+    <div className="grid h-[72dvh] min-h-0 grid-cols-1 gap-4 overflow-y-auto pr-1 md:grid-cols-[280px_1fr] md:overflow-hidden md:pr-0">
+      <aside className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm h-fit md:h-full md:overflow-y-auto custom-scrollbar shrink-0">
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
@@ -289,7 +289,7 @@ export default function WeeklyPlanBuilder() {
         </div>
       </aside>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm flex-1 min-h-0 md:h-full md:overflow-y-auto custom-scrollbar">
         <div className="flex flex-col gap-3 border-b border-slate-100 pb-4 md:flex-row md:items-start md:justify-between">
           <div className="min-w-0 flex-1">
             <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">

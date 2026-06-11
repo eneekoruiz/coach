@@ -68,7 +68,7 @@ export default function BottomSheet({ isOpen, onClose, title, children }: Bottom
               }
             }}
             onClick={(event: React.MouseEvent<HTMLDivElement>) => event.stopPropagation()}
-            className="fixed bottom-0 left-0 right-0 z-[160] mx-auto flex max-h-[88dvh] w-full max-w-2xl flex-col rounded-t-[2.5rem] border-t border-slate-200/80 bg-white p-6 pb-8 shadow-[0_-18px_60px_rgba(15,23,42,0.14)] pointer-events-auto"
+            className="fixed bottom-0 left-0 right-0 z-[160] mx-auto flex max-h-[88dvh] w-full max-w-2xl md:max-w-5xl lg:max-w-6xl flex-col rounded-t-[2.5rem] border-t border-slate-200/80 bg-white p-6 pb-8 shadow-[0_-18px_60px_rgba(15,23,42,0.14)] pointer-events-auto"
           >
             {/* Drag Handle indicator */}
             <div className="mx-auto w-12 h-1.5 bg-slate-200 rounded-full mb-5 cursor-grab active:cursor-grabbing shrink-0" />
