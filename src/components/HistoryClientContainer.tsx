@@ -7,7 +7,6 @@ import { type BodyMetric, type DailyLog, type Workout } from '@/lib/schema';
 import { type HabitRow } from '@/types/habits';
 import TrendChart from '@/components/TrendChart';
 import StatisticsDailyArchive from '@/components/StatisticsDailyArchive';
-import StatisticsBodySection from '@/components/StatisticsBodySection';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 type HistoryLog = {
@@ -142,11 +141,10 @@ export default function HistoryClientContainer({
   return (
     <div className="space-y-6">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid grid-cols-1 gap-1 rounded-[1.5rem] border border-slate-200 bg-white p-1 shadow-sm sm:grid-cols-3">
+        <TabsList className="grid grid-cols-1 gap-1 rounded-[1.5rem] border border-slate-200 bg-white p-1 shadow-sm sm:grid-cols-2">
           {[
             ['trends', 'Tendencias'],
             ['archive', 'Archivo'],
-            ['body', 'Evolución'],
           ].map(([value, label]) => (
             <TabsTrigger
               key={value}
@@ -213,13 +211,7 @@ export default function HistoryClientContainer({
           <StatisticsDailyArchive logs={logs} moodEntries={moodEntries} />
         </TabsContent>
 
-        <TabsContent value="body" className="space-y-3">
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Evolución Corporal</p>
-            <h2 className="mt-1 text-2xl font-black tracking-tight text-slate-950">Antropometría y control</h2>
-          </div>
-          <StatisticsBodySection initialMetrics={bodyMetrics} />
-        </TabsContent>
+
       </Tabs>
     </div>
   );

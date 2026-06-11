@@ -9,6 +9,7 @@ import { useDashboardState } from '@/hooks/useDashboardState';
 import { useTimeContext } from '@/hooks/useTimeContext';
 import { useRouter } from 'next/navigation';
 import WeightLogSheet from '@/components/WeightLogSheet';
+import { FEATURE_FLAGS } from '@/lib/config/features';
 
 interface DashboardTheme {
   background: string;
@@ -419,30 +420,32 @@ export default function DashboardMain({
         </div>
       </section>
 
-      <section className="relative w-full rounded-[1.25rem] border border-indigo-100 bg-gradient-to-r from-indigo-50/50 to-purple-50/50 p-2.5 shadow-sm">
-        <div className="flex items-center justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            <div className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-2 py-0.5 text-[8px] font-black uppercase tracking-[0.12em] text-indigo-700">
-              <Sparkles className="h-2.5 w-2.5" /> Gamificación
+      {FEATURE_FLAGS.enableGame && (
+        <section className="relative w-full rounded-[1.25rem] border border-indigo-100 bg-gradient-to-r from-indigo-50/50 to-purple-50/50 p-2.5 shadow-sm">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-2 py-0.5 text-[8px] font-black uppercase tracking-[0.12em] text-indigo-700">
+                <Sparkles className="h-2.5 w-2.5" /> Gamificación
+              </div>
+              <h2 className="mt-1 text-sm font-black tracking-tight text-slate-950">Knowledge Quest</h2>
+              <p className="mt-0.5 hidden text-[10px] leading-relaxed text-slate-600 sm:block">
+                Domina tus metas y conceptos de aprendizaje en nuestro mapa interactivo de quizzes generados por IA.
+              </p>
             </div>
-            <h2 className="mt-1 text-sm font-black tracking-tight text-slate-950">Knowledge Quest</h2>
-            <p className="mt-0.5 hidden text-[10px] leading-relaxed text-slate-600 sm:block">
-              Domina tus metas y conceptos de aprendizaje en nuestro mapa interactivo de quizzes generados por IA.
-            </p>
+            <motion.button
+              whileTap={{ scale: 0.96 }}
+              onClick={() => {
+                triggerVibration('light');
+                router.push('/quest');
+              }}
+              className="inline-flex min-h-[34px] items-center justify-center gap-1 rounded-xl bg-indigo-600 px-4 text-xs font-black text-white shadow-sm hover:bg-indigo-500 transition-colors shrink-0"
+            >
+              Jugar
+              <ChevronRight className="h-3.5 w-3.5" />
+            </motion.button>
           </div>
-          <motion.button
-            whileTap={{ scale: 0.96 }}
-            onClick={() => {
-              triggerVibration('light');
-              router.push('/quest');
-            }}
-            className="inline-flex min-h-[34px] items-center justify-center gap-1 rounded-xl bg-indigo-600 px-4 text-xs font-black text-white shadow-sm hover:bg-indigo-500 transition-colors shrink-0"
-          >
-            Jugar
-            <ChevronRight className="h-3.5 w-3.5" />
-          </motion.button>
-        </div>
-      </section>
+        </section>
+      )}
 
       <WaterIntakeModal
         open={isWaterOpen}
