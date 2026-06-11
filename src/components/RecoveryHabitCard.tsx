@@ -43,7 +43,7 @@ interface RecoveryHabitCardProps {
 
 function TimeBlock({ value, label }: { value: number; label: string }) {
   return (
-    <div className="rounded-2xl bg-white px-2 py-2 text-center ring-1 ring-slate-200">
+    <div className="min-w-0 rounded-2xl bg-white px-2 py-2 text-center ring-1 ring-slate-200">
       <p className="text-xl font-black tabular-nums text-slate-950">
         {String(value).padStart(2, '0')}
       </p>
@@ -144,10 +144,10 @@ export default function RecoveryHabitCard({
     <>
       <motion.article
         layout
-        className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm ring-1 ring-white"
+        className="w-full min-w-0 max-w-full overflow-hidden rounded-3xl border border-slate-200 bg-white p-4 shadow-sm ring-1 ring-white"
       >
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
+        <div className="flex min-w-0 flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0 flex-1">
             <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-[9px] font-black uppercase tracking-[0.18em] text-slate-500">
               <Shield className="h-3.5 w-3.5 text-cyan-600" />
               Recuperación
@@ -160,14 +160,14 @@ export default function RecoveryHabitCard({
             type="button"
             onClick={() => setIsRelapseOpen(true)}
             disabled={pending || saving}
-            className="inline-flex min-h-[40px] shrink-0 items-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-3 text-[10px] font-black uppercase tracking-wider text-rose-700 transition active:scale-95 disabled:opacity-50"
+            className="inline-flex min-h-[40px] min-w-0 shrink-0 items-center justify-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-3 text-[10px] font-black uppercase tracking-wider text-rose-700 transition active:scale-95 disabled:opacity-50 max-[390px]:w-full"
           >
             <TriangleAlert className="h-4 w-4" />
             Necesito registrar
           </button>
         </div>
 
-        <div className="mt-4 grid grid-cols-4 gap-2">
+        <div className="mt-4 grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-4">
           <TimeBlock value={duration.days} label="días" />
           <TimeBlock value={duration.hours} label="horas" />
           <TimeBlock value={duration.minutes} label="min" />
@@ -175,14 +175,14 @@ export default function RecoveryHabitCard({
         </div>
 
         <div className="mt-3 rounded-2xl bg-cyan-50 p-3 ring-1 ring-cyan-100">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
             <div className="min-w-0">
               <p className="text-[9px] font-black uppercase tracking-[0.18em] text-cyan-700">
                 Próximo hito
               </p>
               <p className="mt-1 truncate text-sm font-black text-slate-950">{milestone.label}</p>
             </div>
-            <div className="rounded-xl bg-white px-3 py-1 text-right text-xs font-black text-cyan-700 ring-1 ring-cyan-100">
+            <div className="shrink-0 rounded-xl bg-white px-3 py-1 text-right text-xs font-black text-cyan-700 ring-1 ring-cyan-100">
               {milestone.remainingDays === 0 ? 'Hoy' : `faltan ${milestone.remainingDays}d`}
             </div>
           </div>
@@ -207,7 +207,7 @@ export default function RecoveryHabitCard({
                 <Flag className="mt-0.5 h-4 w-4 shrink-0 text-cyan-600" />
                 <p className="text-sm font-bold leading-5 text-slate-700">{pledgeText}</p>
               </div>
-              <div className="mt-3 grid grid-cols-[1fr_auto] gap-2">
+              <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
                 <button
                   type="button"
                   onClick={handlePledge}
@@ -232,7 +232,7 @@ export default function RecoveryHabitCard({
             type="button"
             onClick={() => setIsReviewOpen(true)}
             disabled={pending}
-            className={`inline-flex min-h-[48px] items-center justify-center gap-2 rounded-2xl px-4 text-xs font-black uppercase tracking-wider transition active:scale-95 disabled:opacity-50 ${
+            className={`inline-flex min-h-[48px] min-w-0 flex-wrap items-center justify-center gap-2 rounded-2xl px-4 text-center text-xs font-black uppercase tracking-wider transition active:scale-95 disabled:opacity-50 ${
               state.hasReview
                 ? 'border border-emerald-200 bg-emerald-50 text-emerald-700'
                 : 'bg-cyan-600 text-white shadow-sm'

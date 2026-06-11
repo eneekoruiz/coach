@@ -21,6 +21,22 @@ function normalizeText(value: string) {
     .trim();
 }
 
+function buildNotificationSlots(count: number) {
+  const safeCount = Math.max(1, Math.min(8, Math.floor(count)));
+  if (safeCount === 1) return ['09:00'];
+
+  const startMinutes = 9 * 60;
+  const endMinutes = 20 * 60;
+  const step = (endMinutes - startMinutes) / (safeCount - 1);
+
+  return Array.from({ length: safeCount }, (_, index) => {
+    const totalMinutes = Math.round((startMinutes + step * index) / 15) * 15;
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+  });
+}
+
 export function useDailyChecklist() {
   const [templates, setTemplates] = useState<RoutineTemplate[]>([]);
   const [progressMap, setProgressMap] = useState<Record<string, number>>({});
@@ -31,6 +47,7 @@ export function useDailyChecklist() {
   const [timeOfDay, setTimeOfDay] = useState<'morning' | 'afternoon' | 'night' | 'all_day'>('morning');
   const [linkedHabitId, setLinkedHabitId] = useState<number | null>(null);
   const [habitIncrementAmount, setHabitIncrementAmount] = useState<number>(1);
+  const [notificationTimes, setNotificationTimes] = useState<string[]>(() => buildNotificationSlots(1));
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [isPending, startTransition] = useTransition();
   const [mounted, setMounted] = useState(false);
@@ -41,13 +58,37 @@ export function useDailyChecklist() {
   }, []);
 
   useEffect(() => {
-    if (habitIncrementAmount > 1) {
+    const safeCount = Math.max(1, Math.min(8, Math.floor(habitIncrementAmount)));
+    if (safeCount !== habitIncrementAmount) {
+      setHabitIncrementAmount(safeCount);
+      return;
+    }
+
+    setNotificationTimes((current) => {
+      const defaults = buildNotificationSlots(safeCount);
+      return defaults.map((fallback, index) => current[index] ?? fallback);
+    });
+
+    if (safeCount > 1) {
       setTimeOfDay('all_day');
       return;
     }
 
     setTimeOfDay((current) => (current === 'all_day' ? 'morning' : current));
   }, [habitIncrementAmount]);
+
+  const updateNotificationTime = (index: number, value: string) => {
+    if (!/^\d{2}:\d{2}$/.test(value)) return;
+    setNotificationTimes((current) => {
+      const next = [...current];
+      next[index] = value;
+      return next.slice(0, habitIncrementAmount);
+    });
+  };
+
+  const incrementRepetitions = (delta: number) => {
+    setHabitIncrementAmount((current) => Math.max(1, Math.min(8, current + delta)));
+  };
 
   const handleTitleChange = (value: string) => {
     setNewTitle(value);
@@ -146,10 +187,8 @@ export function useDailyChecklist() {
       }
     } catch (err) {
       hapticError();
-      console.error('Error toggling routine completion:', err);
-      toast.error('No se pudo actualizar la rutina.', {
-        description: err instanceof Error && err.message ? err.message : routineTitle,
-      });
+      console.error('[DailyChecklist] Routine mutation failed:', err);
+      toast.error('Error al actualizar la rutina.');
       // Revert optimistic UI on error
       setProgressMap((prev) => {
         const next = { ...prev };
@@ -178,19 +217,21 @@ export function useDailyChecklist() {
         timeOfDay,
         linkedHabitId,
         habitIncrementAmount,
-        1
+        1,
+        notificationsEnabled ? notificationTimes.slice(0, habitIncrementAmount) : null
       );
       if (res.success && res.data) {
         setTemplates((prev) => [...prev, res.data!]);
         setNewTitle('');
         setLinkedHabitId(null);
         setHabitIncrementAmount(1);
+        setNotificationTimes(buildNotificationSlots(1));
         setNotificationsEnabled(true);
         setTimeOfDay('morning');
         setIsEditOpen(false);
         toast.success('Rutina añadida con éxito.');
       } else {
-        toast.error(res?.error || 'Error al añadir rutina.');
+        toast.error('Error al añadir rutina.');
       }
     });
   };
@@ -208,7 +249,7 @@ export function useDailyChecklist() {
         });
         toast.success('Rutina eliminada.');
       } else {
-        toast.error(res.error || 'Error al eliminar rutina.');
+        toast.error('Error al eliminar rutina.');
       }
     });
   };
@@ -228,6 +269,10 @@ export function useDailyChecklist() {
     setLinkedHabitId,
     habitIncrementAmount,
     setHabitIncrementAmount,
+    notificationTimes,
+    setNotificationTimes,
+    updateNotificationTime,
+    incrementRepetitions,
     notificationsEnabled,
     setNotificationsEnabled,
     isPending,

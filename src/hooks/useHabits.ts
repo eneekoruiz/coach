@@ -334,7 +334,8 @@ export function useHabits() {
       }
     } catch (error) {
       if (!cancelled) {
-        const message = getSafeMessage(error);
+        console.error('[useHabits] Error loading habits:', error);
+        const message = 'No se pudieron cargar los hábitos.';
         setErrorMessage(message);
         toast.error(message);
       }
@@ -495,7 +496,7 @@ export function useHabits() {
           window.location.href = '/login';
           return;
         }
-        toast.error(message);
+        toast.error('No se pudo guardar el hábito.');
         throw error;
       }
     },
@@ -589,7 +590,8 @@ export function useHabits() {
         toast.success('Ajustes del hábito guardados');
       } catch (error) {
         setHabits(previousHabits);
-        toast.error(getSafeMessage(error));
+        console.error('[useHabits] Error updating habit settings:', error);
+        toast.error('No se pudieron guardar los ajustes.');
         throw error;
       }
     },
@@ -621,9 +623,7 @@ export function useHabits() {
 
         const payload = await parseJsonResponse<{ data?: unknown; error?: string }>(response);
         if (!response.ok) {
-          const message = payload?.error
-            ? `Error creando hábito: ${payload.error}`
-            : 'Error creando hábito.';
+          const message = 'Error creando hábito.';
           setStatusMessage(message);
           toast.error(message);
           return;
@@ -645,8 +645,9 @@ export function useHabits() {
           return;
         }
 
-        setStatusMessage(message);
-        toast.error(message);
+        console.error('[useHabits] Error creating habit:', error);
+        setStatusMessage('Error creando hábito.');
+        toast.error('Error creando hábito.');
       }
     },
     [getTokenOrThrow, refreshUserData]
@@ -738,8 +739,8 @@ export function useHabits() {
         toast.success('Check-in guardado');
       } catch (error) {
         setRecoveryCheckIns(previousCheckIns);
-        const message = getSafeMessage(error);
-        toast.error(message);
+        console.error('[useHabits] Error saving recovery check-in:', error);
+        toast.error('No se pudo guardar el check-in.');
         throw error;
       }
     },

@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import DailyChecklist from '@/components/DailyChecklist';
 import ScreenGuideButton from '@/components/ScreenGuideButton';
+import GlobalErrorBoundary from '@/components/GlobalErrorBoundary';
 import { isE2EMockMode } from '@/lib/e2e';
 
 export const metadata = {
@@ -33,7 +34,9 @@ export default async function RoutinesPage() {
       <main className="flex h-[100dvh] min-h-0 flex-1 flex-col overflow-hidden bg-slate-50 text-slate-950">
         <section className="min-h-0 flex-1 overflow-y-auto px-4 py-5 pb-28 sm:px-6 md:pb-8 lg:px-8 scrollbar-hide">
           <div className="mx-auto w-full max-w-4xl">
-            <DailyChecklist isDedicatedPage={true} />
+            <GlobalErrorBoundary>
+              <DailyChecklist isDedicatedPage={true} />
+            </GlobalErrorBoundary>
           </div>
         </section>
       </main>
@@ -119,7 +122,9 @@ export default async function RoutinesPage() {
 
       <section className="min-h-0 flex-1 overflow-y-auto px-4 py-5 pb-28 sm:px-6 md:pb-8 lg:px-8 scrollbar-hide">
         <div className="mx-auto w-full max-w-4xl">
-          <DailyChecklist isDedicatedPage={true} />
+          <GlobalErrorBoundary>
+            <DailyChecklist isDedicatedPage={true} />
+          </GlobalErrorBoundary>
         </div>
       </section>
     </main>
