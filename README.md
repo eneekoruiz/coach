@@ -1,23 +1,22 @@
 # coach-mascota
 
-Proyecto de ejemplo.
+Sample Next.js project for a pet coaching flow.
 
-Note: small edit to trigger CI and redeploy.
+## Local development
 
-## Development
-
-Start the dev server locally:
-
-```
+```bash
+npm install
 npm run dev
+npm run build
 ```
 
-## CI
+## Checks
 
-This repo includes a GitHub Actions workflow at `.github/workflows/ci.yml` that runs Prettier checks and the project's `clean-code-audit` script on pushes and pull requests.
+- ESLint
+- type checking
+- E2E tests with Playwright
+- prebuild validation script
 
-## Deploy
+## Links
 
-Deploy to Vercel by connecting this repository in the Vercel dashboard. A `vercel.json` is included with a basic Next.js build configuration.
-
-Provide production environment variables in the Vercel dashboard (Supabase keys, AI keys, etc.). See `.env.example` for required names.
+- DeepWiki: https://deepwiki.com/eneekoruiz/coach
