@@ -185,59 +185,62 @@ export default function NutritionContainer({ initialTab }: { initialTab?: Nutrit
           </div>
         </div>
 
-        <div className="mt-3">
-          <button
-            type="button"
-            onClick={() => setIsPlannerOpen((current) => !current)}
-            className="inline-flex min-h-[44px] w-full items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 text-left text-xs font-black text-slate-700 transition-all duration-200 ease-in-out hover:bg-white active:scale-[0.99]"
-          >
-            <span className="flex items-center gap-2">
-              <LayoutGrid className="h-4 w-4" />
-              Planificador PRO
-            </span>
-            <span className="text-[10px] uppercase tracking-[0.16em] text-slate-400">
-              {isPlannerOpen ? 'Ocultar' : 'Recetario · Días · Semanas'}
-            </span>
-          </button>
-        </div>
-
-        {isPlannerOpen && (
-          <div className="mt-3 grid grid-cols-2 gap-2 xl:grid-cols-4">
-          {nutritionTabs.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex min-h-[68px] items-center gap-3 rounded-xl border px-3 py-3 text-left transition ${
-                  isActive
-                    ? 'border-slate-900 bg-slate-900 text-white shadow-sm'
-                    : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300 hover:bg-white'
-                } min-h-[54px]`}
-              >
-                <span
-                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[11px] font-black ${
-                    isActive ? 'bg-white text-slate-900' : 'bg-white text-slate-500 border border-slate-200'
-                  }`}
-                >
-                  {tab.step}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="flex items-center gap-1.5 text-sm font-black">
-                    <Icon className="h-4 w-4" />
-                    <span className="truncate">{tab.label}</span>
-                  </span>
-                  <span className={`mt-0.5 block text-[10px] font-bold uppercase tracking-[0.14em] ${isActive ? 'text-slate-300' : 'text-slate-400'}`}>
-                    {tab.caption}
-                  </span>
-                </span>
-              </button>
-            );
-          })}
-          </div>
-        )}
+        <Accordion
+          type="single"
+          collapsible
+          value={isPlannerOpen ? 'planner' : undefined}
+          onValueChange={(value) => setIsPlannerOpen(value === 'planner')}
+          className="mt-3 rounded-2xl border border-slate-200 bg-slate-50"
+        >
+          <AccordionItem value="planner" className="px-3 py-2">
+            <AccordionTrigger className="flex min-h-[48px] w-full items-center justify-between gap-3 text-left text-xs font-black text-slate-700">
+              <span className="flex items-center gap-2">
+                <LayoutGrid className="h-4 w-4" />
+                Planificador PRO
+              </span>
+              <span className="text-[10px] uppercase tracking-[0.16em] text-slate-400">
+                Recetario · Días · Semanas
+              </span>
+            </AccordionTrigger>
+            <AccordionContent className="pt-2">
+              <div className="grid grid-cols-2 gap-2 xl:grid-cols-4">
+                {nutritionTabs.map((tab) => {
+                  const Icon = tab.icon;
+                  const isActive = activeTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`flex min-h-[54px] items-center gap-3 rounded-xl border px-3 py-3 text-left transition ${
+                        isActive
+                          ? 'border-slate-900 bg-slate-900 text-white shadow-sm'
+                          : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                      }`}
+                    >
+                      <span
+                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[11px] font-black ${
+                          isActive ? 'bg-white text-slate-900' : 'border border-slate-200 bg-white text-slate-500'
+                        }`}
+                      >
+                        {tab.step}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-center gap-1.5 text-sm font-black">
+                          <Icon className="h-4 w-4" />
+                          <span className="truncate">{tab.label}</span>
+                        </span>
+                        <span className={`mt-0.5 block text-[10px] font-bold uppercase tracking-[0.14em] ${isActive ? 'text-slate-300' : 'text-slate-400'}`}>
+                          {tab.caption}
+                        </span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto scrollbar-hide">

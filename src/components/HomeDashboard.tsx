@@ -7,7 +7,6 @@ import { useEffect, useMemo, useState } from 'react';
 import ChatInput from '@/components/ChatInput';
 import { useDashboard } from '@/hooks/useDashboard';
 import DashboardMain from '@/components/DashboardMain';
-import FloatingChatButton from '@/components/FloatingChatButton';
 import type { DailyLog } from '@/lib/schema';
 
 const fallbackLog: DailyLog = {
@@ -43,11 +42,8 @@ export default function HomeDashboard() {
     insightText,
     reload,
     dailyWaterTarget,
-    defaultGlassSize,
     dietTargets,
-    updateWaterSettings,
     addWaterIntake,
-    hasLoggedToday,
     pendingSyncCount,
     smartTrigger,
   } = useDashboard();
@@ -82,17 +78,13 @@ export default function HomeDashboard() {
           mentalClarity={mentalClarity}
           insightText={insightText}
           dailyWaterTarget={dailyWaterTarget}
-          defaultGlassSize={defaultGlassSize}
           dietTargets={dietTargets}
-          updateWaterSettings={updateWaterSettings}
           addWaterIntake={addWaterIntake}
           pendingSyncCount={pendingSyncCount}
           smartTrigger={smartTrigger}
           onChatOpen={() => setIsChatOpen(true)}
         />
       </div>
-
-      <FloatingChatButton onClick={() => setIsChatOpen(true)} isOpen={isChatOpen} hasLoggedToday={hasLoggedToday} />
 
       <AnimatePresence>
         {isChatOpen ? (

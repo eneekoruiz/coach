@@ -305,15 +305,15 @@ export default function HabitTrackerCard({
 
   return (
     <>
-      <div className="relative">
+      <div className="flex flex-col gap-2">
         <AnimatePresence>
           {showPerfectWeek && (
             <motion.div
-              initial={{ opacity: 0, y: 15, scale: 0.8, x: '-50%' }}
-              animate={{ opacity: 1, y: -45, scale: 1.2, x: '-50%' }}
-              exit={{ opacity: 0, y: -60, scale: 0.8, x: '-50%' }}
+              initial={{ opacity: 0, y: -6, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -6, scale: 0.98 }}
               transition={{ type: 'spring', stiffness: 300, damping: 12 }}
-              className="absolute top-0 left-1/2 bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-600 text-white font-extrabold text-xs px-4 py-1.5 rounded-full shadow-lg border border-yellow-300 z-30 uppercase tracking-widest flex items-center gap-1.5 pointer-events-none"
+              className="flex min-h-[34px] items-center justify-center gap-1.5 rounded-full border border-amber-200 bg-amber-500 px-4 py-1.5 text-xs font-extrabold uppercase tracking-widest text-white shadow-sm"
             >
               <span>🏆</span> ¡SEMANA PERFECTA!
             </motion.div>

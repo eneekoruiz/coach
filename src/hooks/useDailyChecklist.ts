@@ -110,6 +110,7 @@ export function useDailyChecklist() {
     const currentProgress = progressMap[routineId] ?? 0;
     const isCompleted = currentProgress >= targetRepetitions;
     const willCompleteNow = !isCompleted && currentProgress + 1 >= targetRepetitions;
+    const routineTitle = templates.find((template) => template.id === routineId)?.title ?? 'Rutina';
 
     // Optimistic UI update
     setProgressMap((prev) => {
@@ -126,9 +127,18 @@ export function useDailyChecklist() {
       if (isCompleted) {
         const res = await unmarkRoutineComplete(routineId, getNormalizedDate(new Date()));
         if (!res.success) throw new Error(res.error);
+        toast.success('Rutina reabierta.', {
+          description: routineTitle,
+        });
       } else {
         const res = await markRoutineComplete(routineId, getNormalizedDate(new Date()));
         if (!res.success) throw new Error(res.error);
+        toast.success(willCompleteNow ? 'Rutina completada.' : 'Progreso actualizado.', {
+          description:
+            targetRepetitions > 1
+              ? `${routineTitle}: ${Math.min(targetRepetitions, currentProgress + 1)}/${targetRepetitions}`
+              : routineTitle,
+        });
         if (willCompleteNow) {
           const { triggerMicroCelebrate } = await import('@/utils/rewards');
           triggerMicroCelebrate();
@@ -137,7 +147,9 @@ export function useDailyChecklist() {
     } catch (err) {
       hapticError();
       console.error('Error toggling routine completion:', err);
-      toast.error('Error al actualizar rutina.');
+      toast.error('No se pudo actualizar la rutina.', {
+        description: err instanceof Error && err.message ? err.message : routineTitle,
+      });
       // Revert optimistic UI on error
       setProgressMap((prev) => {
         const next = { ...prev };

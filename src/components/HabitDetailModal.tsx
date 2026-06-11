@@ -255,7 +255,7 @@ export default function HabitDetailModal({
     <>
       <BottomSheet isOpen={isOpen} onClose={onClose} title={habit.name}>
         <div className="space-y-6 pb-6">
-          <div className="mb-2 -mt-4 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">
+          <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">
             {habit.type === 'negative' ? 'Hábito a evitar' : 'Hábito positivo'}
           </div>
 

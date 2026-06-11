@@ -35,12 +35,9 @@ function ProgressRing({ value, size = 236, stroke = 18, label, sublabel }: Progr
   const offset = circumference - (Math.max(0, Math.min(100, value)) / 100) * circumference;
 
   return (
-    <div
-      className="relative flex items-center justify-center"
-      style={{ width: size, height: size }}
-    >
+    <div className="grid place-items-center" style={{ width: size, height: size }}>
       <svg
-        className="-rotate-90"
+        className="-rotate-90 [grid-area:1/1]"
         width={size}
         height={size}
         viewBox={`0 0 ${size} ${size}`}
@@ -70,7 +67,7 @@ function ProgressRing({ value, size = 236, stroke = 18, label, sublabel }: Progr
           className="text-emerald-500"
         />
       </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+      <div className="flex flex-col items-center justify-center text-center [grid-area:1/1]">
         <span className="text-6xl font-black tracking-tight text-slate-950">
           {Math.round(value)}%
         </span>
@@ -152,7 +149,7 @@ export default function HabitSanctuary() {
   }
 
   return (
-    <main className="flex h-[100dvh] min-h-0 flex-1 flex-col overflow-hidden overflow-x-hidden bg-slate-50 text-slate-950">
+    <main className="flex min-h-0 flex-1 flex-col overflow-hidden overflow-x-hidden bg-slate-50 text-slate-950">
       <header className="shrink-0 border-b border-slate-200 bg-white px-4 py-3 sm:px-6 lg:px-8">
         <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3">
           <div className="min-w-0">
@@ -209,8 +206,8 @@ export default function HabitSanctuary() {
         </div>
       </div>
 
-      <section className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6 lg:px-8 scrollbar-hide">
-        <div className="mx-auto min-h-full w-full max-w-7xl">
+      <section className="min-h-0 flex-1 overflow-y-auto px-4 py-4 pb-[calc(5.5rem+env(safe-area-inset-bottom))] sm:px-6 md:pb-6 lg:px-8 scrollbar-hide">
+        <div className="mx-auto w-full max-w-7xl">
           {activeView === 'stats' ? (
             <div className="grid gap-5 lg:grid-cols-[390px_minmax(0,1fr)]">
               <aside className="space-y-5">
@@ -308,7 +305,7 @@ export default function HabitSanctuary() {
               </div>
             </div>
           ) : (
-            <div className="flex min-h-full flex-col rounded-3xl border border-slate-200 bg-white p-3 shadow-sm sm:p-5">
+            <div className="flex w-full flex-col rounded-3xl border border-slate-200 bg-white p-3 shadow-sm sm:p-5">
               <div className="mb-3 flex items-center justify-between gap-3 px-1">
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">
@@ -347,7 +344,7 @@ export default function HabitSanctuary() {
                   </button>
                 </div>
               ) : (
-                <div className="space-y-4 overflow-y-auto pr-1 scrollbar-hide">
+                <div className="flex flex-col gap-4">
                   <section className="rounded-3xl border border-rose-100 bg-rose-50/40 p-3">
                     <div className="mb-3 flex items-center justify-between">
                       <div className="flex items-center gap-2">

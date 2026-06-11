@@ -67,8 +67,8 @@ export default function SportsHub() {
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-slate-50 px-2 py-2 pb-[calc(env(safe-area-inset-bottom)+5rem)] md:px-4 md:pb-4">
-      <div className="mx-auto flex h-full min-h-0 w-full max-w-5xl flex-col gap-4 overflow-hidden">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-slate-50 px-2 py-2 pb-[calc(env(safe-area-inset-bottom)+5rem)] md:px-4 md:pb-4">
+      <div className="mx-auto flex min-h-0 w-full max-w-5xl flex-1 flex-col gap-4 overflow-y-auto overflow-x-hidden scrollbar-hide">
         <section className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
           <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Sports Hub</p>
           <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-950">¿Qué has hecho hoy?</h1>
@@ -77,7 +77,7 @@ export default function SportsHub() {
           </p>
         </section>
 
-        <section className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1.1fr)_360px]">
+        <section className="grid min-h-0 gap-4 lg:grid-cols-[minmax(0,1.1fr)_360px]">
           <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
             <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Deporte</p>
             <div className="mt-4 rounded-[1.75rem] border border-slate-200 bg-slate-50 p-2">

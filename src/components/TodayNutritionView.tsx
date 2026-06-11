@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { CheckCircle2, Flame, Loader2, Sparkles, Utensils, Wand2 } from 'lucide-react';
 import type { DailyLog, DietTemplate, MealItem } from '@/lib/schema';
 import DietEmptyState from './DietEmptyState';
 import DietScanner from './DietScanner';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 interface TodayNutritionViewProps {
   todayTemplate: DietTemplate | null;
@@ -35,6 +36,7 @@ export default function TodayNutritionView({
   onOpenPlanner,
   onImportedDiet,
 }: TodayNutritionViewProps) {
+  const [toolOpen, setToolOpen] = useState<string | undefined>();
   const totals = useMemo(() => {
     const meals = todayTemplate?.meals ?? [];
     return meals.reduce(
@@ -52,8 +54,8 @@ export default function TodayNutritionView({
   const totalMeals = todayTemplate?.meals.length ?? 0;
 
   return (
-    <div className="grid h-full min-h-0 grid-cols-1 gap-3 overflow-hidden lg:grid-cols-[minmax(0,1.15fr)_360px]">
-      <section className="flex min-h-0 flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+    <div className="grid min-h-0 grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1.15fr)_360px]">
+      <section className="flex min-h-0 flex-col rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
         <div className="flex shrink-0 items-start justify-between gap-3">
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-500">
@@ -91,7 +93,7 @@ export default function TodayNutritionView({
           ))}
         </div>
 
-        <div className="mt-4 min-h-0 flex-1 space-y-2 overflow-y-auto pr-1 scrollbar-hide">
+        <div className="mt-4 min-h-0 flex-1 space-y-2 pr-1 lg:max-h-[58vh] lg:overflow-y-auto lg:scrollbar-hide">
           {todayTemplate ? (
             todayTemplate.meals.map((meal) => {
               const logged = isMealLogged(realLog, meal);
@@ -144,48 +146,67 @@ export default function TodayNutritionView({
       </section>
 
       <aside className="flex min-h-0 flex-col gap-3 overflow-y-auto rounded-3xl border border-emerald-100 bg-white p-4 shadow-sm scrollbar-hide">
-        <div className="rounded-3xl border border-emerald-100 bg-emerald-50/70 p-4">
-          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
-            AI Auto-Pilot
-          </p>
-          <h3 className="mt-2 text-xl font-black tracking-tight text-slate-950">
-            Genera el menú de hoy en segundos
-          </h3>
-          <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
-            Crea una plantilla, la asigna a hoy y deja el día listo para registrar comida por comida.
-          </p>
-          <button
-            type="button"
-            onClick={onGenerateToday}
-            disabled={isGeneratingAi}
-            data-testid="generate-today-ai"
-            className="mt-5 inline-flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 text-sm font-black text-white shadow-sm transition-all duration-200 ease-in-out hover:bg-emerald-500 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {isGeneratingAi ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
-            <span>{isGeneratingAi ? 'Generando menú' : 'Generar Menú de Hoy con IA'}</span>
-          </button>
-        </div>
-
-        <div className="rounded-3xl border border-orange-100 bg-orange-50 p-4">
-          <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-orange-500 ring-1 ring-orange-100">
-              <Flame className="h-4 w-4" />
-            </span>
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-orange-600">
-                Gasto deportivo de hoy
+        <Accordion type="single" collapsible value={toolOpen} onValueChange={setToolOpen} className="space-y-3">
+          <AccordionItem value="ai-menu" className="rounded-3xl border border-emerald-100 bg-emerald-50/70 p-4">
+            <AccordionTrigger className="flex min-h-[52px] w-full items-center justify-between gap-3 text-left">
+              <span>
+                <span className="block text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
+                  AI Auto-Pilot
+                </span>
+                <span className="mt-1 block text-base font-black tracking-tight text-slate-950">
+                  Generar Menú de Hoy
+                </span>
+              </span>
+            </AccordionTrigger>
+            <AccordionContent className="pt-3">
+              <p className="text-sm font-semibold leading-6 text-slate-500">
+                Crea una plantilla, la asigna a hoy y deja el día listo para registrar comida por comida.
               </p>
-              <p className="mt-1 text-lg font-black tracking-tight text-slate-950">
-                {todayWorkoutCalories} kcal · {todayWorkoutMinutes} min
-              </p>
-            </div>
-          </div>
-          <p className="mt-2 text-xs font-semibold leading-5 text-slate-500">
-            Lo usamos como lectura rápida de tu déficit o superávit real del día.
-          </p>
-        </div>
+              <button
+                type="button"
+                onClick={onGenerateToday}
+                disabled={isGeneratingAi}
+                data-testid="generate-today-ai"
+                className="mt-4 inline-flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 text-sm font-black text-white shadow-sm transition-all duration-200 ease-in-out hover:bg-emerald-500 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isGeneratingAi ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+                <span>{isGeneratingAi ? 'Generando menú' : 'Generar con IA'}</span>
+              </button>
+            </AccordionContent>
+          </AccordionItem>
 
-        <DietScanner onImported={onImportedDiet} />
+          <AccordionItem value="sports" className="rounded-3xl border border-orange-100 bg-orange-50 p-4">
+            <AccordionTrigger className="flex min-h-[52px] w-full items-center justify-between gap-3 text-left">
+              <span className="flex items-center gap-3">
+                <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-orange-500 ring-1 ring-orange-100">
+                  <Flame className="h-4 w-4" />
+                </span>
+                <span>
+                  <span className="block text-[10px] font-black uppercase tracking-[0.16em] text-orange-600">
+                    Gasto deportivo
+                  </span>
+                  <span className="mt-1 block text-base font-black tracking-tight text-slate-950">
+                    {todayWorkoutCalories} kcal · {todayWorkoutMinutes} min
+                  </span>
+                </span>
+              </span>
+            </AccordionTrigger>
+            <AccordionContent className="pt-3">
+              <p className="text-xs font-semibold leading-5 text-slate-500">
+                Lo usamos como lectura rápida de tu déficit o superávit real del día.
+              </p>
+            </AccordionContent>
+          </AccordionItem>
+
+          <AccordionItem value="scanner" className="rounded-3xl border border-slate-200 bg-white p-4">
+            <AccordionTrigger className="flex min-h-[52px] w-full items-center justify-between gap-3 text-left text-sm font-black text-slate-950">
+              Importar Dieta en Papel
+            </AccordionTrigger>
+            <AccordionContent className="pt-3">
+              <DietScanner onImported={onImportedDiet} />
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
       </aside>
     </div>
   );

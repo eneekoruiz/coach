@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Activity, CalendarHeart, Flame, HeartPulse } from 'lucide-react';
 
 import { type BodyMetric, type DailyLog, type Workout } from '@/lib/schema';
@@ -8,6 +8,7 @@ import { type HabitRow } from '@/types/habits';
 import TrendChart from '@/components/TrendChart';
 import StatisticsDailyArchive from '@/components/StatisticsDailyArchive';
 import StatisticsBodySection from '@/components/StatisticsBodySection';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 type HistoryLog = {
   date: string;
@@ -71,6 +72,7 @@ export default function HistoryClientContainer({
   bodyMetrics,
   workouts,
 }: HistoryClientContainerProps) {
+  const [activeTab, setActiveTab] = useState('trends');
   const summary = useMemo(() => {
     const orderedLogs = [...logs].sort((a, b) => a.date.localeCompare(b.date));
     const latest = orderedLogs.at(-1);
@@ -174,29 +176,49 @@ export default function HistoryClientContainer({
         />
       </section>
 
-      <section className="space-y-3">
-        <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">1. Tendencias y Gráficas</p>
-          <h2 className="mt-1 text-2xl font-black tracking-tight text-slate-950">Lectura del patrón</h2>
-        </div>
-        <TrendChart logs={logs} />
-      </section>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <TabsList className="grid grid-cols-1 gap-1 rounded-[1.5rem] border border-slate-200 bg-white p-1 shadow-sm sm:grid-cols-3">
+          {[
+            ['trends', 'Tendencias y Gráficas'],
+            ['archive', 'Archivo Diario'],
+            ['body', 'Evolución Corporal'],
+          ].map(([value, label]) => (
+            <TabsTrigger
+              key={value}
+              value={value}
+              className="min-h-[44px] rounded-[1.15rem] px-3 text-xs font-black transition-all duration-200 ease-in-out active:scale-95"
+              activeClassName="bg-slate-950 text-white shadow-sm"
+              inactiveClassName="text-slate-500 hover:bg-slate-50"
+            >
+              {label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
 
-      <section className="space-y-3">
-        <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">2. Archivo Diario</p>
-          <h2 className="mt-1 text-2xl font-black tracking-tight text-slate-950">Cada día, desplegado con calma</h2>
-        </div>
-        <StatisticsDailyArchive logs={logs} moodEntries={moodEntries} />
-      </section>
+        <TabsContent value="trends" className="space-y-3">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Tendencias y Gráficas</p>
+            <h2 className="mt-1 text-2xl font-black tracking-tight text-slate-950">Lectura del patrón</h2>
+          </div>
+          <TrendChart logs={logs} />
+        </TabsContent>
 
-      <section className="space-y-3">
-        <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">3. Evolución Corporal</p>
-          <h2 className="mt-1 text-2xl font-black tracking-tight text-slate-950">Antropometría y control</h2>
-        </div>
-        <StatisticsBodySection initialMetrics={bodyMetrics} />
-      </section>
+        <TabsContent value="archive" className="space-y-3">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Archivo Diario</p>
+            <h2 className="mt-1 text-2xl font-black tracking-tight text-slate-950">Cada día, desplegado con calma</h2>
+          </div>
+          <StatisticsDailyArchive logs={logs} moodEntries={moodEntries} />
+        </TabsContent>
+
+        <TabsContent value="body" className="space-y-3">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Evolución Corporal</p>
+            <h2 className="mt-1 text-2xl font-black tracking-tight text-slate-950">Antropometría y control</h2>
+          </div>
+          <StatisticsBodySection initialMetrics={bodyMetrics} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

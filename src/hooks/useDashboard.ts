@@ -41,6 +41,9 @@ const defaultDietTargets = {
   fats: 70,
 };
 
+const WATER_STEP_ML = 250;
+const MAX_DAILY_WATER_ML = 10000;
+
 type SmartTrigger = {
   id: string;
   title: string;
@@ -88,6 +91,9 @@ export function useDashboard() {
   }, []);
 
   const syncWaterDelta = useCallback(async (delta: number, date: string) => {
+    const safeDelta = Math.max(-WATER_STEP_ML, Math.min(WATER_STEP_ML, Math.trunc(delta)));
+    if (safeDelta === 0) return;
+
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Usuario no autenticado.');
 
@@ -135,7 +141,7 @@ export function useDashboard() {
       },
       body: JSON.stringify({
         habit_id: waterHabit.id,
-        delta,
+        delta: safeDelta,
         date,
       }),
     });
@@ -350,14 +356,17 @@ export function useDashboard() {
   }, [flushQueuedMutations, persistSnapshot]);
 
   const updateWaterSettings = useCallback(async (target: number, glass: number) => {
-    setDailyWaterTarget(target);
-    setDefaultGlassSize(glass);
+    const safeTarget = Math.max(500, Math.min(MAX_DAILY_WATER_ML, Math.trunc(target)));
+    const safeGlass = Math.max(50, Math.min(1000, Math.trunc(glass)));
+
+    setDailyWaterTarget(safeTarget);
+    setDefaultGlassSize(safeGlass);
     await persistSnapshot({
       lastLog,
       momentum,
       insightText,
-      dailyWaterTarget: target,
-      defaultGlassSize: glass,
+      dailyWaterTarget: safeTarget,
+      defaultGlassSize: safeGlass,
       dietTargets,
       hasLoggedToday,
     });
@@ -365,8 +374,8 @@ export function useDashboard() {
     try {
       const { error } = await supabase.auth.updateUser({
         data: {
-          daily_water_target_ml: target,
-          default_glass_size_ml: glass,
+          daily_water_target_ml: safeTarget,
+          default_glass_size_ml: safeGlass,
         },
       });
       if (error) throw error;
@@ -377,10 +386,14 @@ export function useDashboard() {
     }
   }, [dietTargets, hasLoggedToday, insightText, lastLog, momentum, persistSnapshot]);
 
-  const addWaterIntake = useCallback(async () => {
+  const addWaterIntake = useCallback(async (delta: number = WATER_STEP_ML) => {
     const todayStr = getNormalizedDate(new Date());
     const baseLog = lastLog ?? fallbackLog;
-    const nextWater = waterFromLog(baseLog) + defaultGlassSize;
+    const safeDelta = Math.max(-WATER_STEP_ML, Math.min(WATER_STEP_ML, Math.trunc(delta)));
+    const nextWater = Math.max(0, Math.min(MAX_DAILY_WATER_ML, waterFromLog(baseLog) + safeDelta));
+    const appliedDelta = nextWater - waterFromLog(baseLog);
+    if (appliedDelta === 0) return;
+
     const nextLog: DailyLog = {
       ...baseLog,
       water_ml: nextWater,
@@ -405,13 +418,13 @@ export function useDashboard() {
     });
 
     try {
-      await syncWaterDelta(defaultGlassSize, todayStr);
+      await syncWaterDelta(appliedDelta, todayStr);
       await flushQueuedMutations();
     } catch {
       await enqueueDashboardMutation({
         type: 'add_water',
         payload: {
-          delta: defaultGlassSize,
+          delta: appliedDelta,
           date: todayStr,
         },
       });
@@ -420,7 +433,6 @@ export function useDashboard() {
     }
   }, [
     dailyWaterTarget,
-    defaultGlassSize,
     dietTargets,
     flushQueuedMutations,
     hasLoggedToday,

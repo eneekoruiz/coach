@@ -260,6 +260,7 @@ export async function markRoutineComplete(
 
     if (templateError) {
       console.error('[markRoutineComplete] Error fetching template details:', templateError.message);
+      return { success: false, error: 'Rutina no encontrada.' };
     }
 
     const { data: existingLog } = await supabase
@@ -276,13 +277,15 @@ export async function markRoutineComplete(
 
     const { data, error } = await supabase
       .from('routine_logs')
-      .upsert({
-        id: existingLog?.id,
-        routine_id: routineId,
-        user_id: user.id,
-        completed_date: today,
-        progress_count: nextProgress,
-      }, { onConflict: 'routine_id,completed_date' })
+      .upsert(
+        {
+          routine_id: routineId,
+          user_id: user.id,
+          completed_date: today,
+          progress_count: nextProgress,
+        },
+        { onConflict: 'user_id,routine_id,completed_date' }
+      )
       .select()
       .single();
 
@@ -305,6 +308,7 @@ export async function markRoutineComplete(
       } catch (habitErr) {
         captureException(habitErr, { area: 'routines', action: 'cascadeHabitProgressFromRoutine', extra: { routineId } });
         console.error('[markRoutineComplete] Failed to cascade update to habit:', habitErr);
+        return { success: true, data };
       }
     }
 

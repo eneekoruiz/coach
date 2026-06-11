@@ -169,16 +169,14 @@ export function useNutritionPlan(initialTab?: NutritionTab) {
       const end = new Date(today.getFullYear(), today.getMonth() + 2, 0).toISOString().slice(0, 10);
 
       // Parallel data fetching for clinical nutrition engine
-      const [fetchedCalendar, fetchedRecipes, fetchedOverrides, fetchedProgram, workoutSummary] = await Promise.all([
+      const [fetchedCalendar, fetchedOverrides, fetchedProgram, workoutSummary] = await Promise.all([
         getDietCalendar(start, end),
-        getRecipes(),
         getDailyDietOverrides(start, end),
         getActiveDietProgram(),
         getTodayWorkoutSummary(todayStr),
       ]);
 
       setCalendar(fetchedCalendar);
-      setRecipes(fetchedRecipes);
       setOverrides(fetchedOverrides);
       setActiveProgram(fetchedProgram.program);
       setActiveProgramDays(fetchedProgram.days as DietProgramDay[]);
@@ -209,7 +207,7 @@ export function useNutritionPlan(initialTab?: NutritionTab) {
       writeSessionViewCache(NUTRITION_CACHE_KEY, {
         templates: fetchedTemplates,
         calendar: fetchedCalendar,
-        recipes: fetchedRecipes,
+        recipes: readSessionViewCache<NutritionViewCache>(NUTRITION_CACHE_KEY)?.recipes ?? [],
         overrides: fetchedOverrides,
         activeProgram: fetchedProgram.program,
         activeProgramDays: fetchedProgram.days as DietProgramDay[],
@@ -218,6 +216,27 @@ export function useNutritionPlan(initialTab?: NutritionTab) {
         todayWorkoutCalories: workoutSummary.totalCalories,
         todayWorkoutMinutes: workoutSummary.totalMinutes,
       });
+
+      void getRecipes()
+        .then((fetchedRecipes) => {
+          if (!isMounted.current) return;
+          setRecipes(fetchedRecipes);
+          writeSessionViewCache(NUTRITION_CACHE_KEY, {
+            templates: fetchedTemplates,
+            calendar: fetchedCalendar,
+            recipes: fetchedRecipes,
+            overrides: fetchedOverrides,
+            activeProgram: fetchedProgram.program,
+            activeProgramDays: fetchedProgram.days as DietProgramDay[],
+            realLog: nextRealLog,
+            dailyWaterTarget: user ? Number(user.user_metadata?.daily_water_target_ml ?? 2000) : 2000,
+            todayWorkoutCalories: workoutSummary.totalCalories,
+            todayWorkoutMinutes: workoutSummary.totalMinutes,
+          });
+        })
+        .catch((recipeError) => {
+          captureException(recipeError, { area: 'nutrition', action: 'loadRecipesDeferred' });
+        });
     } catch (err) {
       captureException(err, { area: 'nutrition', action: 'loadNutritionPlan' });
       console.error('Error loading nutrition module data:', err);
