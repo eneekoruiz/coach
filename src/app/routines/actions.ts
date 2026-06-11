@@ -16,6 +16,7 @@ export interface RoutineTemplate {
   linked_habit_id: number | null;
   habit_increment_amount: number;
   target_repetitions: number;
+  notification_times: string[] | null;
 }
 
 export interface RoutineLog {
@@ -120,9 +121,16 @@ export async function createRoutineTemplate(
   time_of_day: 'morning' | 'afternoon' | 'night' | 'all_day' = 'morning',
   linked_habit_id: number | null = null,
   target_repetitions: number = 1,
-  habit_increment_amount: number = 1
+  habit_increment_amount: number = 1,
+  notification_times: string[] | null = null
 ): Promise<{ success: boolean; data?: RoutineTemplate; error?: string }> {
   try {
+    const sanitizedNotificationTimes = Array.isArray(notification_times)
+      ? notification_times
+          .filter((time) => /^\d{2}:\d{2}$/.test(time))
+          .slice(0, Math.max(1, target_repetitions))
+      : null;
+
     if (isE2EMockMode()) {
       const store = getE2EMockStore();
       const mockTemplate: RoutineTemplate = {
@@ -135,6 +143,7 @@ export async function createRoutineTemplate(
         linked_habit_id,
         target_repetitions: Math.max(1, target_repetitions),
         habit_increment_amount,
+        notification_times: sanitizedNotificationTimes ?? [],
       };
       store.routines.templates.push(mockTemplate);
       return { success: true, data: mockTemplate };
@@ -158,20 +167,21 @@ export async function createRoutineTemplate(
         linked_habit_id,
         target_repetitions: Math.max(1, target_repetitions),
         habit_increment_amount,
+        notification_times: sanitizedNotificationTimes ?? [],
       })
       .select()
       .single();
 
     if (error) {
       console.error('[createRoutineTemplate] Supabase error:', error.message);
-      return { success: false, error: 'Error al crear la plantilla.' };
+      return { success: false, error: 'No se pudo crear la tarea.' };
     }
 
     return { success: true, data };
   } catch (err) {
     captureException(err, { area: 'routines', action: 'createRoutineTemplate', extra: { title, time_of_day, linked_habit_id } });
     console.error('[createRoutineTemplate] Unexpected error:', err);
-    return { success: false, error: 'Error inesperado.' };
+    return { success: false, error: 'No se pudo crear la tarea.' };
   }
 }
 
@@ -225,7 +235,7 @@ export async function markRoutineComplete(
       const store = getE2EMockStore();
       const template = store.routines.templates.find((item) => item.id === routineId);
       if (!template) {
-        return { success: false, error: 'Rutina no encontrada.' };
+        return { success: false, error: 'No se pudo actualizar la rutina.' };
       }
       const existing = store.routines.logs.find((log) => log.routine_id === routineId && log.completed_date === today);
       const nextProgress = Math.min(template.target_repetitions, Math.max(0, Number(existing?.progress_count ?? 0)) + 1);
@@ -256,11 +266,14 @@ export async function markRoutineComplete(
       .select('linked_habit_id, habit_increment_amount, target_repetitions')
       .eq('id', routineId)
       .eq('user_id', user.id)
-      .single();
+      .maybeSingle();
 
-    if (templateError) {
-      console.error('[markRoutineComplete] Error fetching template details:', templateError.message);
-      return { success: false, error: 'Rutina no encontrada.' };
+    if (templateError || !template) {
+      console.error(
+        '[markRoutineComplete] Error fetching template details:',
+        templateError?.message ?? 'Template not found for current user'
+      );
+      return { success: false, error: 'No se pudo actualizar la rutina.' };
     }
 
     const { data: existingLog } = await supabase
@@ -291,7 +304,7 @@ export async function markRoutineComplete(
 
     if (error) {
       console.error('[markRoutineComplete] Supabase error:', error.message);
-      return { success: false, error: 'Error al marcar como completado.' };
+      return { success: false, error: 'No se pudo actualizar la rutina.' };
     }
 
     // Cascade habit progress update
@@ -316,7 +329,7 @@ export async function markRoutineComplete(
   } catch (err) {
     captureException(err, { area: 'routines', action: 'markRoutineComplete', extra: { routineId, localDate } });
     console.error('[markRoutineComplete] Unexpected error:', err);
-    return { success: false, error: 'Error inesperado.' };
+    return { success: false, error: 'No se pudo actualizar la rutina.' };
   }
 }
 
@@ -347,7 +360,7 @@ export async function unmarkRoutineComplete(
       .select('linked_habit_id, habit_increment_amount')
       .eq('id', routineId)
       .eq('user_id', user.id)
-      .single();
+      .maybeSingle();
 
     if (templateError) {
       console.error('[unmarkRoutineComplete] Error fetching template details:', templateError.message);
@@ -372,7 +385,7 @@ export async function unmarkRoutineComplete(
 
     if (error) {
       console.error('[unmarkRoutineComplete] Supabase error:', error.message);
-      return { success: false, error: 'Error al desmarcar como completado.' };
+      return { success: false, error: 'No se pudo actualizar la rutina.' };
     }
 
     // Cascade habit progress update (decrease)
@@ -396,6 +409,6 @@ export async function unmarkRoutineComplete(
   } catch (err) {
     captureException(err, { area: 'routines', action: 'unmarkRoutineComplete', extra: { routineId, localDate } });
     console.error('[unmarkRoutineComplete] Unexpected error:', err);
-    return { success: false, error: 'Error inesperado.' };
+    return { success: false, error: 'No se pudo actualizar la rutina.' };
   }
 }

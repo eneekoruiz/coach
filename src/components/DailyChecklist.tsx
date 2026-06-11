@@ -3,7 +3,7 @@
 import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Check, Sparkles, Loader2, ListTodo, Sun, CloudSun, Moon, Link2, BellRing } from 'lucide-react';
+import { Plus, Check, Sparkles, Loader2, ListTodo, Sun, CloudSun, Moon, Link2, BellRing, Minus } from 'lucide-react';
 import BottomSheet from './BottomSheet';
 import { useDailyChecklist } from '@/hooks/useDailyChecklist';
 
@@ -29,7 +29,9 @@ export default function DailyChecklist({ isDedicatedPage = false }: DailyCheckli
     linkedHabitId,
     setLinkedHabitId,
     habitIncrementAmount,
-    setHabitIncrementAmount,
+    notificationTimes,
+    updateNotificationTime,
+    incrementRepetitions,
     notificationsEnabled,
     setNotificationsEnabled,
     userHabits,
@@ -290,17 +292,34 @@ export default function DailyChecklist({ isDedicatedPage = false }: DailyCheckli
                 <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1.5">
                   3. Repeticiones
                 </label>
-                <select
-                  value={habitIncrementAmount}
-                  onChange={(event) => setHabitIncrementAmount(Number(event.target.value))}
-                  className="w-full min-h-[44px] rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                  {Array.from({ length: 8 }, (_, index) => index + 1).map((count) => (
-                    <option key={count} value={count}>
-                      {count} {count === 1 ? 'vez' : 'veces'}
-                    </option>
-                  ))}
-                </select>
+                <div className="grid grid-cols-[52px_1fr_52px] items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-2">
+                  <button
+                    type="button"
+                    onClick={() => incrementRepetitions(-1)}
+                    disabled={habitIncrementAmount <= 1}
+                    className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 transition active:scale-95 disabled:opacity-40"
+                    aria-label="Reducir repeticiones"
+                  >
+                    <Minus className="h-4 w-4" />
+                  </button>
+                  <div className="text-center">
+                    <p className="text-3xl font-black tabular-nums text-slate-950">
+                      {habitIncrementAmount}
+                    </p>
+                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
+                      {habitIncrementAmount === 1 ? 'vez al día' : 'veces al día'}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => incrementRepetitions(1)}
+                    disabled={habitIncrementAmount >= 8}
+                    className="inline-flex min-h-[44px] items-center justify-center rounded-xl bg-indigo-600 text-white transition active:scale-95 disabled:opacity-40"
+                    aria-label="Aumentar repeticiones"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
 
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
@@ -323,6 +342,31 @@ export default function DailyChecklist({ isDedicatedPage = false }: DailyCheckli
                     <BellRing className="h-4 w-4" />
                   </button>
                 </div>
+                {notificationsEnabled && (
+                  <div className="mt-4 grid gap-2">
+                    <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-400">
+                      Horas sugeridas
+                    </p>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {Array.from({ length: habitIncrementAmount }, (_, index) => (
+                        <label
+                          key={index}
+                          className="flex min-h-[48px] items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-3"
+                        >
+                          <span className="text-xs font-black uppercase tracking-[0.12em] text-slate-500">
+                            Aviso {index + 1}
+                          </span>
+                          <input
+                            type="time"
+                            value={notificationTimes[index] ?? '09:00'}
+                            onChange={(event) => updateNotificationTime(index, event.target.value)}
+                            className="h-11 rounded-xl bg-slate-50 px-3 text-sm font-black tabular-nums text-slate-900 outline-none ring-1 ring-slate-200 focus:ring-indigo-300"
+                          />
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div>

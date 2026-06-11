@@ -149,9 +149,9 @@ export default function HabitSanctuary() {
   }
 
   return (
-    <main className="flex min-h-0 flex-1 flex-col overflow-hidden overflow-x-hidden bg-slate-50 text-slate-950">
+    <main className="flex min-h-0 min-w-0 max-w-full flex-1 flex-col overflow-hidden overflow-x-hidden bg-slate-50 text-slate-950">
       <header className="shrink-0 border-b border-slate-200 bg-white px-4 py-3 sm:px-6 lg:px-8">
-        <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3">
+        <div className="mx-auto flex w-full max-w-7xl min-w-0 items-center justify-between gap-3">
           <div className="min-w-0">
             <p className="text-[9px] font-black uppercase tracking-[0.28em] text-slate-400">
               Hábitos
@@ -182,7 +182,7 @@ export default function HabitSanctuary() {
       </header>
 
       <div className="shrink-0 border-b border-slate-200 bg-white px-4 py-2 sm:px-6 lg:px-8">
-        <div className="mx-auto grid w-full max-w-7xl grid-cols-2 rounded-2xl bg-slate-100 p-1">
+        <div className="mx-auto grid w-full max-w-7xl min-w-0 grid-cols-2 rounded-2xl bg-slate-100 p-1">
           <button
             type="button"
             onClick={() => setActiveView('today')}
@@ -206,10 +206,10 @@ export default function HabitSanctuary() {
         </div>
       </div>
 
-      <section className="min-h-0 flex-1 overflow-y-auto px-4 py-4 pb-[calc(5.5rem+env(safe-area-inset-bottom))] sm:px-6 md:pb-6 lg:px-8 scrollbar-hide">
-        <div className="mx-auto w-full max-w-7xl">
+      <section className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden px-4 py-4 pb-[calc(5.5rem+env(safe-area-inset-bottom))] sm:px-6 md:pb-6 lg:px-8 scrollbar-hide">
+        <div className="mx-auto w-full max-w-7xl min-w-0 overflow-x-hidden">
           {activeView === 'stats' ? (
-            <div className="grid gap-5 lg:grid-cols-[390px_minmax(0,1fr)]">
+            <div className="grid min-w-0 gap-5 lg:grid-cols-[minmax(0,390px)_minmax(0,1fr)]">
               <aside className="space-y-5">
                 <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
                   <div className="flex justify-center">
@@ -305,7 +305,7 @@ export default function HabitSanctuary() {
               </div>
             </div>
           ) : (
-            <div className="flex w-full flex-col rounded-3xl border border-slate-200 bg-white p-3 shadow-sm sm:p-5">
+            <div className="flex w-full min-w-0 max-w-full flex-col overflow-x-hidden rounded-3xl border border-slate-200 bg-white p-3 shadow-sm sm:p-5">
               <div className="mb-3 flex items-center justify-between gap-3 px-1">
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">
@@ -345,8 +345,8 @@ export default function HabitSanctuary() {
                 </div>
               ) : (
                 <div className="flex flex-col gap-4">
-                  <section className="rounded-3xl border border-rose-100 bg-rose-50/40 p-3">
-                    <div className="mb-3 flex items-center justify-between">
+                  <section className="min-w-0 overflow-hidden rounded-3xl border border-rose-100 bg-rose-50/40 p-3">
+                    <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
                       <div className="flex items-center gap-2">
                         <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-white text-rose-600 ring-1 ring-rose-100">
                           <Ban className="h-4 w-4" />
@@ -364,7 +364,7 @@ export default function HabitSanctuary() {
                         {negativeHabits.length}
                       </span>
                     </div>
-                    <div className="grid gap-3 lg:grid-cols-2">
+                    <div className="grid min-w-0 gap-3 lg:grid-cols-2">
                       {negativeHabits.map((habit) => (
                         <RecoveryHabitCard
                           key={habit.id}
@@ -388,8 +388,8 @@ export default function HabitSanctuary() {
                     </div>
                   </section>
 
-                  <section className="rounded-3xl border border-slate-200 bg-slate-50 p-3">
-                    <div className="mb-3 flex items-center justify-between">
+                  <section className="min-w-0 overflow-hidden rounded-3xl border border-slate-200 bg-slate-50 p-3">
+                    <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
                       <div className="flex items-center gap-2">
                         <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-white text-emerald-600 ring-1 ring-emerald-100">
                           <Target className="h-4 w-4" />
@@ -405,7 +405,7 @@ export default function HabitSanctuary() {
                         {positiveHabits.length}
                       </span>
                     </div>
-                    <div className="grid gap-3 lg:grid-cols-2">
+                    <div className="grid min-w-0 gap-3 lg:grid-cols-2">
                       {positiveHabits.map((habit) => (
                         <HabitTrackerCard
                           key={habit.id}

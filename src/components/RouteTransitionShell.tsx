@@ -15,7 +15,7 @@ export default function RouteTransitionShell({ children }: { children: ReactNode
         animate={{ opacity: 1 }}
         exit={{ opacity: 0.94 }}
         transition={{ duration: 0.15, ease: 'easeOut' }}
-        className="flex min-h-0 flex-1 flex-col overflow-hidden"
+        className="flex min-h-0 min-w-0 max-w-full flex-1 flex-col overflow-hidden overflow-x-hidden"
       >
         {children}
       </motion.div>

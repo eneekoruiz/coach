@@ -33,6 +33,7 @@ function createInitialStore(): MockStore {
           linked_habit_id: 1,
           habit_increment_amount: 1,
           target_repetitions: 5,
+          notification_times: ['09:00', '11:45', '14:30', '17:15', '20:00'],
         },
       ],
       logs: [],
