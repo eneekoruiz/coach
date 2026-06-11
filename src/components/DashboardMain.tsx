@@ -2,11 +2,12 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion, type Variants } from 'framer-motion';
-import { Battery, Brain, Droplets, Loader2, MessageCircle, Scale, Zap, X } from 'lucide-react';
+import { Battery, Brain, Droplets, Loader2, MessageCircle, Scale, Zap, X, ChevronRight, Sparkles } from 'lucide-react';
 import { type DailyLog } from '@/lib/schema';
 import { triggerVibration } from '@/lib/haptics';
 import { useDashboardState } from '@/hooks/useDashboardState';
 import { useTimeContext } from '@/hooks/useTimeContext';
+import { useRouter } from 'next/navigation';
 import WeightLogSheet from '@/components/WeightLogSheet';
 
 interface DashboardTheme {
@@ -196,6 +197,7 @@ export default function DashboardMain({
   smartTrigger,
   onChatOpen,
 }: DashboardMainProps) {
+  const router = useRouter();
   const timeContext = useTimeContext();
   const [avatarMotion, setAvatarMotion] = useState<AvatarMotionState>('idle');
   const [waterBusy, setWaterBusy] = useState(false);
@@ -414,6 +416,31 @@ export default function DashboardMain({
           </div>
           <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Nutrición</p>
           <p className="mt-0.5 text-base font-black tracking-tight text-slate-900">{kcalPercent}%</p>
+        </div>
+      </section>
+
+      <section className="relative w-full rounded-[1.5rem] border border-indigo-100 bg-gradient-to-r from-indigo-50/50 to-purple-50/50 p-4 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-indigo-100 px-3 py-1 text-[9px] font-black uppercase tracking-[0.14em] text-indigo-700">
+              <Sparkles className="h-3 w-3" /> Gamificación Activa
+            </div>
+            <h2 className="mt-2 text-lg font-black tracking-tight text-slate-950">Knowledge Quest</h2>
+            <p className="mt-1 text-xs text-slate-600 leading-relaxed max-w-xl">
+              Domina tus metas y conceptos de aprendizaje en nuestro mapa interactivo de quizzes dinámicos generados por IA.
+            </p>
+          </div>
+          <motion.button
+            whileTap={{ scale: 0.96 }}
+            onClick={() => {
+              triggerVibration('light');
+              router.push('/quest');
+            }}
+            className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-6 text-sm font-black text-white shadow-sm hover:bg-indigo-500 transition-colors shrink-0"
+          >
+            Jugar y Aprender
+            <ChevronRight className="h-4 w-4" />
+          </motion.button>
         </div>
       </section>
 
