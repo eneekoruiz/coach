@@ -141,47 +141,12 @@ export default function HistoryClientContainer({
 
   return (
     <div className="space-y-6">
-      <section className="grid gap-4 lg:grid-cols-4">
-        <MetricBlock
-          icon={<CalendarHeart className="h-5 w-5 text-emerald-600" />}
-          eyebrow="Semana"
-          title="Tendencia"
-          value={`${summary.momentumDelta >= 0 ? '+' : ''}${summary.momentumDelta}`}
-          detail={`${summary.loggedDays} días trazados en memoria fisiológica.`}
-          tint="bg-emerald-50"
-        />
-        <MetricBlock
-          icon={<Activity className="h-5 w-5 text-orange-500" />}
-          eyebrow="Nutrición"
-          title="Calorías medias"
-          value={`${summary.avgKcal}`}
-          detail={`Agua media ${summary.avgWater}ml · peso ${summary.latestWeight}.`}
-          tint="bg-orange-50"
-        />
-        <MetricBlock
-          icon={<Flame className="h-5 w-5 text-indigo-600" />}
-          eyebrow="Hábitos"
-          title={summary.bestPositive?.name ?? 'Sin hábito líder'}
-          value={`${summary.bestPositive?.current_streak ?? 0}d`}
-          detail={`Sobriedad líder ${summary.bestNegative?.current_streak ?? 0}d · actividad ${summary.workoutMinutes} min.`}
-          tint="bg-indigo-50"
-        />
-        <MetricBlock
-          icon={<HeartPulse className="h-5 w-5 text-rose-500" />}
-          eyebrow="Ánimo"
-          title="Balance emocional"
-          value={summary.moodAverage}
-          detail={`Factor dominante: ${summary.topMoodFactor}.`}
-          tint="bg-rose-50"
-        />
-      </section>
-
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="grid grid-cols-1 gap-1 rounded-[1.5rem] border border-slate-200 bg-white p-1 shadow-sm sm:grid-cols-3">
           {[
-            ['trends', 'Tendencias y Gráficas'],
-            ['archive', 'Archivo Diario'],
-            ['body', 'Evolución Corporal'],
+            ['trends', 'Tendencias'],
+            ['archive', 'Archivo'],
+            ['body', 'Evolución'],
           ].map(([value, label]) => (
             <TabsTrigger
               key={value}
@@ -195,12 +160,49 @@ export default function HistoryClientContainer({
           ))}
         </TabsList>
 
-        <TabsContent value="trends" className="space-y-3">
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Tendencias y Gráficas</p>
-            <h2 className="mt-1 text-2xl font-black tracking-tight text-slate-950">Lectura del patrón</h2>
+        <TabsContent value="trends" className="space-y-6">
+          <section className="grid gap-4 lg:grid-cols-4">
+            <MetricBlock
+              icon={<CalendarHeart className="h-5 w-5 text-emerald-600" />}
+              eyebrow="Semana"
+              title="Tendencia"
+              value={`${summary.momentumDelta >= 0 ? '+' : ''}${summary.momentumDelta}`}
+              detail={`${summary.loggedDays} días trazados en memoria fisiológica.`}
+              tint="bg-emerald-50"
+            />
+            <MetricBlock
+              icon={<Activity className="h-5 w-5 text-orange-500" />}
+              eyebrow="Nutrición"
+              title="Calorías medias"
+              value={`${summary.avgKcal}`}
+              detail={`Agua media ${summary.avgWater}ml · peso ${summary.latestWeight}.`}
+              tint="bg-orange-50"
+            />
+            <MetricBlock
+              icon={<Flame className="h-5 w-5 text-indigo-600" />}
+              eyebrow="Hábitos"
+              title={summary.bestPositive?.name ?? 'Sin hábito líder'}
+              value={`${summary.bestPositive?.current_streak ?? 0}d`}
+              detail={`Sobriedad líder ${summary.bestNegative?.current_streak ?? 0}d · actividad ${summary.workoutMinutes} min.`}
+              tint="bg-indigo-50"
+            />
+            <MetricBlock
+              icon={<HeartPulse className="h-5 w-5 text-rose-500" />}
+              eyebrow="Ánimo"
+              title="Balance emocional"
+              value={summary.moodAverage}
+              detail={`Factor dominante: ${summary.topMoodFactor}.`}
+              tint="bg-rose-50"
+            />
+          </section>
+
+          <div className="space-y-3">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Tendencias y Gráficas</p>
+              <h2 className="mt-1 text-2xl font-black tracking-tight text-slate-950">Lectura del patrón</h2>
+            </div>
+            <TrendChart logs={logs} />
           </div>
-          <TrendChart logs={logs} />
         </TabsContent>
 
         <TabsContent value="archive" className="space-y-3">

@@ -83,43 +83,6 @@ export default async function RoutinesPage() {
 
   return (
     <main className="flex h-[100dvh] min-h-0 flex-1 flex-col overflow-hidden bg-slate-50 text-slate-950">
-      <header className="shrink-0 border-b border-slate-200 bg-white px-4 py-4 sm:px-6 lg:px-8">
-        <div className="mx-auto flex w-full max-w-4xl items-center justify-between gap-4">
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600 ring-1 ring-indigo-100">
-              <ListChecksIcon className="h-5 w-5" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-[10px] font-black uppercase tracking-[0.34em] text-slate-400">Daily Task Center</p>
-              <h1 className="truncate text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">
-                Tareas
-              </h1>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <ScreenGuideButton
-              title="Tareas"
-              description="Esta pantalla reúne tus recordatorios operativos del día por mañana, tarde y noche."
-              goal="Sirve para tachar rápido, mantener foco y alimentar hábitos vinculados sin abrir más paneles."
-              bullets={[
-                'Usa Nueva Tarea para crear recordatorios simples.',
-                'Si la vinculas a un hábito, al completarla sumará progreso automáticamente.',
-                'Piensa en esta vista como el centro de ejecución del día.',
-              ]}
-              compact
-            />
-            <Link
-              href="/"
-              className="inline-flex min-h-[44px] shrink-0 items-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition-all duration-200 ease-in-out hover:bg-slate-50 active:scale-95"
-            >
-              <ChevronLeftIcon className="h-4 w-4" />
-              Volver
-            </Link>
-          </div>
-        </div>
-      </header>
-
       <section className="min-h-0 flex-1 overflow-y-auto px-4 py-5 pb-28 sm:px-6 md:pb-8 lg:px-8 scrollbar-hide">
         <div className="mx-auto w-full max-w-4xl">
           <GlobalErrorBoundary>

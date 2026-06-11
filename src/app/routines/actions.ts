@@ -297,7 +297,7 @@ export async function markRoutineComplete(
           completed_date: today,
           progress_count: nextProgress,
         },
-        { onConflict: 'user_id,routine_id,completed_date' }
+        { onConflict: 'routine_id,completed_date' }
       )
       .select()
       .single();

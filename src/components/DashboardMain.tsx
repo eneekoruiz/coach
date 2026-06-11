@@ -253,15 +253,15 @@ export default function DashboardMain({
   };
 
   return (
-    <main className="mx-auto flex min-h-0 w-full max-w-4xl flex-1 flex-col justify-start gap-4 overflow-y-auto overflow-x-hidden px-2 py-3 pb-[calc(5.5rem+env(safe-area-inset-bottom))] sm:px-3 md:pb-4">
-      <section className="relative w-full rounded-[1.5rem] border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
+    <main className="mx-auto flex h-[100dvh] w-full max-w-4xl flex-col justify-start gap-2 overflow-hidden px-2 py-2 pb-[calc(5.5rem+env(safe-area-inset-bottom))] sm:px-3 md:pb-4">
+      <section className="relative w-full rounded-[1.25rem] border border-slate-200 bg-white p-2.5 shadow-sm sm:p-3">
         <div className="flex flex-col items-center text-center">
-          <div className="mb-3 flex w-full flex-wrap items-center justify-center gap-2">
-            <div className="inline-flex min-h-[28px] items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.14em] text-slate-500">
-              {isLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5 text-emerald-600" />}
+          <div className="mb-2 flex w-full flex-wrap items-center justify-center gap-1.5">
+            <div className="inline-flex min-h-[24px] items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[8px] font-black uppercase tracking-[0.14em] text-slate-500">
+              {isLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Zap className="h-3 w-3 text-emerald-600" />}
               {timeContext.greeting} · {timeContext.label}
             </div>
-            <div className="inline-flex min-h-[28px] items-center rounded-full border border-emerald-100 bg-emerald-50 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.14em] text-emerald-700">
+            <div className="inline-flex min-h-[24px] items-center rounded-full border border-emerald-100 bg-emerald-50 px-2 py-0.5 text-[8px] font-black uppercase tracking-[0.14em] text-emerald-700">
               Bienestar {normalizedMomentum}%
             </div>
           </div>
@@ -269,7 +269,7 @@ export default function DashboardMain({
           <motion.div
             variants={avatarVariants}
             animate={avatarMotion}
-            className={`relative flex h-40 w-full max-w-[22rem] items-center justify-center overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white shadow-sm sm:h-44 lg:h-48 ${avatar.aura}`}
+            className={`relative flex h-24 w-full max-w-[20rem] items-center justify-center overflow-hidden rounded-[1.25rem] border border-slate-200 bg-white shadow-sm sm:h-28 lg:h-32 ${avatar.aura}`}
           >
             <img
               src={avatar.url}
@@ -282,11 +282,11 @@ export default function DashboardMain({
             />
           </motion.div>
 
-          <div className="mt-2">
-            <h1 className="text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">
+          <div className="mt-1.5">
+            <h1 className="text-lg font-black tracking-tight text-slate-900 sm:text-xl">
               {avatar.label}
             </h1>
-            <p className="mx-auto mt-1 max-w-md text-xs leading-5 text-slate-500">
+            <p className="mx-auto mt-0.5 max-w-md text-[10px] leading-snug text-slate-500">
               {avatar.subLabel}
             </p>
           </div>
@@ -296,31 +296,31 @@ export default function DashboardMain({
               key={smartTrigger.id}
               initial={{ opacity: 0, y: 8, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              className="mt-3 w-full max-w-lg rounded-[1.4rem] border border-cyan-100 bg-cyan-50/80 p-3 text-left shadow-sm"
+              className="mt-2 w-full max-w-lg rounded-[1rem] border border-cyan-100 bg-cyan-50/80 p-2 text-left shadow-sm"
             >
-              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-cyan-700">
+              <p className="text-[8px] font-black uppercase tracking-[0.16em] text-cyan-700">
                 {smartTrigger.title}
               </p>
-              <p className="mt-1 text-sm font-semibold leading-6 text-slate-700">
+              <p className="mt-0.5 text-xs font-semibold leading-normal text-slate-700">
                 {smartTrigger.body}
               </p>
               {smartTrigger.cta ? (
-                <p className="mt-2 text-[11px] font-black uppercase tracking-[0.14em] text-cyan-700">
+                <p className="mt-1 text-[9px] font-black uppercase tracking-[0.14em] text-cyan-700">
                   {smartTrigger.cta}
                 </p>
               ) : null}
             </motion.div>
           ) : null}
 
-          <div className="mt-3 flex w-full max-w-lg flex-col gap-2">
+          <div className="mt-2 grid w-full max-w-lg grid-cols-2 gap-2">
             <motion.button
               type="button"
               whileTap={{ scale: 0.98 }}
               onClick={handleCoach}
-              className="inline-flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 px-4 text-sm font-black text-white shadow-sm transition-all duration-200 ease-in-out hover:bg-slate-800"
+              className="inline-flex min-h-[38px] w-full items-center justify-center gap-1.5 rounded-xl bg-slate-900 px-3 text-xs font-black text-white shadow-sm transition-all duration-200 ease-in-out hover:bg-slate-800"
             >
-              <MessageCircle className="h-4 w-4" />
-              Hablar con el Coach
+              <MessageCircle className="h-3.5 w-3.5" />
+              Coach
             </motion.button>
             <button
               type="button"
@@ -328,49 +328,49 @@ export default function DashboardMain({
                 triggerVibration('light');
                 setIsWeightOpen(true);
               }}
-              className="inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-black text-slate-700 transition-all duration-200 ease-in-out hover:bg-white active:scale-95"
+              className="inline-flex min-h-[38px] w-full items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 text-xs font-black text-slate-700 transition-all duration-200 ease-in-out hover:bg-white active:scale-95"
             >
-              <Scale className="h-4 w-4" />
+              <Scale className="h-3.5 w-3.5" />
               Peso de hoy
             </button>
           </div>
 
           {pendingSyncCount > 0 && (
-            <p className="mt-3 text-[10px] font-bold text-amber-600">
+            <p className="mt-2 text-[9px] font-bold text-amber-600">
               {pendingSyncCount} acción en cola. Se sincronizará al recuperar conexión.
             </p>
           )}
         </div>
       </section>
 
-      <section className="grid w-full grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
-        <div className="relative w-full rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
+      <section className="grid w-full grid-cols-1 gap-2 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
+        <div className="relative w-full rounded-2xl border border-slate-200 bg-white p-2.5 shadow-sm">
+          <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-400">
             Foco proactivo
           </p>
-          <h2 className="mt-1 text-lg font-black tracking-tight text-slate-900">
+          <h2 className="mt-0.5 text-base font-black tracking-tight text-slate-900">
             {timeContext.priority}
           </h2>
-          <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-600">{primaryAction}</p>
+          <p className="mt-0.5 line-clamp-2 text-xs leading-normal text-slate-600">{primaryAction}</p>
         </div>
 
-        <div className="relative w-full rounded-2xl border border-cyan-100 bg-cyan-50 p-3 shadow-sm">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative w-full rounded-2xl border border-cyan-100 bg-cyan-50 p-2.5 shadow-sm">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-cyan-600">
+              <p className="text-[9px] font-black uppercase tracking-[0.14em] text-cyan-600">
                 Agua unificada
               </p>
-              <p className="mt-1 text-xl font-black tracking-tight text-slate-950">
+              <p className="mt-0.5 text-lg font-black tracking-tight text-slate-950">
                 {waterMl}/{dailyWaterTarget}ml
               </p>
             </div>
-            <div className="grid w-full shrink-0 grid-cols-2 gap-2 sm:flex sm:w-auto sm:items-center">
+            <div className="grid w-full shrink-0 grid-cols-2 gap-1.5 sm:flex sm:w-auto sm:items-center">
               <motion.button
                 type="button"
                 whileTap={{ scale: 0.96 }}
                 onClick={() => void handleWater(-WATER_STEP_ML)}
                 disabled={waterBusy || waterMl <= 0}
-                className="inline-flex h-11 min-w-[70px] items-center justify-center rounded-2xl border border-cyan-200 bg-white px-3 text-xs font-black text-cyan-700 shadow-sm transition-all duration-200 ease-in-out hover:bg-cyan-50 disabled:opacity-40"
+                className="inline-flex h-9 min-w-[64px] items-center justify-center rounded-xl border border-cyan-200 bg-white px-2.5 text-xs font-black text-cyan-700 shadow-sm transition-all duration-200 ease-in-out hover:bg-cyan-50 disabled:opacity-40"
               >
                 -250ml
               </motion.button>
@@ -379,55 +379,55 @@ export default function DashboardMain({
                 whileTap={{ scale: 0.96 }}
                 onClick={() => void handleWater(WATER_STEP_ML)}
                 disabled={waterBusy || waterMl >= MAX_DAILY_WATER_ML}
-                className="inline-flex h-11 min-w-[70px] items-center justify-center gap-1.5 rounded-2xl bg-cyan-500 px-3 text-xs font-black text-white shadow-sm transition-all duration-200 ease-in-out hover:bg-cyan-400 disabled:opacity-70"
+                className="inline-flex h-9 min-w-[64px] items-center justify-center gap-1 rounded-xl bg-cyan-500 px-2.5 text-xs font-black text-white shadow-sm transition-all duration-200 ease-in-out hover:bg-cyan-400 disabled:opacity-70"
               >
-                {waterBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Droplets className="h-4 w-4" />}
+                {waterBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Droplets className="h-3.5 w-3.5" />}
                 +250ml
               </motion.button>
             </div>
           </div>
-          <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/80">
+          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/80">
             <div className="h-full rounded-full bg-cyan-500 transition-all duration-500" style={{ width: `${waterPercent}%` }} />
           </div>
-          <p className="mt-2 text-xs font-semibold text-slate-500">
+          <p className="mt-1.5 text-[10px] font-semibold text-slate-500">
             {insightText || timeContext.coachPrompt}
           </p>
         </div>
       </section>
 
-      <section className="grid w-full grid-cols-2 gap-3 sm:grid-cols-3">
-        <div className="relative w-full rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-          <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-xl bg-slate-50 text-slate-600">
-            <Battery className="h-4 w-4 text-amber-600" />
+      <section className="grid w-full grid-cols-3 gap-2">
+        <div className="relative w-full rounded-2xl border border-slate-200 bg-white p-2 sm:p-2.5 shadow-sm">
+          <div className="mb-1 flex h-6 w-6 items-center justify-center rounded-lg bg-slate-50 text-slate-600">
+            <Battery className="h-3.5 w-3.5 text-amber-600" />
           </div>
-          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Energía</p>
-          <p className="mt-0.5 text-base font-black tracking-tight text-slate-900">{energyLevel}/5</p>
+          <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-400">Energía</p>
+          <p className="mt-0.5 text-sm font-black tracking-tight text-slate-900">{energyLevel}/5</p>
         </div>
-        <div className="relative w-full rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-          <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-xl bg-slate-50 text-slate-600">
-            <Brain className="h-4 w-4 text-sky-600" />
+        <div className="relative w-full rounded-2xl border border-slate-200 bg-white p-2 sm:p-2.5 shadow-sm">
+          <div className="mb-1 flex h-6 w-6 items-center justify-center rounded-lg bg-slate-50 text-slate-600">
+            <Brain className="h-3.5 w-3.5 text-sky-600" />
           </div>
-          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Claridad</p>
-          <p className="mt-0.5 text-base font-black tracking-tight text-slate-900">{mentalClarity}/5</p>
+          <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-400">Claridad</p>
+          <p className="mt-0.5 text-sm font-black tracking-tight text-slate-900">{mentalClarity}/5</p>
         </div>
-        <div className="relative col-span-2 w-full rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:col-span-1">
-          <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-xl bg-slate-50 text-slate-600">
-            <Zap className="h-4 w-4 text-emerald-600" />
+        <div className="relative w-full rounded-2xl border border-slate-200 bg-white p-2 sm:p-2.5 shadow-sm">
+          <div className="mb-1 flex h-6 w-6 items-center justify-center rounded-lg bg-slate-50 text-slate-600">
+            <Zap className="h-3.5 w-3.5 text-emerald-600" />
           </div>
-          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Nutrición</p>
-          <p className="mt-0.5 text-base font-black tracking-tight text-slate-900">{kcalPercent}%</p>
+          <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-400">Nutri</p>
+          <p className="mt-0.5 text-sm font-black tracking-tight text-slate-900">{kcalPercent}%</p>
         </div>
       </section>
 
-      <section className="relative w-full rounded-[1.5rem] border border-indigo-100 bg-gradient-to-r from-indigo-50/50 to-purple-50/50 p-4 shadow-sm">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-indigo-100 px-3 py-1 text-[9px] font-black uppercase tracking-[0.14em] text-indigo-700">
-              <Sparkles className="h-3 w-3" /> Gamificación Activa
+      <section className="relative w-full rounded-[1.25rem] border border-indigo-100 bg-gradient-to-r from-indigo-50/50 to-purple-50/50 p-2.5 shadow-sm">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-2 py-0.5 text-[8px] font-black uppercase tracking-[0.12em] text-indigo-700">
+              <Sparkles className="h-2.5 w-2.5" /> Gamificación
             </div>
-            <h2 className="mt-2 text-lg font-black tracking-tight text-slate-950">Knowledge Quest</h2>
-            <p className="mt-1 text-xs text-slate-600 leading-relaxed max-w-xl">
-              Domina tus metas y conceptos de aprendizaje en nuestro mapa interactivo de quizzes dinámicos generados por IA.
+            <h2 className="mt-1 text-sm font-black tracking-tight text-slate-950">Knowledge Quest</h2>
+            <p className="mt-0.5 hidden text-[10px] leading-relaxed text-slate-600 sm:block">
+              Domina tus metas y conceptos de aprendizaje en nuestro mapa interactivo de quizzes generados por IA.
             </p>
           </div>
           <motion.button
@@ -436,10 +436,10 @@ export default function DashboardMain({
               triggerVibration('light');
               router.push('/quest');
             }}
-            className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-6 text-sm font-black text-white shadow-sm hover:bg-indigo-500 transition-colors shrink-0"
+            className="inline-flex min-h-[34px] items-center justify-center gap-1 rounded-xl bg-indigo-600 px-4 text-xs font-black text-white shadow-sm hover:bg-indigo-500 transition-colors shrink-0"
           >
-            Jugar y Aprender
-            <ChevronRight className="h-4 w-4" />
+            Jugar
+            <ChevronRight className="h-3.5 w-3.5" />
           </motion.button>
         </div>
       </section>

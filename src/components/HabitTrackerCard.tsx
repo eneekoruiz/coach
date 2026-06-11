@@ -326,16 +326,11 @@ export default function HabitTrackerCard({
           animate={{
             opacity: 1,
             y: 0,
-            backgroundColor: isExceededNegative ? '#fef2f2' : '#ffffff',
-            borderColor: isExceededNegative ? '#fecaca' : '#e2e8f0',
+            backgroundColor: isExceededNegative ? '#fef2f2' : 'transparent',
           }}
           transition={{ duration: 0.3 }}
           onClick={() => setIsDetailOpen(true)}
-          className={`group flex w-full min-w-0 items-center justify-between gap-3 p-3 rounded-2xl border shadow-sm hover:shadow-md cursor-pointer transition-all duration-300 ${
-            isPositive
-              ? 'bg-[linear-gradient(135deg,#ffffff_0%,#f0fdf4_100%)]'
-              : 'bg-[linear-gradient(135deg,#ffffff_0%,#fff1f2_100%)]'
-          } ${showGlow ? 'ring-2 ring-emerald-400 shadow-emerald-100' : ''}`}
+          className={`group flex w-full min-w-0 items-center justify-between gap-3 p-4 cursor-pointer transition-all duration-300 hover:bg-slate-50 dark:hover:bg-zinc-800/40 ${showGlow ? 'ring-2 ring-emerald-400' : ''}`}
         >
           <div className="flex items-center gap-3 min-w-0 flex-1">
             <div
@@ -346,7 +341,7 @@ export default function HabitTrackerCard({
 
             <div className="min-w-0 flex-1">
               <h3
-                className={`text-sm font-black truncate transition-colors duration-300 ${isExceededNegative ? 'text-rose-900' : 'text-slate-900'}`}
+                className={`text-sm font-black w-full break-words whitespace-normal transition-colors duration-300 ${isExceededNegative ? 'text-rose-900' : 'text-slate-900'}`}
               >
                 {habit.name}
               </h3>

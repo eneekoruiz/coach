@@ -144,7 +144,7 @@ export default function RecoveryHabitCard({
     <>
       <motion.article
         layout
-        className="w-full min-w-0 max-w-full overflow-hidden rounded-3xl border border-slate-200 bg-white p-4 shadow-sm ring-1 ring-white"
+        className="w-full min-w-0 max-w-full overflow-hidden bg-transparent p-5 hover:bg-slate-50/50 dark:hover:bg-zinc-800/20 transition-colors"
       >
         <div className="flex min-w-0 flex-wrap items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
@@ -152,7 +152,7 @@ export default function RecoveryHabitCard({
               <Shield className="h-3.5 w-3.5 text-cyan-600" />
               Recuperación
             </div>
-            <h3 className="mt-2 truncate text-lg font-black tracking-tight text-slate-950">
+            <h3 className="mt-2 w-full break-words whitespace-normal text-lg font-black tracking-tight text-slate-950">
               {habit.name}
             </h3>
           </div>

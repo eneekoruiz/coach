@@ -364,7 +364,7 @@ export default function HabitSanctuary() {
                         {negativeHabits.length}
                       </span>
                     </div>
-                    <div className="grid min-w-0 gap-3 lg:grid-cols-2">
+                    <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-slate-200/80 dark:border-zinc-800/80 shadow-sm overflow-hidden divide-y divide-gray-100 dark:divide-zinc-800/60">
                       {negativeHabits.map((habit) => (
                         <RecoveryHabitCard
                           key={habit.id}
@@ -380,7 +380,7 @@ export default function HabitSanctuary() {
                         />
                       ))}
                       {negativeHabits.length === 0 && (
-                        <div className="rounded-2xl border border-dashed border-rose-200 bg-white p-5 text-sm text-slate-500">
+                        <div className="p-5 text-sm text-slate-500 bg-white dark:bg-zinc-900">
                           Añade un hábito de resiliencia: tabaco, alcohol, ultraprocesados o
                           scrolling.
                         </div>
@@ -405,7 +405,7 @@ export default function HabitSanctuary() {
                         {positiveHabits.length}
                       </span>
                     </div>
-                    <div className="grid min-w-0 gap-3 lg:grid-cols-2">
+                    <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-slate-200/80 dark:border-zinc-800/80 shadow-sm overflow-hidden divide-y divide-gray-100 dark:divide-zinc-800/60">
                       {positiveHabits.map((habit) => (
                         <HabitTrackerCard
                           key={habit.id}
@@ -420,7 +420,7 @@ export default function HabitSanctuary() {
                         />
                       ))}
                       {positiveHabits.length === 0 && (
-                        <div className="rounded-2xl border border-dashed border-emerald-200 bg-white p-5 text-sm text-slate-500">
+                        <div className="p-5 text-sm text-slate-500 bg-white dark:bg-zinc-900">
                           Añade un hábito de construcción: agua, lectura, pasos o proteína.
                         </div>
                       )}

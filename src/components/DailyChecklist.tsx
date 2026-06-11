@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Check, Sparkles, Loader2, ListTodo, Sun, CloudSun, Moon, Link2, BellRing, Minus } from 'lucide-react';
 import BottomSheet from './BottomSheet';
+import ScreenGuideButton from './ScreenGuideButton';
 import { useDailyChecklist } from '@/hooks/useDailyChecklist';
 
 interface DailyChecklistProps {
@@ -92,14 +93,14 @@ export default function DailyChecklist({ isDedicatedPage = false }: DailyCheckli
   const renderTimeGroup = (title: string, groupIcon: React.ReactNode, groupTemplates: typeof templates) => {
     if (groupTemplates.length === 0) return null;
     return (
-      <div className="space-y-2.5">
-        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5 mt-5 mb-2 pl-1">
-          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-slate-500 ring-1 ring-slate-200">
+      <div className="space-y-2">
+        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5 mt-4 mb-2 pl-1">
+          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white dark:bg-zinc-800 text-slate-500 dark:text-slate-400 ring-1 ring-slate-200/60 dark:ring-zinc-750 text-xs">
             {groupIcon}
           </span>
           <span>{title}</span>
         </h4>
-        <div className="space-y-3">
+        <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-slate-200/60 dark:border-zinc-800/80 shadow-sm overflow-hidden divide-y divide-gray-100 dark:divide-zinc-800/60">
           {groupTemplates.map((template) => {
             const targetRepetitions = Math.max(1, template.target_repetitions ?? 1);
             const currentProgress = Math.min(targetRepetitions, progressMap[template.id] ?? 0);
@@ -109,14 +110,14 @@ export default function DailyChecklist({ isDedicatedPage = false }: DailyCheckli
                 key={template.id}
                 data-testid={`routine-item-${template.id}`}
                 onClick={() => handleToggle(template.id, targetRepetitions)}
-                className="flex min-h-[48px] items-center gap-3.5 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-all duration-200 ease-in-out cursor-pointer select-none hover:bg-slate-50/80 active:scale-[0.99]"
+                className="flex min-h-[48px] items-center gap-3.5 bg-white dark:bg-zinc-900 px-4 py-3.5 transition-all duration-200 ease-in-out cursor-pointer select-none hover:bg-slate-50/80 dark:hover:bg-zinc-800/40"
               >
                 {/* Custom Circular Checkbox */}
                 <div
                   className={`w-6 h-6 rounded-full flex items-center justify-center border-2 transition-all duration-300 flex-shrink-0 ${
                     isDone
                       ? 'bg-indigo-650 border-indigo-650 shadow-[0_2px_8px_rgba(79,70,229,0.25)]'
-                      : 'border-slate-300 bg-transparent'
+                      : 'border-slate-350 dark:border-zinc-700 bg-transparent'
                   }`}
                 >
                   <AnimatePresence initial={false}>
@@ -134,7 +135,7 @@ export default function DailyChecklist({ isDedicatedPage = false }: DailyCheckli
                         initial={{ scale: 0.8, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
                         exit={{ scale: 0.8, opacity: 0 }}
-                        className="text-[10px] font-black text-indigo-700"
+                        className="text-[10px] font-black text-indigo-700 dark:text-indigo-400"
                       >
                         {currentProgress}
                       </motion.span>
@@ -144,18 +145,18 @@ export default function DailyChecklist({ isDedicatedPage = false }: DailyCheckli
 
                 {/* Title & Icon */}
                 <span className="text-lg select-none flex-shrink-0">{template.icon || '✨'}</span>
-                <div className="flex-1 flex flex-col text-left">
+                <div className="flex-1 flex flex-col text-left min-w-0">
                   <span
-                    className={`text-sm font-bold transition-all duration-300 ${
+                    className={`text-sm font-bold w-full break-words whitespace-normal transition-all duration-300 ${
                       isDone
                         ? 'line-through text-slate-400 font-semibold'
-                        : 'text-slate-900'
+                        : 'text-slate-900 dark:text-white'
                     }`}
                   >
                     {template.title}
                   </span>
                   {template.linked_habit_id && (
-                    <span className="text-[9px] font-extrabold text-indigo-600 uppercase tracking-wider mt-0.5 inline-flex items-center gap-1">
+                    <span className="text-[9px] font-extrabold text-indigo-650 dark:text-indigo-400 uppercase tracking-wider mt-0.5 inline-flex items-center gap-1">
                       <Link2 className="h-3 w-3" />
                       Alimenta hábito (+{Math.max(1, template.habit_increment_amount ?? 1)} por toque)
                     </span>
@@ -163,7 +164,7 @@ export default function DailyChecklist({ isDedicatedPage = false }: DailyCheckli
                 </div>
                 {targetRepetitions > 1 && (
                   <div data-testid={`routine-progress-${template.id}`} className={`rounded-full px-2.5 py-1 text-[10px] font-black ${
-                    isDone ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'
+                    isDone ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400' : 'bg-slate-100 dark:bg-zinc-800 text-slate-650 dark:text-slate-355'
                   }`}>
                     {currentProgress}/{targetRepetitions}
                   </div>
@@ -176,17 +177,95 @@ export default function DailyChecklist({ isDedicatedPage = false }: DailyCheckli
     );
   };
 
+  if (isDedicatedPage) {
+    return (
+      <div className="w-full space-y-6">
+        {/* Single iOS Header */}
+        <div className="flex items-center justify-between pb-4 border-b border-slate-200/60 dark:border-zinc-800/80">
+          <div>
+            <h1 className="text-3xl font-black tracking-tight text-slate-950 dark:text-white">Tareas</h1>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Centro de Tareas Diarias</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <ScreenGuideButton
+              title="Tareas"
+              description="Esta pantalla reúne tus recordatorios operativos del día por mañana, tarde y noche."
+              goal="Sirve para tachar rápido, mantener foco y alimentar hábitos vinculados sin abrir más paneles."
+              bullets={[
+                'Usa Nueva Tarea para crear recordatorios simples.',
+                'Si la vinculas a un hábito, al completarla sumará progreso automáticamente.',
+                'Piensa en esta vista como el centro de ejecución del día.',
+              ]}
+              compact
+            />
+            <button
+              onClick={() => setIsEditOpen(true)}
+              className="inline-flex min-h-[38px] items-center justify-center gap-1.5 rounded-full bg-slate-950 dark:bg-zinc-800 hover:bg-slate-800 dark:hover:bg-zinc-700 px-4 text-xs font-bold text-white shadow-sm transition-all duration-200 ease-in-out active:scale-95"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Nueva Tarea</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Progress Bar inside its own card */}
+        {total > 0 && (
+          <div className="bg-white dark:bg-zinc-900 p-4 rounded-2xl border border-slate-200/80 dark:border-zinc-800/80 shadow-sm">
+            <div className="flex justify-between items-center text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-1.5">
+              <span>Progreso de hoy</span>
+              <span className="text-indigo-650 dark:text-indigo-400 font-black">
+                {completed}/{total} completadas
+              </span>
+            </div>
+            <div className="w-full h-2.5 bg-slate-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+              <motion.div
+                className="h-full bg-gradient-to-r from-indigo-500 to-purple-500"
+                initial={{ width: 0 }}
+                animate={{ width: `${progressPercentage}%` }}
+                transition={{ type: 'spring', stiffness: 50, damping: 15 }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Empty State */}
+        {total === 0 && (
+          <div className="text-center py-12 px-4 flex flex-col items-center bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200/80 dark:border-zinc-800/80 shadow-sm">
+            <Sparkles className="w-10 h-10 text-indigo-400 mb-3 animate-pulse" />
+            <p className="text-sm font-bold text-slate-500 dark:text-slate-400 max-w-xs leading-relaxed">
+              No tienes tareas diarias configuradas. Añade algunas rutinas para empezar a organizar tu día.
+            </p>
+            <button
+              onClick={() => setIsEditOpen(true)}
+              className="mt-4 text-xs font-black uppercase tracking-wider text-white bg-indigo-650 hover:bg-indigo-550 px-6 py-3 rounded-full shadow-lg active:scale-95 transition min-h-[44px]"
+            >
+              Crear primera tarea
+            </button>
+          </div>
+        )}
+
+        {/* Checklist items grouped chronologically */}
+        <div className="space-y-5">
+          {renderTimeGroup('Mañana', <Sun className="h-3.5 w-3.5" />, morningTemplates)}
+          {renderTimeGroup('A lo largo del día', <BellRing className="h-3.5 w-3.5" />, allDayTemplates)}
+          {renderTimeGroup('Tarde', <CloudSun className="h-3.5 w-3.5" />, afternoonTemplates)}
+          {renderTimeGroup('Noche', <Moon className="h-3.5 w-3.5" />, nightTemplates)}
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className={`w-full ${isDedicatedPage ? 'bg-white p-5 md:p-6 rounded-3xl' : 'bg-white p-5 rounded-3xl'} border border-slate-200 shadow-sm relative overflow-hidden`}>
-      {/* Header */}
+    <div className="w-full bg-white dark:bg-zinc-900 p-5 rounded-3xl border border-slate-200 dark:border-zinc-800/80 shadow-sm relative overflow-hidden">
+      {/* Header for Dashboard Widget */}
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-2.5">
-          <div className="w-10 h-10 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600">
+          <div className="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
             <ListTodo className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider">
-              {isDedicatedPage ? 'Centro de Tareas Diarias' : 'Tareas Diarias'}
+            <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider">
+              Tareas Diarias
             </h3>
             <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
               Checklist de hoy
@@ -205,14 +284,14 @@ export default function DailyChecklist({ isDedicatedPage = false }: DailyCheckli
 
       {/* Progress Bar */}
       {total > 0 && (
-        <div className="mb-5 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
-          <div className="flex justify-between items-center text-[10px] font-extrabold text-slate-550 uppercase tracking-wider mb-1.5">
+        <div className="mb-5 bg-white dark:bg-zinc-900 p-4 rounded-2xl border border-slate-200 dark:border-zinc-800/80 shadow-sm">
+          <div className="flex justify-between items-center text-[10px] font-extrabold text-slate-550 dark:text-slate-400 uppercase tracking-wider mb-1.5">
             <span>Progreso de hoy</span>
-            <span className="text-indigo-650">
+            <span className="text-indigo-650 dark:text-indigo-400">
               {completed}/{total} completadas
             </span>
           </div>
-          <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
+          <div className="w-full h-2.5 bg-slate-100 dark:bg-zinc-800 rounded-full overflow-hidden">
             <motion.div
               className="h-full bg-gradient-to-r from-indigo-500 to-purple-500"
               initial={{ width: 0 }}
@@ -227,7 +306,7 @@ export default function DailyChecklist({ isDedicatedPage = false }: DailyCheckli
       {total === 0 && (
         <div className="text-center py-10 px-4 flex flex-col items-center">
           <Sparkles className="w-10 h-10 text-indigo-400 mb-3 animate-pulse" />
-          <p className="text-sm font-bold text-slate-500 max-w-xs leading-relaxed">
+          <p className="text-sm font-bold text-slate-500 dark:text-slate-400 max-w-xs leading-relaxed">
             No tienes tareas diarias configuradas. Añade algunas rutinas para empezar a organizar tu día.
           </p>
           <button

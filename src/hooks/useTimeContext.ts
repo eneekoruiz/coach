@@ -12,15 +12,17 @@ function resolveDayBlock(date: Date): DayBlock {
 }
 
 export function useTimeContext() {
-  const [now, setNow] = useState(() => new Date());
+  const [now, setNow] = useState<Date | null>(null);
 
   useEffect(() => {
+    setNow(new Date());
     const interval = window.setInterval(() => setNow(new Date()), 60_000);
     return () => window.clearInterval(interval);
   }, []);
 
   return useMemo(() => {
-    const block = resolveDayBlock(now);
+    const activeDate = now || new Date(2026, 5, 11, 8, 0, 0);
+    const block = resolveDayBlock(activeDate);
 
     if (block === 'morning') {
       return {
