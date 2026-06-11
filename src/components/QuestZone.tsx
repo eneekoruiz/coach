@@ -25,21 +25,75 @@ interface MapLevel {
   number: number;
   name: string;
   requiredMastered: number;
-  x: number; // grid position x (percent of width for curve)
+  x: number; // grid position x (percent of width)
+  y: number; // grid position y (percent of height)
 }
 
 const SAGA_LEVELS: MapLevel[] = [
-  { number: 1, name: 'Primeros Pasos', requiredMastered: 0, x: 50 },
-  { number: 2, name: 'Camino del Héroe', requiredMastered: 1, x: 25 },
-  { number: 3, name: 'Valle de la Claridad', requiredMastered: 2, x: 40 },
-  { number: 4, name: 'Templo de la Memoria', requiredMastered: 4, x: 75 },
-  { number: 5, name: 'Cumbre de Enfoque', requiredMastered: 6, x: 60 },
-  { number: 6, name: 'Bóveda Criptográfica', requiredMastered: 8, x: 30 },
-  { number: 7, name: 'Río de la Razón', requiredMastered: 10, x: 45 },
-  { number: 8, name: 'Santuario del Avatar', requiredMastered: 12, x: 70 },
-  { number: 9, name: 'Desfiladero Estelar', requiredMastered: 15, x: 50 },
-  { number: 10, name: 'Maestría Absoluta', requiredMastered: 20, x: 50 },
+  { number: 1, name: 'Primeros Pasos', requiredMastered: 0, x: 50, y: 92 },
+  { number: 2, name: 'Camino del Héroe', requiredMastered: 1, x: 25, y: 83 },
+  { number: 3, name: 'Valle de la Claridad', requiredMastered: 2, x: 65, y: 74 },
+  { number: 4, name: 'Templo de la Memoria', requiredMastered: 4, x: 30, y: 65 },
+  { number: 5, name: 'Cumbre de Enfoque', requiredMastered: 6, x: 70, y: 56 },
+  { number: 6, name: 'Bóveda Criptográfica', requiredMastered: 8, x: 25, y: 47 },
+  { number: 7, name: 'Río de la Razón', requiredMastered: 10, x: 60, y: 38 },
+  { number: 8, name: 'Santuario del Avatar', requiredMastered: 12, x: 30, y: 29 },
+  { number: 9, name: 'Desfiladero Estelar', requiredMastered: 15, x: 70, y: 20 },
+  { number: 10, name: 'Maestría Absoluta', requiredMastered: 20, x: 50, y: 8 },
 ];
+
+const SEEDED_CONCEPTS: Record<number, string[]> = {
+  1: [
+    "La deshidratación leve disminuye el rendimiento cognitivo y físico.",
+    "El agua es el principal componente del cuerpo humano, representando el 60%.",
+    "Tomar un vaso de agua al despertar activa el metabolismo matutino."
+  ],
+  2: [
+    "La luz azul de pantallas inhibe la secreción de melatonina por la noche.",
+    "Mantener un horario constante de sueño alinea nuestro ritmo circadiano.",
+    "La temperatura ideal para dormir es de aproximadamente 18 grados Celsius."
+  ],
+  3: [
+    "Un hábito se consolida al asociar una señal, una rutina y una recompensa.",
+    "Comenzar con hábitos minúsculos reduce la fricción de la fuerza de voluntad.",
+    "Hacer seguimiento diario visual refuerza la identidad del hábito."
+  ],
+  4: [
+    "Las proteínas son esenciales para reparar tejidos y mantener masa muscular.",
+    "Los carbohidratos complejos liberan energía de forma sostenida y gradual.",
+    "Las grasas saludables son vitales para la producción de hormonas reguladoras."
+  ],
+  5: [
+    "La respiración profunda activa el sistema nervioso parasimpático.",
+    "El cortisol elevado de forma crónica debilita el sistema inmunológico.",
+    "La meditación regular incrementa la materia gris en áreas de enfoque."
+  ],
+  6: [
+    "El ejercicio cardiovascular mejora la densidad capilar y oxigenación cerebral.",
+    "El entrenamiento de fuerza previene la pérdida de masa ósea y sarcopenia.",
+    "Caminar 10,000 pasos al día reduce el riesgo cardiovascular a la mitad."
+  ],
+  7: [
+    "Comer despacio permite que la señal de saciedad llegue al cerebro a tiempo.",
+    "La fibra soluble alimenta la microbiota intestinal mejorando la digestión.",
+    "El azúcar refinado produce picos y caídas abruptas de energía y ánimo."
+  ],
+  8: [
+    "Las notificaciones constantes fragmentan la atención y aumentan la fatiga.",
+    "Tomar descansos activos de 5 minutos cada hora evita la fatiga ocular.",
+    "La luz solar directa por la mañana ayuda a dormir mejor por la noche."
+  ],
+  9: [
+    "Los ritmos ultradianos determinan picos de enfoque mental de 90 minutos.",
+    "El café tardío (después de las 2 PM) reduce la calidad del sueño profundo.",
+    "El ayuno intermitente puede favorecer la autofagia y reparación celular."
+  ],
+  10: [
+    "El balance calórico neto determina la pérdida o ganancia de peso corporal.",
+    "El VO2 Max es uno de los mayores predictores de longevidad y salud cardiovascular.",
+    "La consistencia supera a la intensidad cuando buscamos adaptaciones a largo plazo."
+  ],
+};
 
 interface AIQuestion {
   id: string;
@@ -71,6 +125,16 @@ export default function QuestZone() {
   const [showExplanation, setShowExplanation] = useState(false);
   const [isMutating, startTransition] = useTransition();
 
+  const [maxUnlockedLevel, setMaxUnlockedLevel] = useState(1);
+  const [playingLevelNumber, setPlayingLevelNumber] = useState<number | null>(null);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('maxUnlockedLevel');
+    if (saved) {
+      setMaxUnlockedLevel(parseInt(saved, 10));
+    }
+  }, []);
+
   // Load knowledge items
   const loadData = async () => {
     setIsLoading(true);
@@ -88,12 +152,17 @@ export default function QuestZone() {
   const learningCount = items.filter(item => item.status === 'learning' || item.status === 'inbox').length;
 
   // Determine current active level
-  const activeLevelInfo = SAGA_LEVELS.reduce((active, level) => {
-    if (masteredCount >= level.requiredMastered) {
-      return level;
-    }
-    return active;
-  }, SAGA_LEVELS[0]);
+  const activeLevelNumber = Math.max(
+    SAGA_LEVELS.reduce((active, level) => {
+      if (masteredCount >= level.requiredMastered) {
+        return level.number;
+      }
+      return active;
+    }, 1),
+    maxUnlockedLevel
+  );
+
+  const activeLevelInfo = SAGA_LEVELS.find(l => l.number === activeLevelNumber) || SAGA_LEVELS[0];
 
   // Determine which concepts are due for review (or in inbox)
   const dueItems = items
@@ -132,18 +201,67 @@ export default function QuestZone() {
     }
   };
 
-  // Start Level Quiz
+  // Start Level Quiz using themed seeded concepts
   const handleStartLevel = async (levelNumber: number) => {
-    if (levelNumber > activeLevelInfo.number) {
+    if (levelNumber > activeLevelNumber) {
       toast.error('Este nivel está bloqueado.');
       return;
     }
 
+    const levelConcepts = SEEDED_CONCEPTS[levelNumber] || [];
+    const conceptsToUse = levelConcepts.map((concept, index) => ({
+      id: `seeded-level-${levelNumber}-${index}`,
+      raw_concept: concept,
+    }));
+
+    setPlayingLevelNumber(levelNumber);
+    triggerVibration('light');
+    setIsQuizOpen(true);
+    setQuizLoading(true);
+    setQuestions([]);
+    setCurrentQuestionIdx(0);
+    setQuizResults([]);
+    setHasValidated(false);
+    setUserAnswer('');
+    setShowExplanation(false);
+
+    try {
+      const response = await fetch('/api/quiz/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          concepts: conceptsToUse,
+        }),
+      });
+
+      if (!response.ok) throw new Error('Failed to generate quiz');
+
+      const data = await response.json();
+      if (data.questions && data.questions.length > 0) {
+        setQuestions(data.questions);
+      } else {
+        toast.error('El motor de IA no pudo estructurar preguntas.');
+        setIsQuizOpen(false);
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error('Error al invocar al motor de quizzes de IA.');
+      setIsQuizOpen(false);
+    } finally {
+      setQuizLoading(false);
+    }
+  };
+
+  // Start Custom Quiz using actual user pending concepts
+  const handleStartCustomQuiz = async () => {
     if (dueItems.length === 0) {
-      toast.error('No tienes conceptos pendientes de estudiar. ¡Añade más en el Buzón Cognitivo!');
+      toast.error('No tienes conceptos pendientes de estudiar.');
       return;
     }
 
+    setPlayingLevelNumber(null);
     triggerVibration('light');
     setIsQuizOpen(true);
     setQuizLoading(true);
@@ -179,7 +297,7 @@ export default function QuestZone() {
       }
     } catch (err) {
       console.error(err);
-      toast.error('Error al invocar al motor de quizzes de IA.');
+      toast.error('Error al generar quiz de IA.');
       setIsQuizOpen(false);
     } finally {
       setQuizLoading(false);
@@ -229,13 +347,15 @@ export default function QuestZone() {
       setHasValidated(false);
       setShowExplanation(false);
     } else {
-      // End of Quiz! Sync results to DB
+      // End of Quiz! Sync results to DB if not seeded
       setQuizLoading(true);
       let successCount = 0;
 
       for (const res of quizResults) {
         try {
-          await recordReviewOutcome(res.conceptId, res.success);
+          if (!res.conceptId.startsWith('seeded-')) {
+            await recordReviewOutcome(res.conceptId, res.success);
+          }
           if (res.success) successCount++;
         } catch (e) {
           console.error('Error syncing review outcome:', e);
@@ -245,17 +365,43 @@ export default function QuestZone() {
       setQuizLoading(false);
       setIsQuizOpen(false);
 
-      if (successCount === quizResults.length && successCount > 0) {
-        triggerStreakConfetti();
-        toast.success('¡Nivel Completado de manera perfecta! Dopamina al máximo.');
+      if (playingLevelNumber !== null) {
+        const passed = successCount >= Math.ceil(quizResults.length * 0.7);
+        if (passed && quizResults.length > 0) {
+          const nextLevel = Math.min(10, playingLevelNumber + 1);
+          if (nextLevel > maxUnlockedLevel) {
+            setMaxUnlockedLevel(nextLevel);
+            localStorage.setItem('maxUnlockedLevel', String(nextLevel));
+          }
+          triggerStreakConfetti();
+          toast.success(`¡Nivel ${playingLevelNumber} completado con éxito! Siguiente nivel desbloqueado.`);
+        } else {
+          toast.error(`Nivel no superado. Acertaste ${successCount}/${quizResults.length}. Necesitas al menos el 70% para avanzar.`);
+        }
       } else {
-        toast.success(`Nivel finalizado: ${successCount}/${quizResults.length} correctas.`);
+        if (successCount === quizResults.length && successCount > 0) {
+          triggerStreakConfetti();
+          toast.success('¡Repaso completado perfectamente! Dopamina al máximo.');
+        } else {
+          toast.success(`Repaso finalizado: ${successCount}/${quizResults.length} correctas.`);
+        }
       }
       
       // Reload items to update map
       loadData();
     }
   };
+
+  const pathData = SAGA_LEVELS.map((level, idx) => {
+    const prefix = idx === 0 ? 'M' : 'L';
+    return `${prefix} ${level.x} ${level.y}`;
+  }).join(' ');
+
+  const completedLevels = SAGA_LEVELS.filter(l => l.number <= activeLevelNumber);
+  const activePathData = completedLevels.map((level, idx) => {
+    const prefix = idx === 0 ? 'M' : 'L';
+    return `${prefix} ${level.x} ${level.y}`;
+  }).join(' ');
 
   return (
     <main className="min-h-[100dvh] bg-slate-950 pb-28 text-white">
@@ -314,58 +460,65 @@ export default function QuestZone() {
                 style={{ width: `${Math.min(100, (masteredCount / Math.max(1, SAGA_LEVELS[Math.min(activeLevelInfo.number, SAGA_LEVELS.length - 1)].requiredMastered)) * 100)}%` }} 
               />
             </div>
+            {dueItems.length > 0 && (
+              <button
+                onClick={handleStartCustomQuiz}
+                className="mt-4 flex w-full min-h-[44px] items-center justify-center gap-2 rounded-2xl bg-indigo-950/80 border border-indigo-500/30 text-xs font-black uppercase tracking-wider text-indigo-300 transition hover:bg-indigo-900 hover:text-white"
+              >
+                <RefreshCw className="h-4 w-4" />
+                Repasar mis conceptos pendientes ({dueItems.length})
+              </button>
+            )}
           </div>
         </div>
       </section>
 
       {/* SAGA PROGRESSION MAP */}
-      <section className="relative mx-auto mt-8 max-w-md px-4 overflow-hidden py-10 bg-gradient-to-t from-slate-950 via-slate-950/80 to-slate-950">
+      <section className="relative mx-auto mt-8 max-w-md px-4 py-6 bg-slate-950">
         <h3 className="text-center text-xs font-black uppercase tracking-[0.25em] text-slate-500 mb-6">Mapa del Saber</h3>
-        <div className="relative flex flex-col-reverse gap-16 py-12 justify-center items-center">
+        <div className="relative w-full h-[800px] bg-slate-900/30 rounded-3xl border border-slate-900 overflow-hidden">
           
           {/* Curved SVG line path connecting levels */}
-          <div className="absolute inset-0 z-0 flex justify-center pointer-events-none">
-            <svg className="w-full h-full max-w-[280px]" viewBox="0 0 100 500" preserveAspectRatio="none">
+          <svg className="absolute inset-0 w-full h-full pointer-events-none z-0" viewBox="0 0 100 100" preserveAspectRatio="none">
+            <path
+              d={pathData}
+              fill="none"
+              stroke="#1e1b4b"
+              strokeWidth="0.8"
+              strokeDasharray="2 2"
+            />
+            {activePathData && (
               <path
-                d="M 50 480 C 10 400, 90 350, 40 280 C 10 200, 90 120, 50 20"
-                fill="none"
-                stroke="#312e81"
-                strokeWidth="4"
-                strokeDasharray="6 6"
-              />
-              {/* Highlight active path */}
-              <path
-                d="M 50 480 C 10 400, 90 350, 40 280 C 10 200, 90 120, 50 20"
+                d={activePathData}
                 fill="none"
                 stroke="url(#gradient)"
-                strokeWidth="4"
-                strokeDasharray="6 6"
-                style={{ 
-                  strokeDashoffset: 1000,
-                  animation: 'dash 30s linear infinite'
-                }}
+                strokeWidth="1.2"
+                strokeDasharray="2 2"
+                className="animate-pulse"
               />
-              <defs>
-                <linearGradient id="gradient" x1="0%" y1="100%" x2="0%" y2="0%">
-                  <stop offset="0%" stopColor="#4f46e5" />
-                  <stop offset="100%" stopColor="#c084fc" />
-                </linearGradient>
-              </defs>
-            </svg>
-          </div>
+            )}
+            <defs>
+              <linearGradient id="gradient" x1="0%" y1="100%" x2="0%" y2="0%">
+                <stop offset="0%" stopColor="#4f46e5" stopOpacity="0.3" />
+                <stop offset="50%" stopColor="#818cf8" stopOpacity="0.8" />
+                <stop offset="100%" stopColor="#c084fc" stopOpacity="1" />
+              </linearGradient>
+            </defs>
+          </svg>
 
-          {/* Saga levels nodes (rendered bottom-to-top) */}
+          {/* Saga levels nodes */}
           {SAGA_LEVELS.map((level) => {
-            const isCompleted = masteredCount >= SAGA_LEVELS[Math.min(level.number, SAGA_LEVELS.length - 1)].requiredMastered && level.number < activeLevelInfo.number;
-            const isActive = level.number === activeLevelInfo.number;
-            const isLocked = level.number > activeLevelInfo.number;
+            const isCompleted = level.number < activeLevelNumber;
+            const isActive = level.number === activeLevelNumber;
+            const isLocked = level.number > activeLevelNumber;
 
             return (
               <div 
                 key={level.number} 
-                className="relative z-10 flex flex-col items-center"
+                className="absolute z-10 flex flex-col items-center -translate-x-1/2 -translate-y-1/2"
                 style={{
-                  transform: `translateX(${(level.x - 50) * 1.5}px)`
+                  left: `${level.x}%`,
+                  top: `${level.y}%`,
                 }}
               >
                 <div className="absolute -top-7 text-[10px] font-black uppercase tracking-wider text-slate-500 whitespace-nowrap bg-slate-950/80 px-2 py-0.5 rounded-full border border-slate-900/60">

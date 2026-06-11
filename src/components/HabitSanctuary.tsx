@@ -206,7 +206,7 @@ export default function HabitSanctuary() {
         </div>
       </div>
 
-      <section className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden px-4 py-4 pb-[calc(5.5rem+env(safe-area-inset-bottom))] sm:px-6 md:pb-6 lg:px-8 scrollbar-hide">
+      <section className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden px-4 py-4 pb-4 sm:px-6 md:pb-6 lg:px-8 scrollbar-hide">
         <div className="mx-auto w-full max-w-7xl min-w-0 overflow-x-hidden">
           {activeView === 'stats' ? (
             <div className="grid min-w-0 gap-5 lg:grid-cols-[minmax(0,390px)_minmax(0,1fr)]">

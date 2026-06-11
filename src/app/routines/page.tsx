@@ -32,7 +32,7 @@ export default async function RoutinesPage() {
   if (isE2EMockMode()) {
     return (
       <main className="flex h-[100dvh] min-h-0 flex-1 flex-col overflow-hidden bg-slate-50 text-slate-950">
-        <section className="min-h-0 flex-1 overflow-y-auto px-4 py-5 pb-28 sm:px-6 md:pb-8 lg:px-8 scrollbar-hide">
+        <section className="min-h-0 flex-1 overflow-y-auto px-4 py-5 pb-4 sm:px-6 md:pb-8 lg:px-8 scrollbar-hide">
           <div className="mx-auto w-full max-w-4xl">
             <GlobalErrorBoundary>
               <DailyChecklist isDedicatedPage={true} />
@@ -83,7 +83,7 @@ export default async function RoutinesPage() {
 
   return (
     <main className="flex h-[100dvh] min-h-0 flex-1 flex-col overflow-hidden bg-slate-50 text-slate-950">
-      <section className="min-h-0 flex-1 overflow-y-auto px-4 py-5 pb-28 sm:px-6 md:pb-8 lg:px-8 scrollbar-hide">
+      <section className="min-h-0 flex-1 overflow-y-auto px-4 py-5 pb-4 sm:px-6 md:pb-8 lg:px-8 scrollbar-hide">
         <div className="mx-auto w-full max-w-4xl">
           <GlobalErrorBoundary>
             <DailyChecklist isDedicatedPage={true} />

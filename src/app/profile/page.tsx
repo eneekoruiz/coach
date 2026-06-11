@@ -132,7 +132,7 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="flex-1 overflow-y-auto pb-24 md:pb-8 bg-gray-50/100 px-4 py-6 text-slate-900 sm:px-6 lg:px-8 custom-scrollbar">
+    <div className="flex-1 overflow-y-auto pb-4 md:pb-8 bg-gray-50/100 px-4 py-6 text-slate-900 sm:px-6 lg:px-8 custom-scrollbar">
       <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
         
         {/* Header bar */}

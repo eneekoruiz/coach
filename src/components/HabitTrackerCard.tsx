@@ -330,9 +330,9 @@ export default function HabitTrackerCard({
           }}
           transition={{ duration: 0.3 }}
           onClick={() => setIsDetailOpen(true)}
-          className={`group flex w-full min-w-0 items-center justify-between gap-3 p-4 cursor-pointer transition-all duration-300 hover:bg-slate-50 ${showGlow ? 'ring-2 ring-emerald-400' : ''}`}
+          className={`group flex flex-col sm:flex-row w-full min-w-0 items-stretch sm:items-center justify-between gap-3 p-4 cursor-pointer transition-all duration-300 hover:bg-slate-50 ${showGlow ? 'ring-2 ring-emerald-400' : ''}`}
         >
-          <div className="flex items-center gap-3 min-w-0 flex-1">
+          <div className="flex items-start gap-3 min-w-0 w-full sm:w-auto sm:flex-1">
             <div
               className={`flex items-center justify-center w-9 h-9 rounded-xl shrink-0 ${isPositive ? 'bg-emerald-50 text-emerald-500' : 'bg-rose-50 text-rose-500'}`}
             >
@@ -384,7 +384,7 @@ export default function HabitTrackerCard({
             </div>
           </div>
 
-          <div className="flex shrink-0 items-center gap-2.5">
+          <div className="flex w-full sm:w-auto items-center justify-between sm:justify-end gap-2.5 mt-3 pt-3 border-t border-slate-100 sm:border-t-0 sm:mt-0 sm:pt-0 sm:shrink-0">
             {isPositive ? (
               <motion.div animate={flameControls}>
                 <StreakFlame streak={displayedStreak} />

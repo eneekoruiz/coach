@@ -26,7 +26,7 @@ function NutritionPageContent() {
 
 export default function NutritionPage() {
   return (
-    <div className="flex h-[100dvh] min-h-0 flex-1 overflow-hidden bg-slate-50 px-2 py-2 pb-[calc(env(safe-area-inset-bottom)+5rem)] md:px-4 md:pb-4">
+    <div className="flex h-[100dvh] min-h-0 flex-1 overflow-hidden bg-slate-50 px-2 py-2 pb-2 md:px-4 md:pb-4">
       <GlobalErrorBoundary>
         <NutritionPageContent />
       </GlobalErrorBoundary>

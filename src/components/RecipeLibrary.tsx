@@ -265,13 +265,19 @@ export default function RecipeLibrary() {
         <button
           type="button"
           onClick={startNewRecipe}
-          className="mt-3 flex w-full min-h-[40px] items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 text-xs font-black text-white hover:bg-slate-800 active:scale-95 transition-all shadow-sm shrink-0"
+          className="mt-3 flex w-full min-h-[40px] items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-4 text-xs font-black text-white hover:from-emerald-700 hover:to-teal-700 active:scale-95 transition-all shadow-sm shrink-0"
         >
           <Plus className="h-4 w-4" />
           Nueva Receta
         </button>
 
-        <div className="relative mt-3 shrink-0">
+        <div className="mt-4 border-t border-slate-100 pt-3 shrink-0">
+          <h4 className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
+            Mis Recetas
+          </h4>
+        </div>
+
+        <div className="relative mt-2 shrink-0">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
