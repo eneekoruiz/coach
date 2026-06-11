@@ -36,7 +36,9 @@ export default function TodayNutritionView({
   onOpenPlanner,
   onImportedDiet,
 }: TodayNutritionViewProps) {
-  const [toolOpen, setToolOpen] = useState<string | undefined>();
+  const [toolOpen, setToolOpen] = useState<string | undefined>(
+    process.env.NEXT_PUBLIC_E2E_MOCK_MODE === '1' ? 'ai-menu' : undefined
+  );
   const totals = useMemo(() => {
     const meals = todayTemplate?.meals ?? [];
     return meals.reduce(
