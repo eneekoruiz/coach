@@ -131,6 +131,15 @@ export default function QuestZone() {
   const activeNodeRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
+    const originalBodyClassName = document.body.className;
+    document.body.classList.add('bg-[#0f0c24]');
+    document.body.classList.remove('bg-slate-50');
+    return () => {
+      document.body.className = originalBodyClassName;
+    };
+  }, []);
+
+  useEffect(() => {
     if (!isLoading && activeNodeRef.current) {
       const timer = setTimeout(() => {
         activeNodeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -415,9 +424,9 @@ export default function QuestZone() {
   }).join(' ');
 
   return (
-    <main className="min-h-[100dvh] bg-slate-950 pb-28 text-white">
+    <main className="min-h-[100dvh] bg-[#0f0c24] pb-28 text-white">
       {/* Header */}
-      <header className="sticky top-0 z-40 border-b border-slate-900 bg-slate-950/80 px-4 py-4 backdrop-blur-md">
+      <header className="sticky top-0 z-40 border-b border-purple-950 bg-[#0f0c24]/80 px-4 py-4 backdrop-blur-md">
         <div className="mx-auto flex max-w-lg items-center justify-between">
           <button 
             onClick={() => router.push('/')}
@@ -485,9 +494,9 @@ export default function QuestZone() {
       </section>
 
       {/* SAGA PROGRESSION MAP */}
-      <section className="relative mx-auto mt-8 max-w-md px-4 py-6 bg-slate-950">
+      <section className="relative mx-auto mt-8 max-w-md px-4 py-6 bg-[#0f0c24]">
         <h3 className="text-center text-xs font-black uppercase tracking-[0.25em] text-slate-500 mb-6">Mapa del Saber</h3>
-        <div className="relative w-full h-[50vh] md:h-[65vh] bg-slate-900/30 rounded-3xl border border-slate-900 overflow-y-auto touch-pan-y custom-scrollbar">
+        <div className="relative w-full h-[50vh] md:h-[65vh] bg-purple-950/20 rounded-3xl border border-purple-900/40 overflow-y-auto touch-pan-y custom-scrollbar">
           <div className="relative w-full h-[1200px]">
             {/* Curved SVG line path connecting levels */}
             <svg className="absolute inset-0 w-full h-full pointer-events-none z-0" viewBox="0 0 100 100" preserveAspectRatio="none">

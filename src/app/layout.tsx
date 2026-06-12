@@ -60,7 +60,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="es" className="font-sans overflow-x-hidden" suppressHydrationWarning>
       <body className="antialiased text-slate-900 bg-slate-50 selection:bg-cyan-500/30 overflow-hidden overflow-x-hidden overscroll-none h-[100dvh] w-full max-w-full flex flex-col md:flex-row pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
         <Sidebar />
-        <main className="flex-1 flex flex-col min-h-0 min-w-0 relative overflow-hidden pb-20 md:pb-0">
+        <main className="flex-1 flex flex-col min-h-0 min-w-0 relative overflow-hidden md:pb-0">
           <RouteTransitionShell>{children}</RouteTransitionShell>
         </main>
         <Toaster

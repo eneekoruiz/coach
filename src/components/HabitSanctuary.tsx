@@ -332,8 +332,8 @@ export default function HabitSanctuary() {
               ) : habits.length === 0 ? (
                 <div className="flex min-h-72 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center">
                   <ShieldCheck className="h-10 w-10 text-slate-300" />
-                  <p className="mt-3 text-sm text-slate-600">
-                    Crea tu primer hábito para activar rachas.
+                  <p className="mt-3 text-sm text-slate-500 font-medium leading-relaxed">
+                    Añade tu primer hábito para empezar a construir tu rutina.
                   </p>
                   <button
                     onClick={() => setIsCreateOpen(true)}
@@ -345,6 +345,47 @@ export default function HabitSanctuary() {
                 </div>
               ) : (
                 <div className="flex flex-col gap-4">
+                  {/* Hábitos Positivos (Construcción) */}
+                  <section className="min-w-0 overflow-hidden rounded-3xl border border-slate-200 bg-slate-50 p-3">
+                    <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-white text-emerald-600 ring-1 ring-emerald-100">
+                          <Target className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600">
+                            Construcción
+                          </p>
+                          <h3 className="text-sm font-black text-slate-950">Hábitos Positivos</h3>
+                        </div>
+                      </div>
+                      <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-emerald-700 ring-1 ring-emerald-100">
+                        {positiveHabits.length}
+                      </span>
+                    </div>
+                    <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden divide-y divide-gray-100">
+                      {positiveHabits.map((habit) => (
+                        <HabitTrackerCard
+                          key={habit.id}
+                          habit={habit}
+                          value={values[habit.id] ?? 0}
+                          saving={!!savingMap[habit.id]}
+                          onValueChange={updateHabitValue}
+                          onSave={saveHabit}
+                          onSaveValue={saveHabitValue}
+                          onUpdateSettings={updateHabitSettings}
+                          recentLogs={recentLogs}
+                        />
+                      ))}
+                      {positiveHabits.length === 0 && (
+                        <div className="p-5 text-sm text-slate-500 bg-white">
+                          Añade un hábito de construcción: agua, lectura, pasos o proteína.
+                        </div>
+                      )}
+                    </div>
+                  </section>
+
+                  {/* Relojes de Sobriedad (Recuperación) */}
                   <section className="min-w-0 overflow-hidden rounded-3xl border border-rose-100 bg-rose-50/40 p-3">
                     <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
                       <div className="flex items-center gap-2">
@@ -383,45 +424,6 @@ export default function HabitSanctuary() {
                         <div className="p-5 text-sm text-slate-500 bg-white">
                           Añade un hábito de resiliencia: tabaco, alcohol, ultraprocesados o
                           scrolling.
-                        </div>
-                      )}
-                    </div>
-                  </section>
-
-                  <section className="min-w-0 overflow-hidden rounded-3xl border border-slate-200 bg-slate-50 p-3">
-                    <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-                      <div className="flex items-center gap-2">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-white text-emerald-600 ring-1 ring-emerald-100">
-                          <Target className="h-4 w-4" />
-                        </div>
-                        <div>
-                          <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600">
-                            Construcción
-                          </p>
-                          <h3 className="text-sm font-black text-slate-950">Hábitos Positivos</h3>
-                        </div>
-                      </div>
-                      <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-emerald-700 ring-1 ring-emerald-100">
-                        {positiveHabits.length}
-                      </span>
-                    </div>
-                    <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden divide-y divide-gray-100">
-                      {positiveHabits.map((habit) => (
-                        <HabitTrackerCard
-                          key={habit.id}
-                          habit={habit}
-                          value={values[habit.id] ?? 0}
-                          saving={!!savingMap[habit.id]}
-                          onValueChange={updateHabitValue}
-                          onSave={saveHabit}
-                          onSaveValue={saveHabitValue}
-                          onUpdateSettings={updateHabitSettings}
-                          recentLogs={recentLogs}
-                        />
-                      ))}
-                      {positiveHabits.length === 0 && (
-                        <div className="p-5 text-sm text-slate-500 bg-white">
-                          Añade un hábito de construcción: agua, lectura, pasos o proteína.
                         </div>
                       )}
                     </div>

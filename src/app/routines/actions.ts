@@ -324,11 +324,12 @@ export async function markRoutineComplete(
     if (template && template.linked_habit_id && nextProgress > currentProgress) {
       try {
         const { updateTodayHabit } = await import('@/services/habitsService');
+        const stepDelta = (template.habit_increment_amount ?? 1) / Math.max(1, template.target_repetitions ?? 1);
         await updateTodayHabit({
           supabase,
           userId: user.id,
           habitId: template.linked_habit_id,
-          delta: Math.max(1, Number(template.habit_increment_amount ?? 1)),
+          delta: stepDelta,
           date: today,
         });
       } catch (habitErr) {
@@ -370,7 +371,7 @@ export async function unmarkRoutineComplete(
     // Fetch the template details first to check if there is a linked habit
     const { data: template, error: templateError } = await supabase
       .from('routine_templates')
-      .select('linked_habit_id, habit_increment_amount')
+      .select('linked_habit_id, habit_increment_amount, target_repetitions')
       .eq('id', routineId)
       .eq('user_id', user.id)
       .maybeSingle();
@@ -405,11 +406,12 @@ export async function unmarkRoutineComplete(
     if (template && template.linked_habit_id && existingProgress > 0) {
       try {
         const { updateTodayHabit } = await import('@/services/habitsService');
+        const stepDelta = (template.habit_increment_amount ?? 1) / Math.max(1, template.target_repetitions ?? 1);
         await updateTodayHabit({
           supabase,
           userId: user.id,
           habitId: template.linked_habit_id,
-          delta: -existingProgress * Math.max(1, Number(template.habit_increment_amount ?? 1)),
+          delta: -existingProgress * stepDelta,
           date: today,
         });
       } catch (habitErr) {

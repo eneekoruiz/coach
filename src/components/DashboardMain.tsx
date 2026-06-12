@@ -9,6 +9,7 @@ import { useDashboardState } from '@/hooks/useDashboardState';
 import { useTimeContext } from '@/hooks/useTimeContext';
 import { useRouter } from 'next/navigation';
 import WeightLogSheet from '@/components/WeightLogSheet';
+import toast from '@/lib/toast';
 import { FEATURE_FLAGS } from '@/lib/config/features';
 
 interface DashboardTheme {
@@ -254,16 +255,16 @@ export default function DashboardMain({
   };
 
   return (
-    <main className="mx-auto flex h-[100dvh] w-full max-w-4xl flex-col justify-start gap-2 overflow-hidden px-2 py-2 pb-[calc(5.5rem+env(safe-area-inset-bottom))] sm:px-3 md:pb-4">
+    <main className="mx-auto flex h-[calc(100dvh-env(safe-area-inset-bottom)-4rem)] w-full max-w-4xl flex-col justify-between gap-3 overflow-hidden px-3 py-3 bg-[#F2F2F7]">
       {/* Hero Avatar Section */}
-      <section className="relative w-full rounded-[1.25rem] border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-        <div className="flex flex-col items-center text-center">
-          <div className="mb-3 flex w-full flex-wrap items-center justify-center gap-1.5">
-            <div className="inline-flex min-h-[22px] items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-[8px] font-black uppercase tracking-[0.14em] text-slate-500">
+      <section className="relative w-full flex-1 flex flex-col justify-center items-center rounded-3xl bg-white p-4 shadow-sm sm:p-5">
+        <div className="flex flex-col items-center justify-between h-full w-full">
+          <div className="flex w-full flex-wrap items-center justify-center gap-1.5">
+            <div className="inline-flex min-h-[22px] items-center gap-1.5 rounded-full bg-slate-100 px-3 py-0.5 text-[9px] font-semibold tracking-wider text-slate-500">
               {isLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Zap className="h-3 w-3 text-emerald-600" />}
               {timeContext.greeting} · {timeContext.label}
             </div>
-            <div className="inline-flex min-h-[22px] items-center rounded-full border border-emerald-100 bg-emerald-50 px-2.5 py-0.5 text-[8px] font-black uppercase tracking-[0.14em] text-emerald-700">
+            <div className="inline-flex min-h-[22px] items-center rounded-full bg-emerald-50 px-3 py-0.5 text-[9px] font-semibold tracking-wider text-emerald-700">
               Bienestar {normalizedMomentum}%
             </div>
           </div>
@@ -272,7 +273,7 @@ export default function DashboardMain({
           <motion.div
             variants={avatarVariants}
             animate={avatarMotion}
-            className={`relative flex h-56 w-56 sm:h-64 sm:w-64 items-center justify-center overflow-visible bg-transparent transition-all duration-300 ${avatar.aura}`}
+            className={`relative flex h-44 w-44 sm:h-52 sm:w-52 items-center justify-center overflow-visible bg-transparent transition-all duration-300 ${avatar.aura}`}
           >
             <img
               src={avatar.url}
@@ -285,42 +286,51 @@ export default function DashboardMain({
             />
           </motion.div>
 
-          <div className="mt-3">
-            <h1 className="text-xl font-black tracking-tight text-slate-900 sm:text-2xl">
+          <div className="mt-2 text-center">
+            <h1 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">
               {avatar.label}
             </h1>
-            <p className="mx-auto mt-0.5 max-w-md text-[10px] font-bold leading-snug text-slate-400">
+            <p className="mx-auto mt-0.5 max-w-md text-[10px] font-medium leading-snug text-slate-400">
               {avatar.subLabel}
             </p>
           </div>
 
           {/* Micro-minimalist horizontal compact pills */}
-          <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
-            <div className="inline-flex items-center gap-1 rounded-full bg-slate-50 border border-slate-150 px-2.5 py-1 text-[10px] font-black text-slate-700 shadow-sm">
+          <div className="mt-2 flex flex-wrap items-center justify-center gap-1.5">
+            <div className="inline-flex items-center gap-1 rounded-full bg-slate-50 px-2.5 py-1 text-[10px] font-bold text-slate-700">
               <span>⚡</span>
-              <span className="text-[9px] font-black uppercase text-slate-400">Energía:</span>
+              <span className="text-[9px] font-semibold text-slate-400">Energía:</span>
               <span>{energyLevel}/5</span>
             </div>
-            <div className="inline-flex items-center gap-1 rounded-full bg-slate-50 border border-slate-150 px-2.5 py-1 text-[10px] font-black text-slate-700 shadow-sm">
+            <div className="inline-flex items-center gap-1 rounded-full bg-slate-50 px-2.5 py-1 text-[10px] font-bold text-slate-700">
               <span>🧠</span>
-              <span className="text-[9px] font-black uppercase text-slate-400">Claridad:</span>
+              <span className="text-[9px] font-semibold text-slate-400">Claridad:</span>
               <span>{mentalClarity}/5</span>
             </div>
             <button
               type="button"
               onClick={() => {
+                triggerVibration('success');
+                void handleWater(WATER_STEP_ML);
+                toast.success('250ml de agua registrados.', {
+                  description: 'Mantén pulsado o clic derecho para configurar.',
+                });
+              }}
+              onContextMenu={(e) => {
+                e.preventDefault();
                 triggerVibration('light');
                 setIsWaterOpen(true);
               }}
-              className="inline-flex items-center gap-1 rounded-full bg-cyan-50 border border-cyan-200 px-2.5 py-1 text-[10px] font-black text-cyan-700 shadow-sm hover:bg-cyan-100 transition active:scale-95"
+              className="inline-flex items-center gap-1 rounded-full bg-cyan-50 px-2.5 py-1 text-[10px] font-bold text-cyan-700 hover:bg-cyan-100 transition active:scale-95"
+              title="Clic: +250ml | Mantener/Clic derecho: Ajustar"
             >
               <span>💧</span>
-              <span className="text-[9px] font-black uppercase text-cyan-600/80">Agua:</span>
+              <span className="text-[9px] font-semibold text-cyan-600/80">Agua:</span>
               <span>{waterMl}ml</span>
             </button>
-            <div className="inline-flex items-center gap-1 rounded-full bg-slate-50 border border-slate-150 px-2.5 py-1 text-[10px] font-black text-slate-700 shadow-sm">
+            <div className="inline-flex items-center gap-1 rounded-full bg-slate-50 px-2.5 py-1 text-[10px] font-bold text-slate-700">
               <span>🥗</span>
-              <span className="text-[9px] font-black uppercase text-slate-400">Nutri:</span>
+              <span className="text-[9px] font-semibold text-slate-400">Nutri:</span>
               <span>{kcalPercent}%</span>
             </div>
           </div>
@@ -330,7 +340,7 @@ export default function DashboardMain({
               key={smartTrigger.id}
               initial={{ opacity: 0, y: 8, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              className="mt-4 w-full max-w-lg rounded-2xl border border-cyan-100 bg-cyan-50/80 p-3 text-left shadow-sm animate-fade-in"
+              className="mt-2 w-full max-w-lg rounded-2xl bg-cyan-50/70 p-3 text-left animate-fade-in"
             >
               <p className="text-[8px] font-black uppercase tracking-[0.16em] text-cyan-700">
                 {smartTrigger.title}
@@ -346,12 +356,12 @@ export default function DashboardMain({
             </motion.div>
           ) : null}
 
-          <div className="mt-4 flex w-full max-w-xs justify-center">
+          <div className="mt-3 flex w-full max-w-xs justify-center">
             <motion.button
               type="button"
               whileTap={{ scale: 0.96 }}
               onClick={handleCoach}
-              className="inline-flex min-h-[42px] w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 px-6 text-xs font-black uppercase tracking-wider text-white shadow-md transition-all duration-200 ease-in-out hover:bg-slate-800"
+              className="inline-flex min-h-[42px] w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 px-6 text-xs font-bold uppercase tracking-wider text-white shadow-md transition-all duration-200 ease-in-out hover:bg-slate-800"
             >
               <MessageCircle className="h-4 w-4" />
               Preguntar al Coach
@@ -359,7 +369,7 @@ export default function DashboardMain({
           </div>
 
           {pendingSyncCount > 0 && (
-            <p className="mt-2 text-[9px] font-bold text-amber-600">
+            <p className="mt-1 text-[9px] font-semibold text-amber-600">
               {pendingSyncCount} acción en cola. Se sincronizará al recuperar conexión.
             </p>
           )}
@@ -367,9 +377,9 @@ export default function DashboardMain({
       </section>
 
       {/* Foco Proactivo Section */}
-      <section className="relative w-full rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+      <section className="relative w-full shrink-0 rounded-3xl bg-white p-4 shadow-sm">
         <div className="min-w-0 flex-1">
-          <p className="text-[8px] font-black uppercase tracking-[0.14em] text-slate-400">
+          <p className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">
             Foco proactivo · {timeContext.priority}
           </p>
           <p className="mt-0.5 truncate text-xs font-semibold text-slate-700">{primaryAction}</p>

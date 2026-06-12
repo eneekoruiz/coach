@@ -11,6 +11,7 @@ import ScreenGuideButton from './ScreenGuideButton';
 import BottomSheet from './BottomSheet';
 import { useNutritionPlan, type NutritionTab } from '@/hooks/useNutritionPlan';
 import { BookOpen, Calendar, ClipboardList, LayoutGrid, Sun } from 'lucide-react';
+import { triggerVibration } from '@/lib/haptics';
 
 export default function NutritionContainer({ initialTab }: { initialTab?: NutritionTab }) {
   const {
@@ -86,8 +87,11 @@ export default function NutritionContainer({ initialTab }: { initialTab?: Nutrit
           {/* Card 1: Today Menu */}
           <button
             type="button"
-            onClick={() => setIsTodayOpen(true)}
-            className="flex flex-col text-left rounded-3xl border border-emerald-100 bg-gradient-to-br from-emerald-50/60 via-white to-white p-5 shadow-sm hover:shadow-md hover:border-emerald-200 transition-all duration-300 group min-h-[180px]"
+            onClick={() => {
+              triggerVibration('light');
+              setIsTodayOpen(true);
+            }}
+            className="flex flex-col text-left rounded-3xl border border-emerald-100 bg-gradient-to-br from-emerald-50/60 via-white to-white p-5 shadow-sm hover:shadow-md hover:border-emerald-200 active:scale-[0.98] transition-all duration-300 group min-h-[180px]"
           >
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500 text-white shadow-md shadow-emerald-200 transition-transform duration-300 group-hover:scale-105">
               <Sun className="h-6 w-6" />
@@ -106,8 +110,11 @@ export default function NutritionContainer({ initialTab }: { initialTab?: Nutrit
           {/* Card 2: Recipes */}
           <button
             type="button"
-            onClick={() => setIsRecipesOpen(true)}
-            className="flex flex-col text-left rounded-3xl border border-indigo-100 bg-gradient-to-br from-indigo-50/60 via-white to-white p-5 shadow-sm hover:shadow-md hover:border-indigo-200 transition-all duration-300 group min-h-[180px]"
+            onClick={() => {
+              triggerVibration('light');
+              setIsRecipesOpen(true);
+            }}
+            className="flex flex-col text-left rounded-3xl border border-indigo-100 bg-gradient-to-br from-indigo-50/60 via-white to-white p-5 shadow-sm hover:shadow-md hover:border-indigo-200 active:scale-[0.98] transition-all duration-300 group min-h-[180px]"
           >
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-md shadow-indigo-200 transition-transform duration-300 group-hover:scale-105">
               <BookOpen className="h-6 w-6" />
@@ -126,8 +133,11 @@ export default function NutritionContainer({ initialTab }: { initialTab?: Nutrit
           {/* Card 3: Days Base */}
           <button
             type="button"
-            onClick={() => setIsDaysOpen(true)}
-            className="flex flex-col text-left rounded-3xl border border-sky-100 bg-gradient-to-br from-sky-50/60 via-white to-white p-5 shadow-sm hover:shadow-md hover:border-sky-200 transition-all duration-300 group min-h-[180px]"
+            onClick={() => {
+              triggerVibration('light');
+              setIsDaysOpen(true);
+            }}
+            className="flex flex-col text-left rounded-3xl border border-sky-100 bg-gradient-to-br from-sky-50/60 via-white to-white p-5 shadow-sm hover:shadow-md hover:border-sky-200 active:scale-[0.98] transition-all duration-300 group min-h-[180px]"
           >
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-500 text-white shadow-md shadow-sky-200 transition-transform duration-300 group-hover:scale-105">
               <LayoutGrid className="h-6 w-6" />
@@ -146,8 +156,11 @@ export default function NutritionContainer({ initialTab }: { initialTab?: Nutrit
           {/* Card 4: Weekly Plans */}
           <button
             type="button"
-            onClick={() => setIsProgramsOpen(true)}
-            className="flex flex-col text-left rounded-3xl border border-purple-100 bg-gradient-to-br from-purple-50/60 via-white to-white p-5 shadow-sm hover:shadow-md hover:border-purple-200 transition-all duration-300 group min-h-[180px]"
+            onClick={() => {
+              triggerVibration('light');
+              setIsProgramsOpen(true);
+            }}
+            className="flex flex-col text-left rounded-3xl border border-purple-100 bg-gradient-to-br from-purple-50/60 via-white to-white p-5 shadow-sm hover:shadow-md hover:border-purple-200 active:scale-[0.98] transition-all duration-300 group min-h-[180px]"
           >
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-purple-600 text-white shadow-md shadow-purple-200 transition-transform duration-300 group-hover:scale-105">
               <ClipboardList className="h-6 w-6" />
@@ -166,8 +179,11 @@ export default function NutritionContainer({ initialTab }: { initialTab?: Nutrit
           {/* Card 5: Calendar */}
           <button
             type="button"
-            onClick={() => setIsCalendarOpen(true)}
-            className="flex flex-col text-left rounded-3xl border border-amber-100 bg-gradient-to-br from-amber-50/60 via-white to-white p-5 shadow-sm hover:shadow-md hover:border-amber-200 transition-all duration-300 group min-h-[180px] sm:col-span-2 lg:col-span-1"
+            onClick={() => {
+              triggerVibration('light');
+              setIsCalendarOpen(true);
+            }}
+            className="flex flex-col text-left rounded-3xl border border-amber-100 bg-gradient-to-br from-amber-50/60 via-white to-white p-5 shadow-sm hover:shadow-md hover:border-amber-200 active:scale-[0.98] transition-all duration-300 group min-h-[180px] sm:col-span-2 lg:col-span-1"
           >
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500 text-white shadow-md shadow-amber-200 transition-transform duration-300 group-hover:scale-105">
               <Calendar className="h-6 w-6" />

@@ -11,6 +11,7 @@ import {
 } from '@/lib/habit-metrics';
 import Sparkline from './Sparkline';
 import BottomSheet from './BottomSheet';
+import ShareAchievementButton from './ShareAchievementButton';
 
 interface HabitDetailModalProps {
   habit: HabitRow;
@@ -38,6 +39,19 @@ interface HabitDetailModalProps {
   recentLogs: DailyLogRow[];
   streakProgress: number;
   trendLabel: string;
+  sharePayload?: {
+    title: string;
+    subtitle: string;
+    primaryValue: string;
+    primaryLabel: string;
+    secondaryValue: string;
+    footer: string;
+    accentFrom: string;
+    accentTo: string;
+    badge: string;
+    avatarLabel: string;
+    filename: string;
+  };
 }
 
 function MetricPill({ label, value }: { label: string; value: number }) {
@@ -154,6 +168,7 @@ export default function HabitDetailModal({
   recentLogs,
   streakProgress,
   trendLabel,
+  sharePayload,
 }: HabitDetailModalProps) {
   const isPositive = habit.type === 'positive';
   const metric = getHabitMetric(habit);
@@ -438,6 +453,12 @@ export default function HabitDetailModal({
             >
               {isPending ? 'Guardando...' : 'Confirmar Ajuste'}
             </button>
+
+            {sharePayload && (
+              <div className="mt-3 flex justify-center w-full">
+                <ShareAchievementButton payload={sharePayload} />
+              </div>
+            )}
           </div>
 
           <div className="rounded-2xl border border-cyan-100 bg-cyan-50 p-4">

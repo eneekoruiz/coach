@@ -281,11 +281,13 @@ export default function HabitTrackerCard({
         avatarLabel: habit.name.charAt(0),
         filename: `sobriety-${habit.name.toLowerCase().replace(/\s+/g, '-')}.png`,
       };
-  const primaryActionLabel = metric.isBoolean
+  const primaryActionLabel = isPositive
     ? isGoalMetToday
       ? 'Hecho'
-      : 'Marcar'
-    : `+ ${formatHabitMetricValue(habit, metric.stepValue, { compact: true })}`;
+      : metric.isBoolean
+        ? 'Marcar'
+        : `${optimisticValue}/${targetValue}`
+    : 'Recaída';
 
   const startLongPress = () => {
     if (!isPositive) return;
@@ -302,6 +304,14 @@ export default function HabitTrackerCard({
     window.clearTimeout(longPressTimerRef.current);
     longPressTimerRef.current = null;
   };
+
+  // Apple Fitness style activity ring:
+  const ringSize = 38;
+  const strokeWidth = 4.5;
+  const radius = (ringSize - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const progressRatio = targetValue > 0 ? Math.min(1.15, Math.max(0, optimisticValue / targetValue)) : 0;
+  const strokeDashoffset = circumference - Math.min(1, progressRatio) * circumference;
 
   return (
     <>
@@ -333,15 +343,50 @@ export default function HabitTrackerCard({
           className={`group flex flex-col sm:flex-row w-full min-w-0 items-stretch sm:items-center justify-between gap-3 p-4 cursor-pointer transition-all duration-300 hover:bg-slate-50 ${showGlow ? 'ring-2 ring-emerald-400' : ''}`}
         >
           <div className="flex items-start gap-3 min-w-0 w-full sm:w-auto sm:flex-1">
-            <div
-              className={`flex items-center justify-center w-9 h-9 rounded-xl shrink-0 ${isPositive ? 'bg-emerald-50 text-emerald-500' : 'bg-rose-50 text-rose-500'}`}
-            >
-              <span className="text-sm font-black">{habit.name.charAt(0).toUpperCase()}</span>
-            </div>
+            {isPositive ? (
+              <div className="relative flex-shrink-0 flex items-center justify-center" style={{ width: ringSize, height: ringSize }}>
+                <svg className="absolute inset-0 -rotate-90" width={ringSize} height={ringSize}>
+                  <circle
+                    cx={ringSize / 2}
+                    cy={ringSize / 2}
+                    r={radius}
+                    fill="none"
+                    stroke="#F2F2F7"
+                    strokeWidth={strokeWidth}
+                  />
+                  <motion.circle
+                    cx={ringSize / 2}
+                    cy={ringSize / 2}
+                    r={radius}
+                    fill="none"
+                    stroke={isGoalMetToday ? '#10b981' : '#34d399'}
+                    strokeWidth={strokeWidth}
+                    strokeLinecap="round"
+                    strokeDasharray={circumference}
+                    initial={{ strokeDashoffset: circumference }}
+                    animate={{ strokeDashoffset: strokeDashoffset }}
+                    transition={{ type: 'spring', stiffness: 80, damping: 15 }}
+                  />
+                </svg>
+                <span className="text-[11px] font-black text-slate-800 z-10">{habit.name.charAt(0).toUpperCase()}</span>
+              </div>
+            ) : (
+              <div
+                className="flex items-center justify-center w-9 h-9 rounded-xl shrink-0 bg-rose-50 text-rose-500"
+              >
+                <span className="text-sm font-black">{habit.name.charAt(0).toUpperCase()}</span>
+              </div>
+            )}
 
             <div className="min-w-0 flex-1">
               <h3
-                className={`text-sm font-black w-full break-words whitespace-normal transition-colors duration-300 ${isExceededNegative ? 'text-rose-900' : 'text-slate-900'}`}
+                className={`text-sm font-black w-full break-words whitespace-normal transition-all duration-300 ${
+                  isExceededNegative
+                    ? 'text-rose-900'
+                    : isPositive && isGoalMetToday
+                      ? 'line-through text-slate-400 font-semibold'
+                      : 'text-slate-900'
+                }`}
               >
                 {habit.name}
               </h3>
@@ -420,20 +465,16 @@ export default function HabitTrackerCard({
               disabled={isPending}
               className={`flex min-h-[44px] items-center justify-center text-white font-black shadow-sm transition-all duration-200 ease-in-out disabled:opacity-50 ${
                 isPositive
-                  ? metric.isBoolean
-                    ? 'h-11 min-w-11 rounded-full bg-emerald-500 px-3 text-[11px] uppercase tracking-[0.08em] hover:bg-emerald-600'
+                  ? isGoalMetToday
+                    ? 'h-11 min-w-[54px] rounded-full bg-emerald-600 px-4 text-[11px] uppercase tracking-[0.08em] hover:bg-emerald-700'
                     : 'rounded-2xl bg-emerald-500 px-3 text-[11px] uppercase tracking-[0.08em] hover:bg-emerald-600'
                   : 'rounded-2xl bg-rose-500 px-3 text-[11px] uppercase tracking-[0.08em] hover:bg-rose-600'
               }`}
             >
               {isPositive ? (
-                <span className="inline-flex items-center gap-1">
-                  {metric.isBoolean ? (
-                    isGoalMetToday ? (
-                      <RotateCcw className="h-3.5 w-3.5" />
-                    ) : (
-                      <Check className="h-3.5 w-3.5" />
-                    )
+                <span className="inline-flex items-center gap-1.5">
+                  {isGoalMetToday ? (
+                    <Check className="h-3.5 w-3.5" />
                   ) : (
                     <Plus className="h-3.5 w-3.5" />
                   )}
