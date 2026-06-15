@@ -11,7 +11,7 @@ import RouteTransitionShell from '@/components/RouteTransitionShell';
 export const metadata: Metadata = {
   metadataBase: new URL('https://coach-mascota.vercel.app'),
   title: 'Bio-Avatar | Tu Gemelo Digital Fisiológico',
-  description: 'Dashboard avanzado para registrar, analizar y visualizar tu estado fisiológico diario con IA.',
+  description: 'Dashboard for daily habits, nutrition notes, mood and wellness routines.',
   manifest: '/manifest.webmanifest',
   applicationName: 'BioAvatar',
   appleWebApp: {
@@ -24,15 +24,15 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: 'Bio-Avatar | Tu Gemelo Digital Fisiológico',
-    description: 'Registra, analiza y visualiza tu estado fisiológico en tiempo real con inteligencia artificial.',
+    description: 'Daily wellness and habit tracking dashboard.',
     url: 'https://coach-mascota.vercel.app',
     siteName: 'Bio-Avatar',
     images: [
       {
-        url: '/og-image.jpg',
+        url: '/og-image.png',
         width: 1200,
         height: 630,
-        alt: 'Bio-Avatar Metas Fisiológicas',
+        alt: 'Bio-Avatar dashboard preview',
       },
     ],
     locale: 'es_ES',
@@ -41,8 +41,8 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'Bio-Avatar | Tu Gemelo Digital Fisiológico',
-    description: 'Registra, analiza y visualiza tu estado fisiológico en tiempo real con inteligencia artificial.',
-    images: ['/og-image.jpg'],
+    description: 'Daily wellness and habit tracking dashboard.',
+    images: ['/og-image.png'],
   },
 };
 
