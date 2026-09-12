@@ -7,6 +7,10 @@ on:
 env:
   GIT_LFS_SKIP_SMUDGE: '1'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   verify-and-deploy:
     runs-on: ubuntu-latest
