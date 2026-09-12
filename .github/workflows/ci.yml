@@ -24,6 +24,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
       - name: Install dependencies
         # use --legacy-peer-deps to avoid peer dependency install failures in CI
         run: npm ci --legacy-peer-deps
