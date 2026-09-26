@@ -1,6 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "ignoreCommand": "bash -c '[[ \"$VERCEL_GIT_COMMIT_REF\" =~ ^dependabot/ ]] && exit 0 || exit 1'",
   "crons": [
+
     {
       "path": "/api/cron/penalize",
       "schedule": "59 23 * * *"
