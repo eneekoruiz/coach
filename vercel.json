@@ -5,5 +5,11 @@
       "path": "/api/cron/penalize",
       "schedule": "59 23 * * *"
     }
-  ]
+  ],
+  "functions": {
+    "src/app/api/**/*": {
+      "memory": 256,
+      "maxDuration": 10
+    }
+  }
 }
