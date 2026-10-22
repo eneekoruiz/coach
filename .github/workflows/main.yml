@@ -3,6 +3,11 @@ name: Main Pipeline
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.gitignore'
+      - 'LICENSE'
 
 env:
   GIT_LFS_SKIP_SMUDGE: '1'
@@ -14,6 +19,7 @@ concurrency:
 jobs:
   verify-and-deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     env:
       NEXT_PUBLIC_SUPABASE_URL: https://mock-project.supabase.co
       NEXT_PUBLIC_SUPABASE_ANON_KEY: mock-anon-key
@@ -48,20 +54,6 @@ jobs:
 
       - name: Playwright E2E
         run: npm run test:e2e
-        continue-on-error: true
 
       - name: Build
         run: npm run build
-
-      - name: Deploy to Vercel
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-        run: |
-          if [ -z "$VERCEL_TOKEN" ] || [ -z "$VERCEL_ORG_ID" ] || [ -z "$VERCEL_PROJECT_ID" ]; then
-            echo "Vercel secrets are not configured; skipping production deploy."
-            exit 0
-          fi
-          npx vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
-          npx vercel deploy --prod --token="$VERCEL_TOKEN"
