@@ -1,5 +1,24 @@
 import type { DietTemplate } from '@/lib/schema';
-import type { RoutineLog, RoutineTemplate } from '@/app/routines/actions';
+
+export type RoutineTemplate = {
+  id: string;
+  user_id: string;
+  title: string;
+  icon: string;
+  created_at: string;
+  time_of_day: string;
+  linked_habit_id?: number | null;
+  habit_increment_amount?: number | null;
+  target_repetitions?: number | null;
+  notification_times?: string[] | null;
+};
+
+export type RoutineLog = {
+  id: string;
+  user_id: string;
+  template_id: string;
+  completed_at: string;
+};
 
 type MockStore = {
   routines: {
@@ -17,77 +36,25 @@ declare global {
 }
 
 function createInitialStore(): MockStore {
-  const routineTemplateId = 'routine-water-1';
-  const nutritionTemplateId = 'diet-template-ai-1';
-
   return {
     routines: {
-      templates: [
-        {
-          id: routineTemplateId,
-          user_id: 'e2e-user',
-          title: 'Agua',
-          icon: '💧',
-          created_at: new Date().toISOString(),
-          time_of_day: 'all_day',
-          linked_habit_id: 1,
-          habit_increment_amount: 1,
-          target_repetitions: 5,
-          notification_times: ['09:00', '11:45', '14:30', '17:15', '20:00'],
-        },
-      ],
+      templates: [],
       logs: [],
     },
     nutrition: {
-      templates: [
-        {
-          id: nutritionTemplateId,
-          name: 'Mock Day',
-          parent_template_id: null,
-          target_kcal: 2100,
-          target_protein: 160,
-          target_carbs: 210,
-          target_fats: 70,
-          meals: [
-            {
-              id: 'meal-breakfast',
-              name: 'Desayuno',
-              text: 'Tortilla con avena y fruta',
-              target_kcal: 550,
-              target_protein: 35,
-              target_carbs: 60,
-              target_fats: 18,
-            },
-            {
-              id: 'meal-lunch',
-              name: 'Comida',
-              text: 'Pollo con arroz y verduras',
-              target_kcal: 780,
-              target_protein: 55,
-              target_carbs: 85,
-              target_fats: 20,
-            },
-            {
-              id: 'meal-dinner',
-              name: 'Cena',
-              text: 'Salmón con patata asada',
-              target_kcal: 770,
-              target_protein: 70,
-              target_carbs: 65,
-              target_fats: 32,
-            },
-          ],
-        },
-      ],
+      templates: [],
       calendar: [],
     },
   };
 }
 
-export function getE2EMockStore() {
+export function getE2EMockStore(): MockStore {
   if (!globalThis.__coachMockStore) {
     globalThis.__coachMockStore = createInitialStore();
   }
-
   return globalThis.__coachMockStore;
+}
+
+export function resetE2EMockStore(): void {
+  globalThis.__coachMockStore = createInitialStore();
 }
