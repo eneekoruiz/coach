@@ -3,174 +3,65 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { motion } from 'framer-motion';
-import { triggerVibration } from '@/lib/haptics';
-
-import { FEATURE_FLAGS } from '@/lib/config/features';
+import { Bot, CheckSquare, Utensils, Terminal, Settings } from 'lucide-react';
 
 export default function BottomNav() {
   const pathname = usePathname();
 
-  // Hide on auth and public routes
-  const isPublicRoute = ['/login', '/signup', '/auth/callback'].includes(pathname);
-  if (isPublicRoute) {
-    return null;
-  }
-
   const tabs = [
     {
-      name: 'Inicio',
+      name: 'Ellen',
       href: '/',
-      icon: (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-          <polyline points="9 22 9 12 15 12 15 22" />
-        </svg>
-      ),
+      icon: <Bot className="w-5 h-5" />,
     },
-    {
-      name: 'Nutrición',
-      href: '/nutrition',
-      icon: (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-          <path d="M12 2v20" />
-          <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-        </svg>
-      ),
-    },
-    {
-      name: 'Hábitos',
-      href: '/habits',
-      icon: (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-          <path d="M20 13c0 5-3.5 7.5-8 9-4.5-1.5-8-4-8-9V5l8-3 8 3v8z" />
-          <path d="M9 12l2 2 4-5" />
-        </svg>
-      ),
-    },
-    ...(FEATURE_FLAGS.enableGame
-      ? [
-          {
-            name: 'Academia',
-            href: '/quest',
-            icon: (
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 2L2 7l10 5 10-5-10-5z" />
-                <path d="M2 17l10 5 10-5" />
-                <path d="M2 12l10 5 10-5" />
-              </svg>
-            ),
-          },
-        ]
-      : []),
     {
       name: 'Tareas',
-      href: '/routines',
-      icon: (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-          <polyline points="9 11 12 14 22 4" />
-          <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
-        </svg>
-      ),
+      href: '/tasks',
+      icon: <CheckSquare className="w-5 h-5" />,
     },
     {
-      name: 'Ánimo',
-      href: '/mood',
-      icon: (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="10" />
-          <path d="M8 14s1.5 2 4 2 4-2 4-2" />
-          <line x1="9" y1="9" x2="9.01" y2="9" />
-          <line x1="15" y1="9" x2="15.01" y2="9" />
-        </svg>
-      ),
+      name: 'Recetas',
+      href: '/recipes',
+      icon: <Utensils className="w-5 h-5" />,
     },
     {
-      name: 'Estad.',
-      href: '/statistics',
-      icon: (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-          <path d="M21 6v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6" />
-          <path d="M7 10h10" />
-        </svg>
-      ),
+      name: 'Prompts',
+      href: '/prompts',
+      icon: <Terminal className="w-5 h-5" />,
     },
     {
-      name: 'LifeOS',
-      href: '/lifeos',
-      icon: (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-          <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-          <line x1="16" y1="2" x2="16" y2="6" />
-          <line x1="8" y1="2" x2="8" y2="6" />
-          <line x1="3" y1="10" x2="21" y2="10" />
-          <path d="M9 16l2 2 4-4" />
-        </svg>
-      ),
-    },
-    {
-      name: 'Sports',
-      href: '/sports',
-      icon: (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-          <path d="M6.5 6.5l11 11" />
-          <path d="M7.5 16.5l9-9" />
-          <path d="M4 9l5-5" />
-          <path d="M15 20l5-5" />
-        </svg>
-      ),
-    },
-    {
-      name: 'Perfil',
-      href: '/profile',
-      icon: (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-          <circle cx="12" cy="7" r="4" />
-        </svg>
-      ),
+      name: 'Ajustes',
+      href: '/settings',
+      icon: <Settings className="w-5 h-5" />,
     },
   ];
 
   return (
-    <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 h-20 px-4 pb-safe pt-2 pointer-events-none">
-      <div className="mx-auto h-16 max-w-md pointer-events-auto">
-        <nav className="flex h-16 items-center justify-between bg-white/90 backdrop-blur-xl border border-slate-200/50 rounded-full px-2 py-2 shadow-[0_8px_30px_rgb(0,0,0,0.08)]">
-          {tabs.map((tab) => {
-            const isActive = tab.href === '/' ? pathname === '/' : pathname === tab.href || pathname.startsWith(`${tab.href}/`);
-            return (
-              <Link
-                key={tab.name}
-                href={tab.href}
-                onClick={() => triggerVibration('light')}
-                className={`relative flex min-h-[44px] flex-col items-center justify-center transition-all duration-300 ${
-                  isActive ? 'flex-[1.6] px-2.5' : 'flex-1'
-                }`}
-              >
+    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-lg border-t border-slate-200 dark:border-slate-800 pb-[env(safe-area-inset-bottom)]">
+      <div className="max-w-md mx-auto flex items-center justify-around h-16 px-2">
+        {tabs.map((tab) => {
+          const isActive = pathname === tab.href;
+          return (
+            <Link
+              key={tab.href}
+              href={tab.href}
+              className={`flex flex-col items-center justify-center flex-1 py-1 transition-all duration-200 ${
+                isActive
+                  ? 'text-cyan-600 dark:text-cyan-400 font-bold scale-105'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 font-medium'
+              }`}
+            >
+              <div className="relative">
+                {tab.icon}
                 {isActive && (
-                  <motion.div
-                    layoutId="active-tab"
-                    className="absolute inset-0 bg-slate-100/90 rounded-full"
-                    transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                  />
+                  <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-cyan-500 rounded-full" />
                 )}
-                <div className={`relative z-10 w-5 h-5 transition-colors duration-200 ${isActive ? 'text-slate-900 mb-0.5' : 'text-slate-400'}`}>
-                  {tab.icon}
-                </div>
-                {isActive && (
-                  <motion.span
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="relative z-10 text-[9px] font-black uppercase tracking-wider text-slate-900 whitespace-nowrap"
-                  >
-                    {tab.name}
-                  </motion.span>
-                )}
-              </Link>
-            );
-          })}
-        </nav>
+              </div>
+              <span className="text-[10px] mt-1 tracking-tight">{tab.name}</span>
+            </Link>
+          );
+        })}
       </div>
-    </div>
+    </nav>
   );
 }

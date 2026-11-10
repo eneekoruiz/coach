@@ -6,43 +6,33 @@ import { Toaster } from 'sonner';
 import PWAInstallPrompt from '@/components/PWAInstallPrompt';
 import Sidebar from '@/components/Sidebar';
 import BottomNav from '@/components/BottomNav';
-import RouteTransitionShell from '@/components/RouteTransitionShell';
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://coach-mascota.vercel.app'),
-  title: 'Bio-Avatar | Tu Gemelo Digital Fisiológico',
-  description: 'Dashboard for daily habits, nutrition notes, mood and wellness routines.',
+  metadataBase: new URL('https://mi-coach-nutricional.vercel.app'),
+  title: 'Ellen | Asistente Personal Inteligente',
+  description: 'Bio-Avatar interactivo conectado a Recordatorios, Helen Prompts y Gestión de Hábitos.',
   manifest: '/manifest.webmanifest',
-  applicationName: 'BioAvatar',
+  applicationName: 'EllenAssistant',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'BioAvatar',
-  },
-  formatDetection: {
-    telephone: false,
+    title: 'Ellen',
   },
   openGraph: {
-    title: 'Bio-Avatar | Tu Gemelo Digital Fisiológico',
-    description: 'Daily wellness and habit tracking dashboard.',
-    url: 'https://coach-mascota.vercel.app',
-    siteName: 'Bio-Avatar',
+    title: 'Ellen | Asistente Personal Inteligente',
+    description: 'Bio-Avatar interactivo conectado a Recordatorios y Helen Prompts.',
+    url: 'https://mi-coach-nutricional.vercel.app',
+    siteName: 'Ellen Assistant',
     images: [
       {
         url: '/og-image.png',
         width: 1200,
         height: 630,
-        alt: 'Bio-Avatar dashboard preview',
+        alt: 'Ellen Assistant preview',
       },
     ],
     locale: 'es_ES',
     type: 'website',
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'Bio-Avatar | Tu Gemelo Digital Fisiológico',
-    description: 'Daily wellness and habit tracking dashboard.',
-    images: ['/og-image.png'],
   },
 };
 
@@ -52,38 +42,25 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: 'cover',
-  themeColor: '#ffffff',
+  themeColor: '#0ea5e9',
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="es" className="font-sans overflow-x-hidden" suppressHydrationWarning>
-      <body className="antialiased text-slate-900 bg-slate-50 selection:bg-cyan-500/30 overflow-hidden overflow-x-hidden overscroll-none h-[100dvh] w-full max-w-full flex flex-col md:flex-row pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
-        <Sidebar />
-        <main className="flex-1 flex flex-col min-h-0 min-w-0 relative overflow-hidden md:pb-0">
-          <RouteTransitionShell>{children}</RouteTransitionShell>
-        </main>
-        <Toaster
-          position="top-center"
-          style={{ top: 'calc(env(safe-area-inset-top, 44px) + 12px)' }}
-          toastOptions={{
-            classNames: {
-              toast:
-                'rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 shadow-xl ring-1 ring-slate-950/5',
-              title: 'text-sm font-black tracking-tight text-slate-950',
-              description: 'mt-1 text-xs font-semibold leading-5 text-slate-500',
-              actionButton:
-                'rounded-xl bg-slate-950 px-3 py-2 text-xs font-black text-white',
-              cancelButton:
-                'rounded-xl bg-slate-100 px-3 py-2 text-xs font-black text-slate-700',
-              error: 'border-rose-200 bg-rose-50 text-rose-950',
-              success: 'border-emerald-200 bg-emerald-50 text-emerald-950',
-              warning: 'border-amber-200 bg-amber-50 text-amber-950',
-            },
-          }}
-        />
+    <html lang="es" className="h-full overflow-x-hidden" suppressHydrationWarning>
+      <body className="h-full w-full max-w-full overflow-x-hidden bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans antialiased selection:bg-cyan-500/20">
+        <div className="flex h-full w-full max-w-full overflow-hidden">
+          <Sidebar />
+          <div className="flex-1 flex flex-col min-w-0 h-full overflow-y-auto pb-20 md:pb-6">
+            <main className="flex-1 flex flex-col min-h-0 w-full max-w-5xl mx-auto px-4 py-4 sm:px-6">
+              {children}
+            </main>
+          </div>
+        </div>
+
         <BottomNav />
         <PWAInstallPrompt />
+        <Toaster position="top-right" richColors />
       </body>
     </html>
   );

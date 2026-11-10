@@ -3,175 +3,80 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { motion } from 'framer-motion';
-
-import { FEATURE_FLAGS } from '@/lib/config/features';
+import { Bot, CheckSquare, Utensils, Terminal, Settings } from 'lucide-react';
 
 export default function Sidebar() {
   const pathname = usePathname();
 
-  // Hide on auth and public routes
-  const isPublicRoute = ['/login', '/signup', '/auth/callback'].includes(pathname);
-  if (isPublicRoute) {
-    return null;
-  }
-
-  const tabs = [
+  const links = [
     {
-      name: 'Inicio',
+      name: 'Ellen Asistente',
       href: '/',
-      icon: (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-          <polyline points="9 22 9 12 15 12 15 22" />
-        </svg>
-      ),
+      icon: <Bot className="w-5 h-5" />,
     },
     {
-      name: 'Nutrición',
-      href: '/nutrition',
-      icon: (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-          <path d="M12 2v20" />
-          <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-        </svg>
-      ),
+      name: 'Tareas & Agenda',
+      href: '/tasks',
+      icon: <CheckSquare className="w-5 h-5" />,
     },
     {
-      name: 'Hábitos',
-      href: '/habits',
-      icon: (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-          <path d="M20 13c0 5-3.5 7.5-8 9-4.5-1.5-8-4-8-9V5l8-3 8 3v8z" />
-          <path d="M9 12l2 2 4-5" />
-        </svg>
-      ),
-    },
-    ...(FEATURE_FLAGS.enableGame
-      ? [
-          {
-            name: 'Academia',
-            href: '/quest',
-            icon: (
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 2L2 7l10 5 10-5-10-5z" />
-                <path d="M2 17l10 5 10-5" />
-                <path d="M2 12l10 5 10-5" />
-              </svg>
-            ),
-          },
-        ]
-      : []),
-    {
-      name: 'Tareas',
-      href: '/routines',
-      icon: (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-          <polyline points="9 11 12 14 22 4" />
-          <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
-        </svg>
-      ),
+      name: 'Recetas & Cocina',
+      href: '/recipes',
+      icon: <Utensils className="w-5 h-5" />,
     },
     {
-      name: 'Ánimo',
-      href: '/mood',
-      icon: (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="10" />
-          <path d="M8 14s1.5 2 4 2 4-2 4-2" />
-          <line x1="9" y1="9" x2="9.01" y2="9" />
-          <line x1="15" y1="9" x2="15.01" y2="9" />
-        </svg>
-      ),
+      name: 'Prompts Helen',
+      href: '/prompts',
+      icon: <Terminal className="w-5 h-5" />,
     },
     {
-      name: 'Estadísticas',
-      href: '/statistics',
-      icon: (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-          <path d="M21 6v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6" />
-          <path d="M7 10h10" />
-        </svg>
-      ),
-    },
-    {
-      name: 'LifeOS',
-      href: '/lifeos',
-      icon: (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-          <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-          <line x1="16" y1="2" x2="16" y2="6" />
-          <line x1="8" y1="2" x2="8" y2="6" />
-          <line x1="3" y1="10" x2="21" y2="10" />
-          <path d="M9 16l2 2 4-4" />
-        </svg>
-      ),
-    },
-    {
-      name: 'Sports',
-      href: '/sports',
-      icon: (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-          <path d="M6.5 6.5l11 11" />
-          <path d="M7.5 16.5l9-9" />
-          <path d="M4 9l5-5" />
-          <path d="M15 20l5-5" />
-        </svg>
-      ),
-    },
-    {
-      name: 'Perfil',
-      href: '/profile',
-      icon: (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-          <circle cx="12" cy="7" r="4" />
-        </svg>
-      ),
+      name: 'Ajustes',
+      href: '/settings',
+      icon: <Settings className="w-5 h-5" />,
     },
   ];
 
   return (
-    <aside className="hidden md:flex h-[100dvh] w-20 flex-col overflow-hidden border-r border-slate-100 bg-white shadow-sm z-40 lg:w-64">
-      <div className="flex-1 flex flex-col pt-8 pb-6 px-4 lg:px-6 gap-4">
-        <Link
-          href="/profile"
-          className="flex items-center justify-center lg:justify-start px-2 mb-8 hover:opacity-80 transition-opacity cursor-pointer"
-        >
-          <div className="w-10 h-10 rounded-xl bg-slate-900 flex items-center justify-center text-white font-black text-xl shadow-md">
-            B
-          </div>
-          <span className="hidden lg:block ml-3 font-black text-xl text-slate-800 tracking-tight">
-            BioAvatar
-          </span>
-        </Link>
+    <aside className="hidden md:flex flex-col w-64 bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border-r border-slate-200 dark:border-slate-800 p-4 shrink-0">
+      <div className="flex items-center gap-3 px-2 py-4 mb-4 border-b border-slate-200 dark:border-slate-800">
+        <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-cyan-500 to-sky-400 flex items-center justify-center text-white font-bold shadow-md">
+          E
+        </div>
+        <div>
+          <h2 className="font-bold text-sm text-slate-900 dark:text-white leading-tight">
+            Ellen Dashboard
+          </h2>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400">
+            Powered by Helen
+          </p>
+        </div>
+      </div>
 
-        <nav className="flex flex-col gap-2">
-          {tabs.map((tab) => {
-            const isActive = tab.href === '/' ? pathname === '/' : pathname === tab.href || pathname.startsWith(`${tab.href}/`);
-            return (
-              <Link
-                key={tab.name}
-                href={tab.href}
-                className={`relative flex min-h-[44px] items-center p-3 rounded-2xl group transition-all duration-200 ease-in-out ${!isActive ? 'hover:bg-slate-50' : ''}`}
-              >
-                {isActive && (
-                  <motion.div
-                    layoutId="active-sidebar-tab"
-                    className="absolute inset-0 bg-slate-900 rounded-2xl"
-                    transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                  />
-                )}
-                <div className={`relative z-10 w-6 h-6 lg:mr-3 transition-colors duration-200 flex-shrink-0 ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-900'}`}>
-                  {tab.icon}
-                </div>
-                <span className={`hidden lg:block relative z-10 text-sm font-bold tracking-tight transition-colors duration-200 ${isActive ? 'text-white' : 'text-slate-500 group-hover:text-slate-900'}`}>
-                  {tab.name}
-                </span>
-              </Link>
-            );
-          })}
-        </nav>
+      <nav className="flex-1 space-y-1">
+        {links.map((link) => {
+          const isActive = pathname === link.href;
+          return (
+            <Link
+              key={link.href}
+              href={link.href}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+                isActive
+                  ? 'bg-cyan-50 text-cyan-700 dark:bg-cyan-950/50 dark:text-cyan-400 shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60'
+              }`}
+            >
+              {link.icon}
+              <span>{link.name}</span>
+            </Link>
+          );
+        })}
+      </nav>
+
+      <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 text-[11px] text-slate-500 dark:text-slate-400">
+        <p className="font-semibold text-slate-700 dark:text-slate-300">
+          Recordatorios Sync
+        </p>
+        <p className="mt-0.5 text-[10px]">PWA conectada a Vercel y Helen.</p>
       </div>
     </aside>
   );
